@@ -55,7 +55,43 @@ impl AgentBackend for ClaudeBackend {
                 content: format!("Plan the next step for this Praxis session:\n\n{target}"),
             }],
         };
+        self.send_request(request)
+    }
 
+    fn finalize_action(
+        &self,
+        planned_summary: &str,
+        goal: Option<&Goal>,
+        task: Option<&str>,
+    ) -> Result<String> {
+        let target = render_target(goal, task)?;
+        let request = ClaudeRequest {
+            model: self.model.clone(),
+            max_tokens: 180,
+            system: "You are Praxis in the act phase. Write one concise operator-facing progress note. Do not claim external actions happened unless explicitly stated in the prompt.",
+            messages: vec![ClaudeMessage {
+                role: "user".to_string(),
+                content: format!(
+                    "Task context:\n{target}\n\nPlanned summary:\n{planned_summary}\n\nReturn a single concise status update."
+                ),
+            }],
+        };
+        self.send_request(request)
+    }
+}
+
+fn render_target(goal: Option<&Goal>, task: Option<&str>) -> Result<String> {
+    if let Some(task) = task {
+        return Ok(format!("Operator task: {task}"));
+    }
+    if let Some(goal) = goal {
+        return Ok(format!("Goal {}: {}", goal.id, goal.title));
+    }
+    bail!("Claude backend needs a goal or task to plan")
+}
+
+impl ClaudeBackend {
+    fn send_request(&self, request: ClaudeRequest) -> Result<String> {
         let response = self
             .client
             .post(ANTHROPIC_URL)
@@ -74,7 +110,7 @@ impl AgentBackend for ClaudeBackend {
         let parsed = response
             .json::<ClaudeResponse>()
             .context("failed to parse Claude backend response")?;
-        let summary = parsed
+        parsed
             .content
             .into_iter()
             .find_map(|block| match block {
@@ -82,19 +118,8 @@ impl AgentBackend for ClaudeBackend {
                 ClaudeContent::Other => None,
             })
             .filter(|text| !text.is_empty())
-            .context("Claude backend returned no text content")?;
-        Ok(summary)
+            .context("Claude backend returned no text content")
     }
-}
-
-fn render_target(goal: Option<&Goal>, task: Option<&str>) -> Result<String> {
-    if let Some(task) = task {
-        return Ok(format!("Operator task: {task}"));
-    }
-    if let Some(goal) = goal {
-        return Ok(format!("Goal {}: {}", goal.id, goal.title));
-    }
-    bail!("Claude backend needs a goal or task to plan")
 }
 
 #[derive(Debug, Serialize)]

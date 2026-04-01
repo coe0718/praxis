@@ -45,6 +45,9 @@ fn run_once_records_goal_session_and_updates_status() {
         .arg("status")
         .assert()
         .success()
+        .stdout(predicate::str::contains("backend: stub"))
+        .stdout(predicate::str::contains("registered_tools: 2"))
+        .stdout(predicate::str::contains("event_count:"))
         .stdout(predicate::str::contains("phase: sleep"))
         .stdout(predicate::str::contains("last_session: #1 goal_selected"));
 }

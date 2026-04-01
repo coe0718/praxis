@@ -82,6 +82,15 @@ fn doctor_reports_healthy_and_broken_setups() {
         .stdout(predicate::str::contains("doctor: ok"))
         .stdout(predicate::str::contains("tools: ok"));
 
+    praxis_command()
+        .arg("--data-dir")
+        .arg(&data_dir)
+        .arg("status")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("registered_tools: 2"))
+        .stdout(predicate::str::contains("backend: stub"));
+
     fs::remove_file(data_dir.join("GOALS.md")).unwrap();
 
     praxis_command()

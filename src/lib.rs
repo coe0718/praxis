@@ -9,6 +9,7 @@ pub mod r#loop;
 pub mod memory;
 pub mod messaging;
 pub mod paths;
+pub mod report;
 pub mod state;
 pub mod storage;
 pub mod time;

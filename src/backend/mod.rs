@@ -11,6 +11,12 @@ pub use claude::ClaudeBackend;
 pub trait AgentBackend {
     fn name(&self) -> &'static str;
     fn plan_action(&self, goal: Option<&Goal>, task: Option<&str>) -> Result<String>;
+    fn finalize_action(
+        &self,
+        planned_summary: &str,
+        goal: Option<&Goal>,
+        task: Option<&str>,
+    ) -> Result<String>;
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -53,6 +59,18 @@ impl AgentBackend for ConfiguredBackend {
             Self::Claude(inner) => inner.plan_action(goal, task),
         }
     }
+
+    fn finalize_action(
+        &self,
+        planned_summary: &str,
+        goal: Option<&Goal>,
+        task: Option<&str>,
+    ) -> Result<String> {
+        match self {
+            Self::Stub(inner) => inner.finalize_action(planned_summary, goal, task),
+            Self::Claude(inner) => inner.finalize_action(planned_summary, goal, task),
+        }
+    }
 }
 
 impl AgentBackend for StubBackend {
@@ -74,5 +92,16 @@ impl AgentBackend for StubBackend {
         };
 
         Ok(summary)
+    }
+
+    fn finalize_action(
+        &self,
+        planned_summary: &str,
+        _goal: Option<&Goal>,
+        _task: Option<&str>,
+    ) -> Result<String> {
+        Ok(format!(
+            "{planned_summary} Act phase completed without external side effects."
+        ))
     }
 }

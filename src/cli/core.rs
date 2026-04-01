@@ -10,8 +10,8 @@ use crate::{
     identity::{IdentityPolicy, LocalIdentityPolicy, MarkdownGoalParser},
     r#loop::{PraxisRuntime, RunOptions},
     paths::{PraxisPaths, default_data_dir},
-    state::{SessionPhase, SessionState},
-    storage::{ApprovalStatus, ApprovalStore, SessionStore, SqliteSessionStore},
+    report::{build_status_report, render_status_report},
+    storage::{SessionStore, SqliteSessionStore},
     time::{Clock, SystemClock, parse_timezone},
     tools::{FileToolRegistry, ToolRegistry},
 };
@@ -121,46 +121,7 @@ pub(crate) fn handle_status(data_dir_override: Option<PathBuf>) -> Result<String
 
     let config = AppConfig::load(&base_paths.config_file)?.with_overridden_data_dir(data_dir);
     let paths = PraxisPaths::from_config(&config);
-    let state = SessionState::load(&paths.state_file)?;
-    let store = SqliteSessionStore::new(paths.database_file.clone());
-    let last_session = store.last_session()?;
-    let pending_approvals = store.list_approvals(Some(ApprovalStatus::Pending))?.len();
-
-    let phase = state
-        .as_ref()
-        .map(|current| current.current_phase.to_string())
-        .unwrap_or_else(|| SessionPhase::Sleep.to_string());
-    let outcome = state
-        .as_ref()
-        .and_then(|current| current.last_outcome.clone())
-        .unwrap_or_else(|| "none".to_string());
-
-    let mut output = String::new();
-    writeln!(output, "status: ready")?;
-    writeln!(output, "data_dir: {}", paths.data_dir.display())?;
-    writeln!(output, "phase: {phase}")?;
-    writeln!(output, "last_outcome: {outcome}")?;
-    writeln!(output, "pending_approvals: {pending_approvals}")?;
-
-    if let Some(current) = state
-        .as_ref()
-        .and_then(|current| current.selected_tool_name.as_deref())
-    {
-        writeln!(output, "selected_tool: {current}")?;
-    }
-
-    if let Some(session) = last_session {
-        writeln!(
-            output,
-            "last_session: #{} {}",
-            session.session_num, session.outcome
-        )?;
-        writeln!(output, "last_session_ended_at: {}", session.ended_at)?;
-    } else {
-        writeln!(output, "last_session: none")?;
-    }
-
-    Ok(output)
+    Ok(render_status_report(&build_status_report(&config, &paths)?))
 }
 
 pub(crate) fn handle_doctor(data_dir_override: Option<PathBuf>) -> Result<String> {
