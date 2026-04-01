@@ -1,10 +1,13 @@
+pub mod backend;
 pub mod cli;
 pub mod config;
 pub mod context;
+pub mod dashboard;
 pub mod events;
 pub mod identity;
 pub mod r#loop;
 pub mod memory;
+pub mod messaging;
 pub mod paths;
 pub mod state;
 pub mod storage;

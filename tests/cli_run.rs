@@ -36,6 +36,8 @@ fn run_once_records_goal_session_and_updates_status() {
 
     let metrics = std::fs::read_to_string(data_dir.join("METRICS.md")).unwrap();
     assert!(metrics.contains("| 1 | goal_selected |"));
+    let events = std::fs::read_to_string(data_dir.join("events.jsonl")).unwrap();
+    assert!(events.contains("agent:orient_start"));
 
     praxis_command()
         .arg("--data-dir")

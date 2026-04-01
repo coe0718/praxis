@@ -9,7 +9,7 @@ use crate::{
 
 use super::core::load_initialized_config;
 
-pub(super) fn handle_queue(data_dir_override: Option<PathBuf>, args: QueueArgs) -> Result<String> {
+pub(crate) fn handle_queue(data_dir_override: Option<PathBuf>, args: QueueArgs) -> Result<String> {
     let (_, paths) = load_initialized_config(data_dir_override)?;
     let store = SqliteSessionStore::new(paths.database_file.clone());
     store.initialize()?;
@@ -39,7 +39,7 @@ pub(super) fn handle_queue(data_dir_override: Option<PathBuf>, args: QueueArgs) 
         .join("\n"))
 }
 
-pub(super) fn handle_approval_action(
+pub(crate) fn handle_approval_action(
     data_dir_override: Option<PathBuf>,
     args: ApprovalActionArgs,
     status: ApprovalStatus,

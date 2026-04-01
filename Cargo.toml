@@ -6,13 +6,18 @@ description = "A self-evolving personal AI agent foundation"
 license = "MIT"
 
 [dependencies]
+async-stream = "0.3"
 anyhow = "1"
+axum = { version = "0.7", features = ["json"] }
 chrono = { version = "0.4", features = ["clock", "serde"] }
 chrono-tz = "0.10"
 clap = { version = "4.5", features = ["derive"] }
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+tokio = { version = "1", features = ["fs", "macros", "rt-multi-thread", "time"] }
+tokio-stream = "0.1"
 toml = "0.8"
 
 [dev-dependencies]

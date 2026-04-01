@@ -1,5 +1,9 @@
+mod file;
+
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+
+pub use file::{FileEventSink, read_events_since};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Event {

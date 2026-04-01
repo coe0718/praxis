@@ -1,5 +1,7 @@
-mod approvals;
-mod core;
+pub(crate) mod approvals;
+pub(crate) mod core;
+mod serve;
+mod telegram;
 mod tools;
 
 use std::path::PathBuf;
@@ -27,6 +29,8 @@ pub enum Commands {
     Queue(QueueArgs),
     Approve(ApprovalActionArgs),
     Reject(ApprovalActionArgs),
+    Telegram(telegram::TelegramArgs),
+    Serve(serve::ServeArgs),
     Tools(tools::ToolsArgs),
 }
 
@@ -92,6 +96,8 @@ fn execute(cli: Cli) -> Result<String> {
             args,
             crate::storage::ApprovalStatus::Rejected,
         ),
+        Commands::Telegram(args) => telegram::handle_telegram(cli.data_dir, args),
+        Commands::Serve(args) => serve::handle_serve(cli.data_dir, args),
         Commands::Tools(args) => tools::handle_tools(cli.data_dir, args),
     }
 }

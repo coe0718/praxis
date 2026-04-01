@@ -15,9 +15,18 @@ fn saves_and_loads_valid_config() {
 }
 
 #[test]
-fn rejects_invalid_backend() {
+fn accepts_claude_backend() {
     let mut config = AppConfig::default_for_data_dir("/tmp/praxis".into());
     config.agent.backend = "claude".to_string();
+    config.agent.model_pin = Some("claude-3-5-sonnet-latest".to_string());
+
+    config.validate().unwrap();
+}
+
+#[test]
+fn rejects_invalid_backend() {
+    let mut config = AppConfig::default_for_data_dir("/tmp/praxis".into());
+    config.agent.backend = "gpt".to_string();
 
     let error = config.validate().unwrap_err().to_string();
     assert!(error.contains("agent.backend"));

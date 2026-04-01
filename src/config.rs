@@ -49,6 +49,7 @@ pub struct SecurityConfig {
 pub struct AgentConfig {
     pub backend: String,
     pub context_ceiling_pct: f32,
+    pub model_pin: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -103,6 +104,7 @@ impl AppConfig {
             agent: AgentConfig {
                 backend: "stub".to_string(),
                 context_ceiling_pct: 0.80,
+                model_pin: None,
             },
             context: ContextConfig::default(),
         }
@@ -141,9 +143,9 @@ impl AppConfig {
             bail!("security.level must be between 1 and 4");
         }
 
-        if self.agent.backend != "stub" {
+        if !matches!(self.agent.backend.as_str(), "stub" | "claude") {
             bail!(
-                "agent.backend must be \"stub\" for the foundation milestone, got {}",
+                "agent.backend must be \"stub\" or \"claude\", got {}",
                 self.agent.backend
             );
         }
@@ -152,6 +154,16 @@ impl AppConfig {
             || self.agent.context_ceiling_pct == 0.0
         {
             bail!("agent.context_ceiling_pct must be greater than 0.0 and at most 1.0");
+        }
+
+        if self.agent.backend == "claude"
+            && self
+                .agent
+                .model_pin
+                .as_deref()
+                .is_some_and(|model| model.trim().is_empty())
+        {
+            bail!("agent.model_pin must not be blank when provided");
         }
 
         if self.database.path.as_os_str().is_empty() {
