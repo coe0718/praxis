@@ -117,6 +117,8 @@ cargo fmt
 cargo test
 ```
 
+GitHub Actions runs `cargo fmt --check`, `cargo test --locked`, `docker compose config`, and a Docker smoke build on pushes to `main` and on pull requests.
+
 ## Philosophy
 
 - One instance per person
