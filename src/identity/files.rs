@@ -25,9 +25,11 @@ impl IdentityPolicy for LocalIdentityPolicy {
             .with_context(|| format!("failed to create {}", paths.data_dir.display()))?;
         fs::create_dir_all(&paths.goals_criteria_dir)
             .with_context(|| format!("failed to create {}", paths.goals_criteria_dir.display()))?;
+        fs::create_dir_all(&paths.evals_dir)
+            .with_context(|| format!("failed to create {}", paths.evals_dir.display()))?;
 
         for (path, contents) in foundation_documents(paths, config, now) {
-            write_if_missing(path, contents)?;
+            write_if_missing(&path, contents)?;
         }
 
         Ok(())
@@ -95,57 +97,104 @@ impl IdentityPolicy for LocalIdentityPolicy {
     }
 }
 
-fn foundation_documents<'a>(
-    paths: &'a PraxisPaths,
+fn foundation_documents(
+    paths: &PraxisPaths,
     config: &AppConfig,
     now: DateTime<Utc>,
-) -> Vec<(&'a Path, String)> {
+) -> Vec<(std::path::PathBuf, String)> {
     vec![
         (
-            &paths.identity_file,
+            paths.identity_file.clone(),
             format!(
                 "# Identity\n\n- Name: {}\n- Timezone: {}\n- Role: A local Praxis instance in foundation mode.\n",
                 config.instance.name, config.instance.timezone
             ),
         ),
         (
-            &paths.goals_file,
+            paths.goals_file.clone(),
             "# Goals\n\n- [ ] G-001: Complete the first Praxis foundation run\n".to_string(),
         ),
         (
-            &paths.roadmap_file,
+            paths.roadmap_file.clone(),
             "# Roadmap\n\n- Foundation milestone in progress.\n".to_string(),
         ),
         (
-            &paths.journal_file,
+            paths.journal_file.clone(),
             format!(
                 "# Journal\n\n## Day 0\n- Initialized Praxis foundation on {}.\n",
                 now.to_rfc3339()
             ),
         ),
         (
-            &paths.metrics_file,
+            paths.metrics_file.clone(),
             "# Metrics\n\n| Session | Outcome | Goal | Task | Ended At |\n| --- | --- | --- | --- | --- |\n"
                 .to_string(),
         ),
         (
-            &paths.patterns_file,
+            paths.patterns_file.clone(),
             "# Patterns\n\n- No patterns captured yet.\n".to_string(),
         ),
         (
-            &paths.learnings_file,
+            paths.learnings_file.clone(),
             "# Learnings\n\n- No learnings captured yet.\n".to_string(),
         ),
         (
-            &paths.capabilities_file,
+            paths.capabilities_file.clone(),
             "# Capabilities\n\n- CLI foundation\n- SQLite session storage\n- Resumable loop state\n"
                 .to_string(),
         ),
         (
-            &paths.proposals_file,
+            paths.proposals_file.clone(),
             "# Proposals\n\n- No pending proposals.\n".to_string(),
         ),
-        (&paths.day_count_file, "0\n".to_string()),
+        (paths.day_count_file.clone(), "0\n".to_string()),
+        (
+            paths.goals_criteria_dir.join("G-001.json"),
+            r#"{
+  "goal_id": "G-001",
+  "done_when": [
+    "Core Praxis foundation files exist",
+    "The local SQLite database exists",
+    "Default tool manifests are present"
+  ],
+  "verify_with": "shell",
+  "commands": [
+    "test -f IDENTITY.md",
+    "test -f praxis.db",
+    "test -f tools/praxis-data-write.toml"
+  ]
+}
+"#
+            .to_string(),
+        ),
+        (
+            paths.evals_dir.join("foundation-smoke.json"),
+            r#"{
+  "id": "foundation-smoke",
+  "name": "Foundation runtime files stay healthy",
+  "when": "always",
+  "severity": "functional",
+  "scenario": "After a session, Praxis should still have the minimum local foundation files it needs.",
+  "expected_behavior": [
+    "Identity and metrics files are present",
+    "The SQLite database remains available"
+  ],
+  "forbidden_behavior": [
+    "Core foundation files disappear during a session"
+  ],
+  "relevant_memories": [
+    "foundation milestone"
+  ],
+  "verify_with": "shell",
+  "commands": [
+    "test -f IDENTITY.md",
+    "test -f METRICS.md",
+    "test -f praxis.db"
+  ]
+}
+"#
+            .to_string(),
+        ),
     ]
 }
 

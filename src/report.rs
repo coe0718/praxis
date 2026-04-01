@@ -6,7 +6,7 @@ use crate::{
     events::{Event, read_events_since},
     paths::PraxisPaths,
     state::{SessionPhase, SessionState},
-    storage::{ApprovalStatus, ApprovalStore, SessionStore, SqliteSessionStore},
+    storage::{ApprovalStatus, ApprovalStore, QualityStore, SessionStore, SqliteSessionStore},
     tools::{FileToolRegistry, ToolRegistry},
 };
 
@@ -21,6 +21,8 @@ pub struct StatusReport {
     pub registered_tools: usize,
     pub selected_tool: Option<String>,
     pub last_session: Option<LastSessionReport>,
+    pub last_review_status: Option<String>,
+    pub last_eval: Option<LastEvalReport>,
     pub event_count: usize,
     pub last_event: Option<Event>,
 }
@@ -32,12 +34,22 @@ pub struct LastSessionReport {
     pub ended_at: String,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct LastEvalReport {
+    pub passed: i64,
+    pub failed: i64,
+    pub skipped: i64,
+    pub trust_failures: i64,
+}
+
 pub fn build_status_report(config: &AppConfig, paths: &PraxisPaths) -> Result<StatusReport> {
     let state = SessionState::load(&paths.state_file)?;
     let store = SqliteSessionStore::new(paths.database_file.clone());
     let last_session = store.last_session()?;
     let pending_approvals = store.list_approvals(Some(ApprovalStatus::Pending))?.len();
     let registered_tools = FileToolRegistry.list(paths)?.len();
+    let last_review = store.last_review()?;
+    let last_eval = store.latest_eval_summary()?;
     let (events, _) = read_events_since(&paths.events_file, 0)?;
 
     Ok(StatusReport {
@@ -59,6 +71,13 @@ pub fn build_status_report(config: &AppConfig, paths: &PraxisPaths) -> Result<St
             session_num: session.session_num,
             outcome: session.outcome,
             ended_at: session.ended_at,
+        }),
+        last_review_status: last_review.map(|review| review.status.as_str().to_string()),
+        last_eval: last_eval.map(|summary| LastEvalReport {
+            passed: summary.passed,
+            failed: summary.failed,
+            skipped: summary.skipped,
+            trust_failures: summary.trust_failures,
         }),
         event_count: events.len(),
         last_event: events.last().cloned(),
@@ -94,6 +113,17 @@ pub fn render_status_report(report: &StatusReport) -> String {
         lines.push(format!("last_session_ended_at: {}", session.ended_at));
     } else {
         lines.push("last_session: none".to_string());
+    }
+
+    if let Some(review_status) = &report.last_review_status {
+        lines.push(format!("last_review: {review_status}"));
+    }
+
+    if let Some(eval) = &report.last_eval {
+        lines.push(format!(
+            "last_eval: passed={} failed={} skipped={} trust_failures={}",
+            eval.passed, eval.failed, eval.skipped, eval.trust_failures
+        ));
     }
 
     lines.join("\n")

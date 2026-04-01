@@ -1,5 +1,6 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
 mod sqlite;
 
@@ -10,6 +11,14 @@ pub trait SessionStore {
     fn validate_schema(&self) -> Result<()>;
     fn record_session(&self, record: &SessionRecord) -> Result<StoredSession>;
     fn last_session(&self) -> Result<Option<StoredSession>>;
+}
+
+pub trait QualityStore {
+    fn update_session_quality(&self, session_id: i64, update: &SessionQualityUpdate) -> Result<()>;
+    fn record_review(&self, record: &ReviewRecord) -> Result<StoredReview>;
+    fn last_review(&self) -> Result<Option<StoredReview>>;
+    fn record_eval_run(&self, record: &EvalRunRecord) -> Result<()>;
+    fn latest_eval_summary(&self) -> Result<Option<StoredEvalSummary>>;
 }
 
 pub trait ApprovalStore {
@@ -51,6 +60,118 @@ pub struct StoredSession {
     pub selected_goal_title: Option<String>,
     pub selected_task: Option<String>,
     pub action_summary: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct SessionQualityUpdate {
+    pub outcome: String,
+    pub action_summary: String,
+    pub reviewer_passes: i64,
+    pub reviewer_failures: i64,
+    pub eval_passes: i64,
+    pub eval_failures: i64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReviewStatus {
+    Passed,
+    Failed,
+    Skipped,
+}
+
+impl ReviewStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ReviewStatus::Passed => "passed",
+            ReviewStatus::Failed => "failed",
+            ReviewStatus::Skipped => "skipped",
+        }
+    }
+
+    pub fn parse(value: &str) -> std::result::Result<Self, String> {
+        match value {
+            "passed" => Ok(Self::Passed),
+            "failed" => Ok(Self::Failed),
+            "skipped" => Ok(Self::Skipped),
+            _ => Err(format!("unknown review status {value}")),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ReviewRecord {
+    pub session_id: i64,
+    pub goal_id: Option<String>,
+    pub status: ReviewStatus,
+    pub summary: String,
+    pub findings_json: String,
+    pub reviewed_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoredReview {
+    pub id: i64,
+    pub session_id: i64,
+    pub goal_id: Option<String>,
+    pub status: ReviewStatus,
+    pub summary: String,
+    pub findings_json: String,
+    pub reviewed_at: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EvalStatus {
+    Passed,
+    Failed,
+    Skipped,
+}
+
+impl EvalStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            EvalStatus::Passed => "passed",
+            EvalStatus::Failed => "failed",
+            EvalStatus::Skipped => "skipped",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum EvalSeverity {
+    Cosmetic,
+    Functional,
+    TrustDamaging,
+}
+
+impl EvalSeverity {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            EvalSeverity::Cosmetic => "cosmetic",
+            EvalSeverity::Functional => "functional",
+            EvalSeverity::TrustDamaging => "trust_damaging",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct EvalRunRecord {
+    pub session_id: i64,
+    pub eval_id: String,
+    pub eval_name: String,
+    pub status: EvalStatus,
+    pub severity: EvalSeverity,
+    pub summary: String,
+    pub evaluated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoredEvalSummary {
+    pub session_id: i64,
+    pub passed: i64,
+    pub failed: i64,
+    pub skipped: i64,
+    pub trust_failures: i64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

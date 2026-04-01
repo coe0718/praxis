@@ -7,7 +7,7 @@ use crate::{
     memory::MemoryStore,
     paths::PraxisPaths,
     state::{SessionPhase, SessionState},
-    storage::{ApprovalStore, SessionStore},
+    storage::{ApprovalStore, QualityStore, SessionStore},
     time::Clock,
     tools::ToolRegistry,
 };
@@ -33,7 +33,7 @@ where
     E: EventSink,
     G: GoalParser,
     I: IdentityPolicy,
-    S: SessionStore + MemoryStore + ApprovalStore,
+    S: SessionStore + MemoryStore + ApprovalStore + QualityStore,
     T: ToolRegistry,
 {
     pub fn run_once(&self, options: RunOptions) -> Result<RunSummary> {

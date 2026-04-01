@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, bail};
 use chrono::Utc;
-use rusqlite::{OptionalExtension, params};
+use rusqlite::{Connection, OptionalExtension, params};
 
 use super::SqliteSessionStore;
 
@@ -68,14 +68,41 @@ pub(super) fn initialize(store: &SqliteSessionStore) -> Result<()> {
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS review_runs (
+                id INTEGER PRIMARY KEY,
+                session_id INTEGER NOT NULL,
+                goal_id TEXT,
+                status TEXT NOT NULL,
+                summary TEXT NOT NULL,
+                findings_json TEXT NOT NULL DEFAULT '[]',
+                reviewed_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS eval_runs (
+                id INTEGER PRIMARY KEY,
+                session_id INTEGER NOT NULL,
+                eval_id TEXT NOT NULL,
+                eval_name TEXT NOT NULL,
+                status TEXT NOT NULL,
+                severity TEXT NOT NULL,
+                summary TEXT NOT NULL,
+                evaluated_at TEXT NOT NULL
+            );
             ",
         )
         .context("failed to initialize SQLite schema")?;
+    ensure_session_column(&connection, "reviewer_passes", "INTEGER NOT NULL DEFAULT 0")?;
+    ensure_session_column(
+        &connection,
+        "reviewer_failures",
+        "INTEGER NOT NULL DEFAULT 0",
+    )?;
+    ensure_session_column(&connection, "eval_passes", "INTEGER NOT NULL DEFAULT 0")?;
+    ensure_session_column(&connection, "eval_failures", "INTEGER NOT NULL DEFAULT 0")?;
 
     connection
         .execute(
             "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?1, ?2)",
-            params![3_i64, Utc::now().to_rfc3339()],
+            params![4_i64, Utc::now().to_rfc3339()],
         )
         .context("failed to register schema migration")?;
     Ok(())
@@ -93,9 +120,9 @@ pub(super) fn validate(store: &SqliteSessionStore) -> Result<()> {
         })
         .optional()
         .context("failed to query schema migrations")?;
-    if version.unwrap_or_default() < 3 {
+    if version.unwrap_or_default() < 4 {
         bail!(
-            "expected schema migration version 3 in {}",
+            "expected schema migration version 4 in {}",
             store.path.display()
         );
     }
@@ -107,6 +134,8 @@ pub(super) fn validate(store: &SqliteSessionStore) -> Result<()> {
         "cold_memories",
         "cold_fts",
         "approval_requests",
+        "review_runs",
+        "eval_runs",
     ] {
         let table: Option<String> = connection
             .query_row(
@@ -125,5 +154,29 @@ pub(super) fn validate(store: &SqliteSessionStore) -> Result<()> {
         }
     }
 
+    Ok(())
+}
+
+fn ensure_session_column(connection: &Connection, name: &str, definition: &str) -> Result<()> {
+    let mut statement = connection
+        .prepare("PRAGMA table_info(sessions)")
+        .context("failed to inspect sessions table")?;
+    let mut rows = statement
+        .query([])
+        .context("failed to query sessions table")?;
+
+    while let Some(row) = rows.next().context("failed to read sessions columns")? {
+        let column_name: String = row.get(1).context("failed to read column name")?;
+        if column_name == name {
+            return Ok(());
+        }
+    }
+
+    connection
+        .execute(
+            &format!("ALTER TABLE sessions ADD COLUMN {name} {definition}"),
+            [],
+        )
+        .with_context(|| format!("failed to add sessions.{name}"))?;
     Ok(())
 }

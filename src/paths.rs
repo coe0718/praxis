@@ -32,6 +32,7 @@ pub struct PraxisPaths {
     pub day_count_file: PathBuf,
     pub events_file: PathBuf,
     pub telegram_state_file: PathBuf,
+    pub evals_dir: PathBuf,
     pub goals_dir: PathBuf,
     pub goals_criteria_dir: PathBuf,
     pub tools_dir: PathBuf,
@@ -94,6 +95,7 @@ impl PraxisPaths {
     pub fn new(data_dir: PathBuf, database_path: PathBuf, state_file: PathBuf) -> Self {
         let goals_dir = data_dir.join("goals");
         let goals_criteria_dir = goals_dir.join("criteria");
+        let evals_dir = data_dir.join("evals");
         let tools_dir = data_dir.join("tools");
 
         Self {
@@ -112,6 +114,7 @@ impl PraxisPaths {
             day_count_file: data_dir.join("DAY_COUNT"),
             events_file: data_dir.join("events.jsonl"),
             telegram_state_file: data_dir.join("telegram_state.json"),
+            evals_dir,
             goals_dir,
             goals_criteria_dir,
             tools_dir,

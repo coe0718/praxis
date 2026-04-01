@@ -57,6 +57,7 @@ fn init_is_idempotent_and_creates_foundation_files() {
     }
 
     assert!(data_dir.join("goals/criteria").exists());
+    assert!(data_dir.join("evals").exists());
     assert!(data_dir.join("tools").exists());
 }
 
@@ -80,7 +81,10 @@ fn doctor_reports_healthy_and_broken_setups() {
         .assert()
         .success()
         .stdout(predicate::str::contains("doctor: ok"))
-        .stdout(predicate::str::contains("tools: ok"));
+        .stdout(predicate::str::contains("tools: ok"))
+        .stdout(predicate::str::contains("quality: ok"))
+        .stdout(predicate::str::contains("goal_criteria: 1"))
+        .stdout(predicate::str::contains("evals: 1"));
 
     praxis_command()
         .arg("--data-dir")

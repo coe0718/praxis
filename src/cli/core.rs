@@ -10,6 +10,7 @@ use crate::{
     identity::{IdentityPolicy, LocalIdentityPolicy, MarkdownGoalParser},
     r#loop::{PraxisRuntime, RunOptions},
     paths::{PraxisPaths, default_data_dir},
+    quality::{EvalRunner, LocalEvalSuite, LocalReviewer, Reviewer},
     report::{build_status_report, render_status_report},
     storage::{SessionStore, SqliteSessionStore},
     time::{Clock, SystemClock, parse_timezone},
@@ -133,13 +134,15 @@ pub(crate) fn handle_doctor(data_dir_override: Option<PathBuf>) -> Result<String
     let identity = LocalIdentityPolicy;
     identity.validate(&paths)?;
     FileToolRegistry.validate(&paths)?;
+    let criteria_count = LocalReviewer.validate(&paths)?;
+    let eval_count = LocalEvalSuite.validate(&paths)?;
 
     let store = SqliteSessionStore::new(paths.database_file.clone());
     store.initialize()?;
     store.validate_schema()?;
 
     Ok(format!(
-        "doctor: ok\nconfig: ok\nidentity: ok\ndatabase: ok\ntools: ok\nbackend: {}",
+        "doctor: ok\nconfig: ok\nidentity: ok\ndatabase: ok\ntools: ok\nquality: ok\ngoal_criteria: {criteria_count}\nevals: {eval_count}\nbackend: {}",
         config.agent.backend
     ))
 }

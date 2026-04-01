@@ -2,9 +2,9 @@ use anyhow::{Context, Result};
 
 use crate::{
     context::LocalContextLoader,
-    memory::{MemoryStore, NewHotMemory},
+    memory::MemoryStore,
     state::SessionState,
-    storage::{ApprovalStore, SessionRecord, SessionStore},
+    storage::{ApprovalStore, QualityStore, SessionStore},
     tools::{DEFAULT_LOOP_GUARD_LIMIT, GuardDecision, LoopGuard, SecurityPolicy, ToolRegistry},
 };
 
@@ -17,7 +17,7 @@ where
     E: crate::events::EventSink,
     G: crate::identity::GoalParser,
     I: crate::identity::IdentityPolicy,
-    S: SessionStore + MemoryStore + ApprovalStore,
+    S: SessionStore + MemoryStore + ApprovalStore + QualityStore,
     T: ToolRegistry,
 {
     pub(super) fn orient(&self, state: &mut SessionState) -> Result<()> {
@@ -100,55 +100,12 @@ where
             .action_summary
             .clone()
             .unwrap_or_else(|| "No action was selected.".to_string());
-        state.action_summary = Some(format!(
-            "{summary} Act phase completed without external side effects."
-        ));
+        state.action_summary = Some(self.backend.finalize_action(
+            &summary,
+            super::reflect::selected_goal(state).as_ref(),
+            state.requested_task.as_deref(),
+        )?);
         state.updated_at = self.clock.now_utc();
-        Ok(())
-    }
-
-    pub(super) fn reflect(&self, state: &mut SessionState) -> Result<()> {
-        let ended_at = self.clock.now_utc();
-        let outcome = state
-            .last_outcome
-            .clone()
-            .unwrap_or_else(|| "idle".to_string());
-        let record = SessionRecord {
-            day: self.identity.read_day_count(self.paths)?,
-            started_at: state.started_at,
-            ended_at,
-            outcome: outcome.clone(),
-            selected_goal_id: state.selected_goal_id.clone(),
-            selected_goal_title: state.selected_goal_title.clone(),
-            selected_task: state.selected_task_label(),
-            action_summary: state.action_summary.clone().unwrap_or_default(),
-            phase_durations_json: serde_json::json!({
-                "orient": 0,
-                "decide": 0,
-                "act": 0,
-                "reflect": 0
-            })
-            .to_string(),
-        };
-
-        let stored = self.store.record_session(&record)?;
-        let memory_summary = format!(
-            "Session outcome {} with summary: {}",
-            outcome, stored.action_summary
-        );
-        self.store.insert_hot_memory(NewHotMemory {
-            content: memory_summary,
-            summary: Some(outcome),
-            importance: 0.7,
-            tags: vec!["session".to_string(), "foundation".to_string()],
-            expires_at: None,
-        })?;
-        self.identity.append_journal(self.paths, &stored)?;
-        self.identity.append_metrics(self.paths, &stored)?;
-        self.emit("agent:goal_complete", &stored.outcome)?;
-
-        state.finish(stored.outcome, ended_at);
-        state.updated_at = ended_at;
         Ok(())
     }
 
