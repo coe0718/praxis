@@ -1,0 +1,4 @@
+/target
+/docker-data
+.DS_Store
+.codex

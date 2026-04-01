@@ -1,0 +1,21 @@
+services:
+  praxis-init:
+    build: .
+    image: praxis:foundation
+    command: ["--data-dir", "/var/lib/praxis", "init", "--timezone", "UTC"]
+    volumes:
+      - ./docker-data:/var/lib/praxis
+
+  praxis-run:
+    build: .
+    image: praxis:foundation
+    command: ["--data-dir", "/var/lib/praxis", "run", "--once"]
+    volumes:
+      - ./docker-data:/var/lib/praxis
+
+  praxis-status:
+    build: .
+    image: praxis:foundation
+    command: ["--data-dir", "/var/lib/praxis", "status"]
+    volumes:
+      - ./docker-data:/var/lib/praxis
