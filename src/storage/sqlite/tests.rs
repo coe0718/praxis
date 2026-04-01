@@ -3,7 +3,7 @@ use tempfile::tempdir;
 
 use crate::{
     memory::{MemoryStore, NewColdMemory, NewHotMemory},
-    storage::{SessionRecord, SessionStore},
+    storage::{ApprovalStatus, ApprovalStore, NewApprovalRequest, SessionRecord, SessionStore},
 };
 
 use super::SqliteSessionStore;
@@ -67,4 +67,38 @@ fn stores_and_searches_hot_and_cold_memories() {
     assert_eq!(recent_hot.len(), 1);
     assert_eq!(cold.len(), 1);
     assert!(!search.is_empty());
+}
+
+#[test]
+fn queues_and_updates_approval_requests() {
+    let temp = tempdir().unwrap();
+    let store = SqliteSessionStore::new(temp.path().join("praxis.db"));
+    store.initialize().unwrap();
+
+    let queued = store
+        .queue_approval(&NewApprovalRequest {
+            tool_name: "praxis-data-write".to_string(),
+            summary: "Update JOURNAL.md".to_string(),
+            requested_by: "operator".to_string(),
+            write_paths: vec!["JOURNAL.md".to_string()],
+            status: ApprovalStatus::Pending,
+        })
+        .unwrap();
+
+    assert_eq!(queued.status, ApprovalStatus::Pending);
+    assert_eq!(store.list_approvals(None).unwrap().len(), 1);
+
+    let approved = store
+        .set_approval_status(queued.id, ApprovalStatus::Approved, Some("looks good"))
+        .unwrap()
+        .unwrap();
+    assert_eq!(approved.status, ApprovalStatus::Approved);
+    assert_eq!(
+        store.next_approved_request().unwrap().unwrap().tool_name,
+        "praxis-data-write"
+    );
+
+    store.mark_approval_consumed(queued.id).unwrap();
+    let executed = store.get_approval(queued.id).unwrap().unwrap();
+    assert_eq!(executed.status, ApprovalStatus::Executed);
 }

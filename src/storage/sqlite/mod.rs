@@ -1,3 +1,4 @@
+mod approvals;
 mod memory;
 mod schema;
 mod sessions;
@@ -10,7 +11,10 @@ use std::{fs, path::PathBuf};
 use anyhow::{Context, Result};
 use rusqlite::Connection;
 
-use crate::storage::{SessionRecord, SessionStore, StoredSession};
+use crate::storage::{
+    ApprovalStatus, ApprovalStore, NewApprovalRequest, SessionRecord, SessionStore,
+    StoredApprovalRequest, StoredSession,
+};
 
 #[derive(Debug, Clone)]
 pub struct SqliteSessionStore {
@@ -48,5 +52,36 @@ impl SessionStore for SqliteSessionStore {
 
     fn last_session(&self) -> Result<Option<StoredSession>> {
         sessions::last_session(self)
+    }
+}
+
+impl ApprovalStore for SqliteSessionStore {
+    fn queue_approval(&self, request: &NewApprovalRequest) -> Result<StoredApprovalRequest> {
+        approvals::queue_approval(self, request)
+    }
+
+    fn list_approvals(&self, status: Option<ApprovalStatus>) -> Result<Vec<StoredApprovalRequest>> {
+        approvals::list_approvals(self, status)
+    }
+
+    fn get_approval(&self, id: i64) -> Result<Option<StoredApprovalRequest>> {
+        approvals::get_approval(self, id)
+    }
+
+    fn set_approval_status(
+        &self,
+        id: i64,
+        status: ApprovalStatus,
+        note: Option<&str>,
+    ) -> Result<Option<StoredApprovalRequest>> {
+        approvals::set_approval_status(self, id, status, note)
+    }
+
+    fn next_approved_request(&self) -> Result<Option<StoredApprovalRequest>> {
+        approvals::next_approved_request(self)
+    }
+
+    fn mark_approval_consumed(&self, id: i64) -> Result<()> {
+        approvals::mark_approval_consumed(self, id)
     }
 }

@@ -8,14 +8,15 @@ use crate::{
 
 use super::{AgentBackend, PraxisRuntime, RunOptions, RunSummary};
 
-impl<'a, B, C, E, G, I, S> PraxisRuntime<'a, B, C, E, G, I, S>
+impl<'a, B, C, E, G, I, S, T> PraxisRuntime<'a, B, C, E, G, I, S, T>
 where
     B: AgentBackend,
     C: crate::time::Clock,
     E: crate::events::EventSink,
     G: crate::identity::GoalParser,
     I: crate::identity::IdentityPolicy,
-    S: crate::storage::SessionStore,
+    S: crate::storage::SessionStore + crate::storage::ApprovalStore,
+    T: crate::tools::ToolRegistry,
 {
     pub(super) fn validate_options(&self, options: &RunOptions) -> Result<()> {
         if !options.once {

@@ -20,6 +20,7 @@ impl LocalContextLoader {
         config: &AppConfig,
         paths: &PraxisPaths,
         store: &S,
+        tool_summary: &str,
         requested_task: Option<&str>,
         open_goals: &[Goal],
     ) -> Result<BudgetedContext> {
@@ -31,6 +32,7 @@ impl LocalContextLoader {
             source("memory_cold", memory.render_cold()),
             source("patterns", read_file(&paths.patterns_file)?),
             source("journal", tail_lines(&read_file(&paths.journal_file)?, 12)),
+            source("tools", tool_summary.to_string()),
             source("task", requested_task.unwrap_or_default().to_string()),
         ];
 
@@ -108,6 +110,7 @@ mod tests {
                 &config,
                 &paths,
                 &store,
+                "- internal-maintenance [internal] level=1 approval=false rehearsal=false",
                 Some("improve local memory search"),
                 &[Goal {
                     id: "G-001".to_string(),

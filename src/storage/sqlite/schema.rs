@@ -57,6 +57,17 @@ pub(super) fn initialize(store: &SqliteSessionStore) -> Result<()> {
                 last_reinforced TEXT
             );
             CREATE VIRTUAL TABLE IF NOT EXISTS cold_fts USING fts5(content, tags);
+            CREATE TABLE IF NOT EXISTS approval_requests (
+                id INTEGER PRIMARY KEY,
+                tool_name TEXT NOT NULL,
+                summary TEXT NOT NULL,
+                requested_by TEXT NOT NULL,
+                write_paths TEXT NOT NULL DEFAULT '[]',
+                status TEXT NOT NULL,
+                status_note TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
             ",
         )
         .context("failed to initialize SQLite schema")?;
@@ -64,7 +75,7 @@ pub(super) fn initialize(store: &SqliteSessionStore) -> Result<()> {
     connection
         .execute(
             "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?1, ?2)",
-            params![2_i64, Utc::now().to_rfc3339()],
+            params![3_i64, Utc::now().to_rfc3339()],
         )
         .context("failed to register schema migration")?;
     Ok(())
@@ -82,9 +93,9 @@ pub(super) fn validate(store: &SqliteSessionStore) -> Result<()> {
         })
         .optional()
         .context("failed to query schema migrations")?;
-    if version.unwrap_or_default() < 2 {
+    if version.unwrap_or_default() < 3 {
         bail!(
-            "expected schema migration version 2 in {}",
+            "expected schema migration version 3 in {}",
             store.path.display()
         );
     }
@@ -95,6 +106,7 @@ pub(super) fn validate(store: &SqliteSessionStore) -> Result<()> {
         "hot_fts",
         "cold_memories",
         "cold_fts",
+        "approval_requests",
     ] {
         let table: Option<String> = connection
             .query_row(

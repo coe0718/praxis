@@ -32,6 +32,7 @@ pub struct PraxisPaths {
     pub day_count_file: PathBuf,
     pub goals_dir: PathBuf,
     pub goals_criteria_dir: PathBuf,
+    pub tools_dir: PathBuf,
 }
 
 pub fn detect_platform() -> Platform {
@@ -91,6 +92,7 @@ impl PraxisPaths {
     pub fn new(data_dir: PathBuf, database_path: PathBuf, state_file: PathBuf) -> Self {
         let goals_dir = data_dir.join("goals");
         let goals_criteria_dir = goals_dir.join("criteria");
+        let tools_dir = data_dir.join("tools");
 
         Self {
             config_file: data_dir.join("praxis.toml"),
@@ -108,6 +110,7 @@ impl PraxisPaths {
             day_count_file: data_dir.join("DAY_COUNT"),
             goals_dir,
             goals_criteria_dir,
+            tools_dir,
             data_dir,
         }
     }

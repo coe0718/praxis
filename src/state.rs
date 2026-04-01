@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum SessionPhase {
     Orient,
     Decide,
@@ -40,6 +40,12 @@ pub struct SessionState {
     pub action_summary: Option<String>,
     pub last_outcome: Option<String>,
     pub resume_count: u32,
+    #[serde(default)]
+    pub selected_tool_name: Option<String>,
+    #[serde(default)]
+    pub selected_tool_request_id: Option<i64>,
+    #[serde(default)]
+    pub tool_invocation_hashes: Vec<String>,
 }
 
 impl SessionState {
@@ -56,6 +62,9 @@ impl SessionState {
             action_summary: None,
             last_outcome: None,
             resume_count: 0,
+            selected_tool_name: None,
+            selected_tool_request_id: None,
+            tool_invocation_hashes: Vec::new(),
         }
     }
 
@@ -96,5 +105,11 @@ impl SessionState {
         self.last_outcome = Some(outcome.into());
         self.completed_at = Some(now);
         self.updated_at = now;
+    }
+
+    pub fn selected_task_label(&self) -> Option<String> {
+        self.requested_task
+            .clone()
+            .or_else(|| self.selected_tool_name.clone())
     }
 }

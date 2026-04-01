@@ -1,79 +1,21 @@
 use std::{fmt::Write as _, path::PathBuf};
 
 use anyhow::{Context, Result, bail};
-use clap::{Args, Parser, Subcommand};
 
 use crate::{
+    cli::{InitArgs, RunArgs},
     config::AppConfig,
     events::NoopEventSink,
     identity::{IdentityPolicy, LocalIdentityPolicy, MarkdownGoalParser},
     r#loop::{PraxisRuntime, RunOptions, StubBackend},
     paths::{PraxisPaths, default_data_dir},
     state::{SessionPhase, SessionState},
-    storage::{SessionStore, SqliteSessionStore},
-    time::{Clock, SystemClock},
+    storage::{ApprovalStatus, ApprovalStore, SessionStore, SqliteSessionStore},
+    time::{Clock, SystemClock, parse_timezone},
+    tools::{FileToolRegistry, ToolRegistry},
 };
 
-#[derive(Debug, Parser)]
-#[command(name = "praxis")]
-#[command(about = "Praxis foundation CLI")]
-pub struct Cli {
-    #[arg(long, global = true)]
-    data_dir: Option<PathBuf>,
-
-    #[command(subcommand)]
-    command: Commands,
-}
-
-#[derive(Debug, Subcommand)]
-enum Commands {
-    Init(InitArgs),
-    Run(RunArgs),
-    Status,
-    Doctor,
-}
-
-#[derive(Debug, Args)]
-struct InitArgs {
-    #[arg(long, default_value = "Praxis")]
-    name: String,
-
-    #[arg(long, default_value = "UTC")]
-    timezone: String,
-
-    #[arg(long, default_value_t = 2)]
-    security_level: u8,
-}
-
-#[derive(Debug, Args)]
-struct RunArgs {
-    #[arg(long)]
-    once: bool,
-
-    #[arg(long)]
-    force: bool,
-
-    #[arg(long)]
-    task: Option<String>,
-}
-
-pub fn run() -> Result<()> {
-    let cli = Cli::parse();
-    let output = execute(cli)?;
-    println!("{output}");
-    Ok(())
-}
-
-fn execute(cli: Cli) -> Result<String> {
-    match cli.command {
-        Commands::Init(args) => handle_init(cli.data_dir, args),
-        Commands::Run(args) => handle_run(cli.data_dir, args),
-        Commands::Status => handle_status(cli.data_dir),
-        Commands::Doctor => handle_doctor(cli.data_dir),
-    }
-}
-
-fn handle_init(data_dir_override: Option<PathBuf>, args: InitArgs) -> Result<String> {
+pub(super) fn handle_init(data_dir_override: Option<PathBuf>, args: InitArgs) -> Result<String> {
     let data_dir = data_dir_override.unwrap_or(default_data_dir()?);
     let base_paths = PraxisPaths::for_data_dir(data_dir.clone());
     let clock = SystemClock::from_env()?;
@@ -98,19 +40,24 @@ fn handle_init(data_dir_override: Option<PathBuf>, args: InitArgs) -> Result<Str
 
     let identity = LocalIdentityPolicy;
     identity.ensure_foundation(&paths, &config, now)?;
+    FileToolRegistry.ensure_foundation(&paths)?;
 
     Ok(format!(
-        "initialized: ok\ndata_dir: {}\nconfig: {}\ndatabase: {}",
+        "initialized: ok\ndata_dir: {}\nconfig: {}\ndatabase: {}\ntools: {}",
         paths.data_dir.display(),
         paths.config_file.display(),
         paths.database_file.display(),
+        paths.tools_dir.display(),
     ))
 }
 
-fn handle_run(data_dir_override: Option<PathBuf>, args: RunArgs) -> Result<String> {
+pub(super) fn handle_run(data_dir_override: Option<PathBuf>, args: RunArgs) -> Result<String> {
     let (config, paths) = load_initialized_config(data_dir_override)?;
     let identity = LocalIdentityPolicy;
+    let tools = FileToolRegistry;
+
     identity.validate(&paths)?;
+    tools.validate(&paths)?;
 
     let store = SqliteSessionStore::new(paths.database_file.clone());
     store.initialize()?;
@@ -126,6 +73,7 @@ fn handle_run(data_dir_override: Option<PathBuf>, args: RunArgs) -> Result<Strin
         goal_parser: &MarkdownGoalParser,
         identity: &identity,
         store: &store,
+        tools: &tools,
     };
 
     let summary = runtime.run_once(RunOptions {
@@ -157,7 +105,7 @@ fn handle_run(data_dir_override: Option<PathBuf>, args: RunArgs) -> Result<Strin
     Ok(output)
 }
 
-fn handle_status(data_dir_override: Option<PathBuf>) -> Result<String> {
+pub(super) fn handle_status(data_dir_override: Option<PathBuf>) -> Result<String> {
     let data_dir = data_dir_override.unwrap_or(default_data_dir()?);
     let base_paths = PraxisPaths::for_data_dir(data_dir.clone());
     if !base_paths.config_file.exists() {
@@ -173,6 +121,7 @@ fn handle_status(data_dir_override: Option<PathBuf>) -> Result<String> {
     let state = SessionState::load(&paths.state_file)?;
     let store = SqliteSessionStore::new(paths.database_file.clone());
     let last_session = store.last_session()?;
+    let pending_approvals = store.list_approvals(Some(ApprovalStatus::Pending))?.len();
 
     let phase = state
         .as_ref()
@@ -188,6 +137,14 @@ fn handle_status(data_dir_override: Option<PathBuf>) -> Result<String> {
     writeln!(output, "data_dir: {}", paths.data_dir.display())?;
     writeln!(output, "phase: {phase}")?;
     writeln!(output, "last_outcome: {outcome}")?;
+    writeln!(output, "pending_approvals: {pending_approvals}")?;
+
+    if let Some(current) = state
+        .as_ref()
+        .and_then(|current| current.selected_tool_name.as_deref())
+    {
+        writeln!(output, "selected_tool: {current}")?;
+    }
 
     if let Some(session) = last_session {
         writeln!(
@@ -203,24 +160,28 @@ fn handle_status(data_dir_override: Option<PathBuf>) -> Result<String> {
     Ok(output)
 }
 
-fn handle_doctor(data_dir_override: Option<PathBuf>) -> Result<String> {
+pub(super) fn handle_doctor(data_dir_override: Option<PathBuf>) -> Result<String> {
     let (config, paths) = load_initialized_config(data_dir_override)?;
     config.validate()?;
+    parse_timezone(&config.instance.timezone)?;
 
     let identity = LocalIdentityPolicy;
     identity.validate(&paths)?;
+    FileToolRegistry.validate(&paths)?;
 
     let store = SqliteSessionStore::new(paths.database_file.clone());
     store.initialize()?;
     store.validate_schema()?;
 
     Ok(format!(
-        "doctor: ok\nconfig: ok\nidentity: ok\ndatabase: ok\nbackend: {}",
+        "doctor: ok\nconfig: ok\nidentity: ok\ndatabase: ok\ntools: ok\nbackend: {}",
         config.agent.backend
     ))
 }
 
-fn load_initialized_config(data_dir_override: Option<PathBuf>) -> Result<(AppConfig, PraxisPaths)> {
+pub(super) fn load_initialized_config(
+    data_dir_override: Option<PathBuf>,
+) -> Result<(AppConfig, PraxisPaths)> {
     let data_dir = data_dir_override.unwrap_or(default_data_dir()?);
     let base_paths = PraxisPaths::for_data_dir(data_dir.clone());
 
