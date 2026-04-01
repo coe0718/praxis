@@ -8,9 +8,9 @@ The reference implementation is Axonix. Praxis is the framework extraction of th
 
 ## Current status
 
-This repository is in the foundation milestone.
+This repository is in the early foundation milestones.
 
-Implemented in the first round:
+Implemented so far:
 
 - Rust crate scaffold with a library-first structure
 - `praxis` CLI with `init`, `run --once`, `status`, and `doctor`
@@ -18,15 +18,19 @@ Implemented in the first round:
 - Cross-platform data directory handling for Linux and macOS
 - Resumable session state with the `orient -> decide -> act -> reflect -> sleep` loop
 - SQLite-backed session storage
+- Context budget configuration and deterministic budget allocation
+- Hot/cold memory tables with SQLite FTS-backed search
+- Memory loading for orient-time context assembly
 - Markdown-based identity and goal files
 - Deterministic offline tests
+- GitHub Actions verification for formatting, tests, compose validation, and Docker smoke builds
 - Dockerfile and `docker-compose.yml` for containerized runs
 
 Not implemented yet:
 
 - Live Claude integration
 - Messaging platforms
-- Memory consolidation and FTS search
+- Memory consolidation and decay
 - SSE/dashboard consumers
 - Watchdog updates
 - Reviewer sub-agents and success-criteria execution
@@ -89,7 +93,9 @@ The current codebase is organized around small modules with a preference for kee
 - `src/config.rs`: typed config schema and validation
 - `src/paths.rs`: data directory and path resolution
 - `src/state.rs`: persisted session checkpoint state
+- `src/context/`: budget engine and local context assembly
 - `src/identity/`: markdown identity and goal parsing/policy
+- `src/memory/`: memory types and loading logic
 - `src/storage/`: SQLite session persistence
 - `src/loop/`: runtime loop orchestration
 - `tests/cli.rs`: end-to-end CLI coverage

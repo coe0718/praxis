@@ -1,4 +1,5 @@
 use std::{
+    collections::HashSet,
     fs,
     path::{Path, PathBuf},
     str::FromStr,
@@ -16,6 +17,8 @@ pub struct AppConfig {
     pub database: DatabaseConfig,
     pub security: SecurityConfig,
     pub agent: AgentConfig,
+    #[serde(default)]
+    pub context: ContextConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -48,6 +51,38 @@ pub struct AgentConfig {
     pub context_ceiling_pct: f32,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ContextConfig {
+    pub window_tokens: usize,
+    pub budget: Vec<ContextSourceConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ContextSourceConfig {
+    pub source: String,
+    pub priority: u8,
+    pub max_pct: f32,
+}
+
+impl Default for ContextConfig {
+    fn default() -> Self {
+        Self {
+            window_tokens: 12_000,
+            budget: vec![
+                source("identity", 1, 0.05),
+                source("active_goals", 2, 0.10),
+                source("memory_hot", 3, 0.20),
+                source("memory_cold", 4, 0.15),
+                source("predictions", 5, 0.05),
+                source("patterns", 6, 0.05),
+                source("journal", 7, 0.10),
+                source("tools", 8, 0.05),
+                source("task", 9, 0.25),
+            ],
+        }
+    }
+}
+
 impl AppConfig {
     pub fn default_for_data_dir(data_dir: PathBuf) -> Self {
         Self {
@@ -69,6 +104,7 @@ impl AppConfig {
                 backend: "stub".to_string(),
                 context_ceiling_pct: 0.80,
             },
+            context: ContextConfig::default(),
         }
     }
 
@@ -126,6 +162,29 @@ impl AppConfig {
             bail!("runtime.state_file must not be empty");
         }
 
+        if self.context.window_tokens == 0 {
+            bail!("context.window_tokens must be greater than 0");
+        }
+
+        if self.context.budget.is_empty() {
+            bail!("context.budget must not be empty");
+        }
+
+        let mut priorities = HashSet::new();
+        for source in &self.context.budget {
+            if source.source.trim().is_empty() {
+                bail!("context.budget entries must have a source name");
+            }
+
+            if !(0.0..=1.0).contains(&source.max_pct) || source.max_pct == 0.0 {
+                bail!("context budget percentages must be greater than 0.0 and at most 1.0");
+            }
+
+            if !priorities.insert(source.priority) {
+                bail!("context.budget priorities must be unique");
+            }
+        }
+
         Ok(())
     }
 
@@ -157,29 +216,12 @@ impl FromStr for AppConfig {
 }
 
 #[cfg(test)]
-mod tests {
-    use tempfile::tempdir;
+mod tests;
 
-    use super::AppConfig;
-
-    #[test]
-    fn saves_and_loads_valid_config() {
-        let temp = tempdir().unwrap();
-        let path = temp.path().join("praxis.toml");
-        let config = AppConfig::default_for_data_dir(temp.path().join("data"));
-
-        config.save(&path).unwrap();
-        let loaded = AppConfig::load(&path).unwrap();
-
-        assert_eq!(loaded, config);
-    }
-
-    #[test]
-    fn rejects_invalid_backend() {
-        let mut config = AppConfig::default_for_data_dir("/tmp/praxis".into());
-        config.agent.backend = "claude".to_string();
-
-        let error = config.validate().unwrap_err().to_string();
-        assert!(error.contains("agent.backend"));
+fn source(name: &str, priority: u8, max_pct: f32) -> ContextSourceConfig {
+    ContextSourceConfig {
+        source: name.to_string(),
+        priority,
+        max_pct,
     }
 }

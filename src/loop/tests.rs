@@ -6,8 +6,9 @@ use crate::{
     config::AppConfig,
     events::NoopEventSink,
     identity::{IdentityPolicy, LocalIdentityPolicy, MarkdownGoalParser},
+    memory::MemoryStore,
     paths::PraxisPaths,
-    state::SessionPhase,
+    state::{SessionPhase, SessionState},
     storage::{SessionStore, SqliteSessionStore},
     time::FixedClock,
 };
@@ -57,4 +58,13 @@ fn runtime_runs_single_session() {
 
     assert_eq!(summary.phase, SessionPhase::Sleep);
     assert_eq!(summary.outcome, "goal_selected");
+    assert!(store.recent_hot_memories(5).unwrap().len() >= 1);
+
+    let state = SessionState::load(&paths.state_file).unwrap().unwrap();
+    assert!(
+        state
+            .orientation_summary
+            .unwrap_or_default()
+            .contains("Context used")
+    );
 }

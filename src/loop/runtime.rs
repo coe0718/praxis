@@ -2,8 +2,10 @@ use anyhow::Result;
 
 use crate::{
     config::AppConfig,
+    context::LocalContextLoader,
     events::EventSink,
     identity::{GoalParser, IdentityPolicy},
+    memory::{MemoryStore, NewHotMemory},
     paths::PraxisPaths,
     state::{SessionPhase, SessionState},
     storage::{SessionRecord, SessionStore},
@@ -30,7 +32,7 @@ where
     E: EventSink,
     G: GoalParser,
     I: IdentityPolicy,
-    S: SessionStore,
+    S: SessionStore + MemoryStore,
 {
     pub fn run_once(&self, options: RunOptions) -> Result<RunSummary> {
         let now = self.clock.now_utc();
@@ -117,9 +119,21 @@ where
     fn orient(&self, state: &mut SessionState) -> Result<()> {
         self.identity.validate(self.paths)?;
         let goals = self.goal_parser.load_goals(&self.paths.goals_file)?;
-        let open_goals = goals.iter().filter(|goal| !goal.completed).count();
+        let open_goals = goals
+            .into_iter()
+            .filter(|goal| !goal.completed)
+            .collect::<Vec<_>>();
+        let context = LocalContextLoader.load(
+            self.config,
+            self.paths,
+            self.store,
+            state.requested_task.as_deref(),
+            &open_goals,
+        )?;
         state.orientation_summary = Some(format!(
-            "Loaded identity, goal files, and {open_goals} open goals."
+            "Loaded {} open goals. {}",
+            open_goals.len(),
+            context.summary(),
         ));
         state.updated_at = self.clock.now_utc();
         Ok(())
@@ -166,14 +180,15 @@ where
 
     fn reflect(&self, state: &mut SessionState) -> Result<()> {
         let ended_at = self.clock.now_utc();
+        let outcome = state
+            .last_outcome
+            .clone()
+            .unwrap_or_else(|| "idle".to_string());
         let record = SessionRecord {
             day: self.identity.read_day_count(self.paths)?,
             started_at: state.started_at,
             ended_at,
-            outcome: state
-                .last_outcome
-                .clone()
-                .unwrap_or_else(|| "idle".to_string()),
+            outcome: outcome.clone(),
             selected_goal_id: state.selected_goal_id.clone(),
             selected_goal_title: state.selected_goal_title.clone(),
             selected_task: state.requested_task.clone(),
@@ -188,6 +203,17 @@ where
         };
 
         let stored = self.store.record_session(&record)?;
+        let memory_summary = format!(
+            "Session outcome {} with summary: {}",
+            outcome, stored.action_summary
+        );
+        self.store.insert_hot_memory(NewHotMemory {
+            content: memory_summary,
+            summary: Some(outcome),
+            importance: 0.7,
+            tags: vec!["session".to_string(), "foundation".to_string()],
+            expires_at: None,
+        })?;
         self.identity.append_journal(self.paths, &stored)?;
         self.identity.append_metrics(self.paths, &stored)?;
         self.emit("agent:goal_complete", &stored.outcome)?;

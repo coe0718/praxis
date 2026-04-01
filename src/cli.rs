@@ -113,6 +113,7 @@ fn handle_run(data_dir_override: Option<PathBuf>, args: RunArgs) -> Result<Strin
     identity.validate(&paths)?;
 
     let store = SqliteSessionStore::new(paths.database_file.clone());
+    store.initialize()?;
     store.validate_schema()?;
 
     let clock = SystemClock::from_env()?;
@@ -210,6 +211,7 @@ fn handle_doctor(data_dir_override: Option<PathBuf>) -> Result<String> {
     identity.validate(&paths)?;
 
     let store = SqliteSessionStore::new(paths.database_file.clone());
+    store.initialize()?;
     store.validate_schema()?;
 
     Ok(format!(

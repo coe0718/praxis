@@ -1,8 +1,10 @@
 pub mod cli;
 pub mod config;
+pub mod context;
 pub mod events;
 pub mod identity;
 pub mod r#loop;
+pub mod memory;
 pub mod paths;
 pub mod state;
 pub mod storage;
