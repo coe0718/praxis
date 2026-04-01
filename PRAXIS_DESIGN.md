@@ -29,6 +29,8 @@ Praxis synthesizes the best ideas from several projects:
 
 **One instance per person.** Praxis is not a shared service. You run it on your own hardware — a VPS, a Raspberry Pi, a home server. Your data stays yours. Your agent shapes itself around you specifically, not around a generic user profile.
 
+Work, personal, and staging instances are valid use cases, but they are modeled as **separate isolated Praxis instances**, each with its own data directory, credentials, memory, and identity surface. What Praxis explicitly rejects is a single blended instance serving multiple people or multiple conflicting operator roles at once. That keeps memory coherent, boundaries legible, and trust local to one operator relationship.
+
 **No API billing surprises.** Praxis uses a Claude Pro OAuth token (`sk-ant-oat01-...`), not the Anthropic API. It runs against your existing Pro subscription with no per-token charges.
 
 **Single binary.** `curl` the install script, answer a few questions, and you have a running agent. No Node, no Python, no dependency hell.
@@ -70,7 +72,7 @@ wake → orient → decide → act → reflect → sleep
 Each phase is independently resumable. If Praxis crashes mid-session, it reads a lightweight session state file to pick up from the last completed phase rather than starting over.
 
 ### Orient
-Load context according to the budget system. Read identity, active goals, recent memory, predictions, and PATTERNS.md. Query the analytics table for relevant performance patterns. Receive any pending messages from messaging platforms. Know what today looks like before deciding anything.
+Load context according to the budget system. Read identity, active goals, recent memory, predictions, and PATTERNS.md. Query the analytics table for relevant performance patterns. Receive any pending messages from messaging platforms. If the instance runs on local hardware, capture a lightweight hardware snapshot as well: CPU load, memory pressure, disk free space, and temperature when available. Know what today looks like before deciding anything.
 
 ### Decide
 Choose what to work on. Source priority:
@@ -82,10 +84,14 @@ Choose what to work on. Source priority:
 
 For any Level 3+ goal, Decide produces a structured plan including assumptions, risks, and explicit success criteria before proceeding to Act. The loop pauses for operator confirmation if the goal's security level requires it.
 
+Every non-trivial choice in Decide writes a **decision receipt**: what was selected, what alternatives were considered, what context was included, what context was dropped by budget, why the choice won, and how confident the agent was. Autonomy without receipts is too opaque to trust.
+
 ### Act
 Do the work. This is the only phase that touches the outside world. It may involve writing code, calling tools, spawning sub-agents, sending messages, updating files, or posting to social. Act writes a session state checkpoint at each significant step so it can resume after a crash.
 
 The **loop guard** runs throughout Act: a SHA256 hash of recent tool invocations is maintained in the session state file. If the same tool+args hash appears 3+ times consecutively, Act breaks immediately, notifies the operator via messaging, and waits. This prevents runaway tool loops from consuming tokens indefinitely.
+
+For risky operations, Act can enter **sandboxed rehearsal mode** first. Praxis clones the target workspace into a temp directory or disposable container, runs the plan there, captures the intended diff and side effects, and only then decides whether to perform the real action. Rehearsal is mandatory for deploy-like actions unless the tool explicitly opts out.
 
 ### Reflect
 After Act completes, Reflect runs **before** marking a goal done:
@@ -95,6 +101,8 @@ After Act completes, Reflect runs **before** marking a goal done:
 4. If criteria fail → return goal to active with reviewer's findings attached
 
 Memory capture runs at session end (not per-turn). One extraction pass over the full session transcript. Files updated: GOALS.md, JOURNAL.md, METRICS.md, PATTERNS.md. Analytics row written to SQLite.
+
+Reviewer context is explicitly capped. A reviewer gets the goal description, success criteria, relevant diffs, tool outputs, the decision receipt, and only the smallest transcript slice needed to verify behavior. It should not receive the full session transcript by default. Hard ceiling: the smaller of 15% of the primary session context budget or 8k tokens.
 
 ### Sleep
 Wait for the next scheduled wake time. Respect quiet hours. Hand control to the watchdog.
@@ -121,7 +129,15 @@ Memory is what makes an instance feel like it knows you. It is the most importan
 
 **Contradiction detection.** When a new memory directly conflicts with an existing cold one, both are flagged and the conflict surfaces at the next session start for explicit resolution.
 
-**Forgetting.** Hot memories expire after 30 days without access. Cold memories demote to hot after 90 days without reinforcement before eventual expiry.
+**Forgetting.** Hot memories expire after 30 days without access. Cold memories should decay in place first. Demotion back to hot only happens when a once-stable insight becomes stale or uncertain and needs re-validation through fresh evidence, not as the default path for every old cold memory.
+
+**Milestone protection.** Some memories should never be treated like disposable recency facts. Major operator preferences, life events, durable boundaries, and high-importance insights can be marked permanent or archival. These survive normal TTL decay unless explicitly revoked or contradicted.
+
+**Preference graph.** General memory is not enough. Praxis keeps a structured graph of durable operator facts: preferences, routines, constraints, dislikes, and standing instructions. Each node stores confidence, provenance, confirmation history, and whether it is a soft preference or a hard boundary.
+
+**Negative / boundary memory.** "Don't message late", "Never spend money without approval", "Do not touch these files", and "Don't suggest this again" are first-class memories, not just notes buried in a journal. Boundary memories load ahead of ordinary hot/cold recall and can veto plans before Act begins.
+
+**Annual synthesis.** Once per year, Praxis performs a deep consolidation pass that writes a `YEAR_IN_REVIEW.md` or `BIOGRAPHY.md` style narrative from durable memories, goals, milestones, and patterns. The purpose is not sentimentality; it is preserving long-horizon continuity that should outlive short TTL windows.
 
 ### Schema
 
@@ -152,6 +168,20 @@ CREATE TABLE cold_memories (
 );
 
 CREATE VIRTUAL TABLE cold_fts USING fts5(content, tags, content=cold_memories);
+
+CREATE TABLE preferences (
+  id INTEGER PRIMARY KEY,
+  kind TEXT NOT NULL,            -- preference, routine, constraint, dislike, boundary
+  statement TEXT NOT NULL,
+  confidence REAL DEFAULT 0.7,
+  tags TEXT,
+  source_ids TEXT,
+  hard_boundary INTEGER DEFAULT 0,
+  last_confirmed_at TIMESTAMP,
+  superseded_by INTEGER
+);
+
+CREATE VIRTUAL TABLE preference_fts USING fts5(statement, tags, content=preferences);
 ```
 
 ### Rust modules
@@ -160,6 +190,7 @@ CREATE VIRTUAL TABLE cold_fts USING fts5(content, tags, content=cold_memories);
 - `memory/search.rs` — unified FTS5 search across hot + cold
 - `memory/loader.rs` — session startup injection within context budget
 - `memory/decay.rs` — TTL enforcement, demotion logic
+- `memory/preferences.rs` — preference graph extraction, boundary resolution, confidence updates
 
 ---
 
@@ -184,6 +215,11 @@ budget = [
 ```
 
 Each source fills in priority order. Sources exceeding their allocation get summarized via a single Haiku call. Lower-priority sources are dropped entirely — never truncated mid-sentence. The agent is told explicitly what was excluded. The system tracks actual usage over time and auto-tunes allocations.
+
+Included and excluded context are written into the session's decision receipt so the operator can audit whether a bad choice happened because the wrong context was loaded or because the reasoning itself was wrong.
+
+### Worked example
+If the model window is 200k tokens and `ceiling_pct = 0.80`, Praxis may use up to 160k tokens total. The `max_pct` values are percentages of that 160k ceiling, not of the raw 200k model window. So `task.max_pct = 0.25` means the task can consume at most 40k tokens. If higher-priority sources use less than their cap, lower-priority sources may consume the remaining budget, but no source is guaranteed its full allocation.
 
 ### Context handoff notes
 
@@ -238,6 +274,20 @@ function = "memory::search"
 security_level = 1
 ```
 
+### Sandboxed rehearsal mode
+For tools with significant blast radius, Praxis can invoke a rehearsal wrapper instead of the live tool:
+
+```toml
+[[tool]]
+name = "deploy"
+type = "shell"
+path = "./scripts/deploy.sh"
+security_level = 4
+rehearsal = { mode = "container", image = "praxis-rehearsal:latest" }
+```
+
+The rehearsal output includes intended file diffs, outbound requests, destructive operations, and a plain-language summary of expected impact. Approval messages show the rehearsal result first, not just the raw command.
+
 ### Security levels
 - **Level 1** — agent calls freely, read-only
 - **Level 2** — agent calls freely, write operations
@@ -268,6 +318,29 @@ The skill resolver handles sequencing automatically. The agent invokes a skill b
 ---
 
 ## Quality Assurance
+
+### Goal lifecycle model
+Goals are not just active or done. Every goal moves through an explicit lifecycle:
+
+- `proposed`
+- `active`
+- `blocked`
+- `waiting_on_operator`
+- `scheduled`
+- `cooldown`
+- `review_failed`
+- `abandoned`
+- `complete`
+
+`GOALS.md` stays human-readable, but the canonical structured state lives in a companion metadata file per goal. This lets Praxis reason about blocked work, deferred work, operator dependencies, and repeated failures without flattening everything into one backlog.
+
+Goal metadata supports waiting and dependency-aware behavior:
+- `blocked_by` — another goal, external event, or missing tool
+- `wait_until` — absolute time before the goal should be reconsidered
+- `wake_when` — condition such as webhook received, package delivered, branch merged, or operator reply
+- `last_reviewed_at` — when the goal was last reconsidered
+
+This lets Praxis skip unready work without forgetting it, and lets the scheduler wake a goal when the condition actually changes.
 
 ### No self-review rule
 The agent that performs a task never reviews its own work. This is a hard policy, not a configuration option.
@@ -304,6 +377,18 @@ brier_score = (forecast_probability - outcome)²
 
 Lower is better; 0.0 is perfect. The analytics table stores scores over time. PATTERNS.md captures calibration findings so the agent adjusts future confidence levels based on its own track record.
 
+### Operator-specific eval suite
+Praxis includes a permanent eval bank derived from the operator's real life: actual workflows, recurring tasks, messaging preferences, boundaries, and routines. These are not benchmark prompts from the internet; they are regression tests for becoming more useful to one specific person.
+
+Each eval stores:
+- the real-world scenario
+- the expected behavior
+- the forbidden behavior
+- the relevant memories or preferences
+- whether failure is cosmetic, functional, or trust-damaging
+
+Major self-modification passes and capability changes rerun this suite automatically. If Praxis gets generally "smarter" but worse for its actual operator, the eval suite should catch it.
+
 ---
 
 ## Multi-Agent / Sub-Agent Support
@@ -323,6 +408,8 @@ Parallel execution — multiple sub-agents run simultaneously via `tokio::join!`
 Specialized reviewers — reviewer sub-agent spawned by Reflect to verify completed goals. Brief writer sub-agent for morning briefs.
 
 Sub-agents default to Haiku. Promoted to Sonnet when reasoning is required.
+
+Every sub-agent class has a budget envelope. Research and brief agents get task-scoped slices. Reviewer agents are the tightest: they read the goal, criteria, diff, receipts, and verifier outputs first, and only escalate to broader context if verification cannot proceed otherwise.
 
 ---
 
@@ -350,8 +437,11 @@ Four platforms, identical feature surface:
 - `/queue` — view pending tool approval requests
 - `/approve <id>` — approve a queued tool call
 - `/reject <id>` — reject a queued tool call
+- `/boundaries` — review and update hard limits, disallowed actions, and standing "never do this" rules
 
-**File attachments** — text-readable documents downloaded via the platform's file API, read as UTF-8, injected into the prompt. Cap at 100KB with a friendly reply if exceeded.
+`/ask` is synchronous and lightweight: answer this question, clarify this thing, or do a quick one-shot task. `/run` is asynchronous and session-based: take on a bounded job, update state, and potentially continue across multiple loop phases.
+
+**File attachments** — text-readable documents downloaded via the platform's file API, read as UTF-8, injected into the prompt. Cap at 100KB. If a file exceeds the cap, Praxis must refuse or explicitly chunk/summarize it with operator-visible messaging. It must never silently truncate a document and pretend it saw the whole thing.
 
 **Voice messages** — transcribed before being sent to Claude. Requires a Whisper-compatible endpoint (optional).
 
@@ -377,6 +467,14 @@ timezone = "America/Chicago"
 
 Sessions during quiet hours are deferred. Messages queued and delivered at session start. Morning brief fires at the first session after quiet hours end.
 
+### Wake-on-intent
+Scheduled cadence is the baseline, not the only wake path. Praxis can also wake immediately on approved high-priority triggers such as:
+- a trusted operator message marked urgent
+- a configured webhook from a project or service
+- a goal `wake_when` condition being satisfied
+
+Wake-on-intent must still respect hard boundaries and quiet-hours policy unless the operator explicitly grants emergency override behavior.
+
 ---
 
 ## Security Levels
@@ -387,6 +485,17 @@ Sessions during quiet hours are deferred. Messages queued and delivered at sessi
 - **Level 4 (Full)** — unrestricted system access, explicit operator consent required
 
 Default is Level 2. Levels 3 and 4 require explicit opt-in during install.
+
+### Dynamic trust budget
+Static security level is only the ceiling. Praxis also maintains a **dynamic trust budget** that expands or contracts within that ceiling based on recent outcomes for similar actions.
+
+Examples:
+- repeated successful low-risk file edits can shorten approval friction for similar edits
+- reviewer failures, boundary violations, or rehearsal mismatches shrink trust immediately
+- no trust score can ever exceed the operator-selected maximum security level
+- hard-boundary memories always override trust expansion
+
+Trust is earned per capability class, not globally. Being good at writing docs should not automatically grant more freedom to deploy production systems.
 
 ---
 
@@ -405,6 +514,33 @@ Agent proposes changes. Operator receives a diff via messaging: *"Your agent wan
 
 Agent cannot modify these. If it wants a new tool or different security level, it writes a proposal to `PROPOSALS.md`.
 
+### Proposal workflow
+`PROPOSALS.md` is the human-readable inbox, not the only state store. Each proposal is also mirrored in a structured queue so Praxis can track lifecycle cleanly.
+
+Every proposal includes:
+- proposal id
+- requested change
+- rationale
+- risks
+- affected files, tools, or permissions
+- originating session id
+- current status: `pending`, `approved`, `rejected`, `expired`, or `implemented`
+
+Operator replies flow back through the same approval surface as other queued actions: `/queue`, `/approve <id>`, and `/reject <id>`. Accepted proposals become explicit goals or queued maintenance work rather than silently applying themselves.
+
+### Capability ledger
+`CAPABILITIES.md` is not just a brag sheet. It is a human-readable ledger of what Praxis can actually do, how reliable each capability is, when it last succeeded, what tools or credentials it depends on, and what its known failure modes are.
+
+Each capability entry tracks:
+- name and description
+- confidence / reliability score
+- last verified timestamp
+- required tools, services, or secrets
+- recent pass/fail streak
+- whether the capability is operator-facing, internal, or experimental
+
+Praxis should consult the capability ledger before proposing ambitious actions. If a capability has low reliability or stale verification, the agent should say so instead of bluffing competence.
+
 ---
 
 ## Growth Model
@@ -420,6 +556,25 @@ Agent cannot modify these. If it wants a new tool or different security level, i
 **Boss Level:** *"I couldn't do without this now."*
 
 The roadmap is a starting point, not a cage. Instances are allowed — encouraged — to revise it when they discover a better path.
+
+The levels are load-bearing, not decorative:
+- Level 1 favors survival and trust-building: conservative security defaults, no autonomous framework mutation, and heavy reliance on review.
+- Level 2 unlocks self-assessment, drift tracking, and better internal planning, but still keeps operator-facing ambition narrow.
+- Level 3 enables public surfaces and wake-on-intent interfaces because Praxis can explain itself and recover from mistakes.
+- Level 4 is where opportunity mining, operator-specific tool building, and proactive maintenance become core behaviors.
+- Level 5 is where long-horizon anticipation, annual synthesis, and genuinely irreplaceable operator fit become the organizing goal.
+
+### Opportunity miner
+Praxis should actively look for repeated friction in the operator's life: tasks that recur, messages that repeat, goals that keep getting postponed, and annoyances that surface across days. When it detects a pattern, it creates a proposed goal or automation idea rather than waiting to be asked again.
+
+The opportunity miner works from:
+- repeated journal complaints
+- backlog churn and blocked goals
+- recurring message themes
+- repeated manual shell or browser workflows
+- failed attempts that indicate an unmet missing tool
+
+This is one of the main mechanisms by which Praxis moves from helpful assistant to irreplaceable operator-specific system.
 
 ---
 
@@ -439,6 +594,7 @@ agent:orient_start
 agent:tool_call {"tool": "weather", "args": {...}}
 agent:tool_result {"status": 200}
 agent:loop_guard_triggered {"tool": "deploy", "consecutive_count": 3}
+agent:decision_receipt_created {"goal_id": "G-096", "confidence": 0.71}
 agent:memory_capture {"importance": 0.8}
 agent:reviewer_spawned {"goal_id": "G-096"}
 agent:goal_complete {"goal_id": "G-096"}
@@ -446,6 +602,28 @@ agent:reflect_complete
 ```
 
 Any frontend subscribes to this stream. The dashboard is just one consumer. New interfaces can be built without touching the agent core.
+
+### Decision receipts
+Every meaningful decision is persisted as a structured receipt:
+
+```json
+{
+  "goal_id": "G-096",
+  "phase": "decide",
+  "chosen_action": "work on morning brief delivery",
+  "rejected_candidates": [
+    "reply to low-priority GitHub issue",
+    "refactor memory loader"
+  ],
+  "included_context": ["identity", "active_goals", "memory_hot", "task"],
+  "dropped_context": ["journal", "tools"],
+  "confidence": 0.71,
+  "rationale": "operator request and expiring prediction outweigh self-directed maintenance",
+  "approval_required": false
+}
+```
+
+Receipts power the dashboard, postmortems, and operator trust. If Praxis makes a bad call, the operator should be able to inspect whether it had the wrong information, the wrong priorities, or the wrong confidence.
 
 ### Analytics table
 
@@ -471,6 +649,18 @@ CREATE TABLE sessions (
 
 Findings persist in `PATTERNS.md` as durable conclusions injected at session start as high-priority context.
 
+### Weekly alignment review
+Once per week, Praxis produces a short alignment review for the operator via dashboard and messaging:
+
+- what it learned this week
+- which preferences or constraints seem to have changed
+- what patterns became stronger or weaker
+- which assumptions need confirmation
+- what capabilities improved or regressed
+- which opportunities it thinks are worth turning into goals next
+
+The weekly review is not a vanity report. It is a deliberate alignment checkpoint so the operator can correct drift before drift becomes identity.
+
 ---
 
 ## Auto-Update System
@@ -490,6 +680,10 @@ rollback_on_failure = true
 ```
 
 If a post-update session fails, watchdog rolls back automatically and notifies the operator. Previous binary always kept for one version.
+
+Before swapping to a newly built binary, the watchdog runs a **canary session** in a sandbox. If Praxis cannot complete a basic orient → decide → sleep loop, or if the operator-specific eval suite regresses, the update is rejected automatically.
+
+The watchdog also needs a backstop. It writes a heartbeat file and monotonic timestamp on every healthy cycle. On Linux, a `systemd` unit or cron check should verify that heartbeat and restart the watchdog if it stalls. The goal is not "a perfect watcher of the watcher"; it is making watchdog failure visible and recoverable.
 
 ---
 
@@ -532,9 +726,14 @@ The install script:
 2. Prompts for Claude OAuth token and GitHub token
 3. Opens a Claude-powered interview in the terminal (Haiku — fast, cheap, runs once)
 4. Claude asks 6-8 natural conversational questions covering: who you are, what hardware you're running, what you spend too much time on, which messaging platform(s), timezone, security level preference, dashboard visibility, voice transcription
+   It also asks for hard boundaries and "never do this" rules during setup so Praxis starts with at least a minimal boundary memory.
 5. Claude synthesizes the conversation and writes initial files as a JSON blob
 6. Script writes `IDENTITY.md`, `GOALS.md`, `ROADMAP.md`, `JOURNAL.md` (day 0 entry), `praxis.toml`
 7. Clones the framework repo, runs `cargo build`, sets up cron via watchdog, fires first session
+
+The installer should also support:
+- `--dry-run` to show exactly which files, services, cron jobs, Docker assets, and credentials it will touch
+- a zero-config home-server mode that chooses sane defaults for Raspberry Pi or Docker-first installs and prints how to change them later
 
 ---
 
@@ -555,7 +754,8 @@ praxis/
 │   │   ├── consolidator.rs
 │   │   ├── search.rs
 │   │   ├── loader.rs
-│   │   └── decay.rs
+│   │   ├── decay.rs
+│   │   └── preferences.rs    # Preference graph + boundary memory
 │   ├── messaging/
 │   │   ├── telegram.rs
 │   │   ├── discord.rs
@@ -580,6 +780,8 @@ praxis/
 │   ├── quality/
 │   │   ├── reviewer.rs        # No self-review enforcement
 │   │   ├── criteria.rs        # Success criteria JSON loader + runner
+│   │   ├── goal_state.rs      # Rich goal lifecycle model
+│   │   ├── evals.rs           # Operator-specific eval suite
 │   │   └── brier.rs           # Prediction calibration scoring
 │   ├── dashboard/
 │   │   └── server.rs          # axum server, SSE /events, auth, static files
@@ -591,7 +793,8 @@ praxis/
 │   │   └── quiet_hours.rs
 │   └── analytics/
 │       ├── sessions.rs
-│       └── patterns.rs
+│       ├── patterns.rs
+│       └── receipts.rs        # Decision receipts + weekly alignment review
 ├── skills/
 ├── goals/
 │   └── criteria/              # Per-goal success criteria JSON files
@@ -678,16 +881,78 @@ strip = true
 
 ## Build Order
 
-1. **Agent loop skeleton** — orient/decide/act/reflect/sleep with phase state file
-2. **Context budget system** — priority queue, auto-tune, handoff notes
-3. **Memory system** — hot/cold SQLite FTS5, capture, consolidation, decay
-4. **Tools system** — HTTP, shell, loop guard, security levels, approval queue
-5. **Identity policy** — file tier enforcement, cooldown gating
-6. **SSE event streaming** — shapes the dashboard architecture
-7. **Messaging layer** — Telegram first, then Discord, Signal, WhatsApp
-8. **Quality system** — success criteria JSON, no self-review rule, Brier scores
-9. **Analytics + observability** — sessions table, PATTERNS.md, web dashboard, TUI
-10. **Watchdog + auto-update** — add before first public release
+| Step | System | Primary modules |
+|---|---|---|
+| 1 | Agent loop skeleton | `src/loop/`, `src/scheduler/` |
+| 2 | Context budget system | `src/context/`, `src/loop/orient.rs` |
+| 3 | Memory system | `src/memory/`, `src/analytics/` |
+| 4 | Tools system | `src/tools/`, `src/agents/` |
+| 5 | Identity policy | `src/identity/`, `PROPOSALS.md` workflow |
+| 6 | SSE event streaming | `src/dashboard/`, `src/analytics/receipts.rs` |
+| 7 | Messaging layer | `src/messaging/` |
+| 8 | Quality system | `src/quality/`, `goals/criteria/` |
+| 9 | Analytics + observability | `src/analytics/`, `src/tui/`, `docs/` |
+| 10 | Trust + opportunity systems | `src/quality/`, `src/analytics/`, `src/memory/` |
+| 11 | Watchdog + auto-update | `src/watchdog/`, `scripts/install.sh` |
+
+This table is intentionally coupled to the repository structure. If the module layout changes, the build order should be updated in the same pull request.
+
+---
+
+## Captured Additions
+
+The following ideas are explicitly captured so they do not get lost. Some are already reflected in the design above; this section is the durable shortlist of what Praxis should absorb next versus what should remain optional until the core is stable.
+
+### Adopt Soon
+
+- **Portable state export/import** — add `praxis export-memory`, `praxis import-memory`, and versioned backup/restore tooling for memories, preferences, identity files, and analytics so long-lived instances are durable across reinstalls or machine moves.
+- **Schema migration policy** — every exported artifact and SQLite schema needs an explicit version and migration path.
+- **Agent-core dependency hedge** — `yoagent` or any external agent-runtime dependency must sit behind a Praxis-owned abstraction with docs explaining its responsibilities, replacement plan, and exit strategy if the crate is abandoned.
+- **Model transition controls** — add `model_pin`, model canaries, regression gates, and a "freeze on known-good model behavior" option so provider-side model updates do not silently change Praxis personality or reliability.
+- **Drift detection** — compare current reviewer pass rate, eval scores, operator corrections, and boundary violations against rolling baselines to catch silent degradation.
+- **Opportunity miner throttle** — rate-limit proposal generation, enforce priority ordering, and cap how many new opportunities can be surfaced per day or week.
+- **Boundary maintenance loop** — support `/boundaries` as a recurring conversation, and have the weekly alignment review explicitly ask whether hard limits changed.
+- **Command semantics** — keep `/ask` synchronous and low-latency, `/run` asynchronous and session-based, and document that distinction everywhere the commands appear.
+- **Attachment policy** — define explicit reject/chunk/summarize behavior for oversized files and never silently truncate.
+- **Cold-memory decay clarification** — decay cold memories in place by default; only demote when certainty genuinely drops.
+- **Audit exports** — add `/export-audit [days]` for human-readable reports of tool calls, memory writes, decisions, and file diffs.
+- **File-mutation circuit breaker** — trip a guard if a session attempts to modify too much of the workspace, identity surface, or too many protected files at once.
+- **Backup and restore** — optional automatic daily snapshots handled by Praxis or the watchdog.
+- **Capability benchmarking** — add recurring capability tests and operator-specific replay/eval sessions to measure usefulness over time.
+- **Wake-on-intent** — support approved interrupt-style wakes alongside scheduled sessions.
+- **Reviewer cost guardrails** — keep reviewer context and token ceilings explicit so mandatory review stays affordable.
+- **Watchdog heartbeat backstop** — pair the internal watchdog with a simple external liveness check.
+- **Hierarchical goals** — support parent/child goals and dependency-aware progression once the richer lifecycle is stable.
+
+### Future / Optional
+
+- **Relational or graph memory layer** — add typed links between memories such as `caused_by`, `related_to`, `contradicts`, and `user_preference` without necessarily requiring a heavy graph database.
+- **Hybrid semantic retrieval** — optionally layer vectors or semantic search on top of FTS5 once the keyword + preference graph approach proves insufficient.
+- **Memory typing** — extend memory with episodic, semantic, and procedural classes, each with different decay and reinforcement rules.
+- **Operator reinforcement commands** — allow `/reinforce <memory_id>` or message reactions to strengthen memories directly.
+- **Conflict workbench** — create `MEMORY_CONFLICTS.md` or an equivalent workflow to surface conflicting memories with evidence and proposed resolution.
+- **Adaptive context allocation** — learn which context sources correlate with successful outcomes for this specific operator and tune budgets accordingly.
+- **Hierarchical summarization fallback** — aggressive summarization that preserves anchors like dates, goal IDs, boundaries, and names when context is tight.
+- **Persistent context cache** — store a compressed working set from recent sessions for faster warm starts on constrained hardware.
+- **Tool auto-documentation** — have Praxis maintain examples, failure modes, and reliability notes for installed tools and capabilities.
+- **Cross-tool loop detection** — extend the loop guard to catch repeating multi-tool patterns, not just identical single-tool calls.
+- **Community tool registry improvements** — include compatibility metadata, usage examples, and read-only community discovery.
+- **Local multimodal processing** — optional on-device transcription, captioning, or light image understanding for privacy-preserving installs.
+- **System anomaly correlation** — track CPU, memory, disk, and load anomalies against reviewer failures and bad outcomes.
+- **Granular cooldown policies** — different approval windows per file or identity surface, potentially escalating some files to always-explicit approval.
+- **Meta-evolution workflow** — let Praxis propose changes to the framework itself via `SELF_EVOLUTION.md`, with heavy approval gating.
+- **Irreplaceability score** — track anticipation, follow-through, reliability, and operator dependence as a private metric, not as a vanity metric.
+- **Adaptive scheduling** — let wake times and non-urgent session timing learn from actual operator behavior and quiet-hour patterns.
+- **Local-first model fallback** — optionally use local or Ollama-compatible models for low-risk phases such as reflection or summarization.
+- **Cargo feature modularity** — keep the single binary lean while allowing optional compile-time extras like voice, vector memory, or advanced graph features.
+- **Auto-maintained docs** — let Praxis keep public docs and examples current as capabilities mature.
+- **End-to-end replay testing** — run recorded transcript replays to catch behavioral regressions that unit tests miss.
+- **Lite mode** — reduce sub-agent usage, tighten budgets, and simplify behavior for Raspberry Pi or low-power installs.
+- **Energy budget / rate-limit budget** — model provider quota and operator attention as explicit resources that sessions consume.
+- **Anonymous learning exchange** — possibly allow instances to publish sanitized, non-personal learnings to a shared registry later, but only with strong privacy guarantees.
+- **WASM tool runtime** — support ultra-sandboxed community tools without granting broad local execution.
+- **OpenTelemetry / Prometheus export** — richer external observability once local analytics and SSE are stable.
+- **Local multimodal and local model bundles** — optional heavy extras for privacy-first or travel/offline deployments.
 
 ---
 
