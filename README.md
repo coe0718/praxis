@@ -34,6 +34,7 @@ Shipped today:
 - Telegram operator commands and a lightweight SSE/dashboard server
 - Reviewer/eval quality gates during Reflect
 - Automatic markdown postmortems for reviewer failures, eval regressions, and similar bad outcomes
+- Fixture-backed replay tests for stateful session, forensics, and approval flows
 - Argus analysis for drift, repeated work, failures, and token hotspots
 - Learning runtime that mines opportunities and syncs them into `PROPOSALS.md`
 - Opportunity acceptance that promotes mined work into durable goals in `GOALS.md`

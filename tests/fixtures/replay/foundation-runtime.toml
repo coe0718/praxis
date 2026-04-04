@@ -1,0 +1,17 @@
+[[steps]]
+at = "2026-04-08T09:00:00Z"
+args = ["init"]
+stdout = ["initialized: ok"]
+
+[[steps]]
+at = "2026-04-08T09:30:00Z"
+args = ["run", "--once", "--task", "replay foundation task"]
+stdout = ["outcome: task_selected", "task: replay foundation task"]
+
+[[steps]]
+args = ["status"]
+stdout = ["last_session: #1 task_selected", "phase: sleep", "backend: stub"]
+
+[[steps]]
+args = ["forensics", "latest"]
+stdout = ["snapshot_count:", "agent:reflect_complete"]

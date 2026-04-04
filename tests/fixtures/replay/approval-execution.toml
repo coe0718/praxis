@@ -1,0 +1,36 @@
+[[steps]]
+at = "2026-04-08T10:00:00Z"
+args = ["init"]
+stdout = ["initialized: ok"]
+
+[[steps]]
+args = [
+  "tools",
+  "request",
+  "--name",
+  "praxis-data-write",
+  "--summary",
+  "Replay journal append",
+  "--write-path",
+  "JOURNAL.md",
+  "--append-text",
+  "Replay approval note"
+]
+stdout = ["request: pending", "id: 1"]
+
+[[steps]]
+args = ["approve", "1"]
+stdout = ["approval: approved"]
+
+[[steps]]
+at = "2026-04-08T10:30:00Z"
+args = ["run", "--once"]
+stdout = ["outcome: tool_executed", "task: praxis-data-write"]
+
+[[steps.files]]
+path = "JOURNAL.md"
+contains = "Replay approval note"
+
+[[steps]]
+args = ["queue", "--all"]
+stdout = ["#1 executed praxis-data-write"]
