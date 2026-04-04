@@ -18,9 +18,9 @@ impl SqliteSessionStore {
             .execute(
                 "
                 INSERT INTO opportunities(
-                    signature, kind, title, summary, evidence_json, status, created_at, updated_at
+                    signature, kind, title, summary, evidence_json, status, goal_id, created_at, updated_at
                 )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, NULL, ?7, ?7)
                 ",
                 params![
                     candidate.signature,
@@ -40,6 +40,7 @@ impl SqliteSessionStore {
             title: candidate.title.clone(),
             summary: candidate.summary.clone(),
             status: OpportunityStatus::Pending.as_str().to_string(),
+            goal_id: None,
             created_at,
             updated_at: now.to_rfc3339(),
         })
@@ -54,7 +55,7 @@ impl SqliteSessionStore {
         let mut statement = connection
             .prepare(
                 "
-                SELECT id, signature, kind, title, summary, status, created_at, updated_at
+                SELECT id, signature, kind, title, summary, status, goal_id, created_at, updated_at
                 FROM opportunities
                 WHERE status = ?1
                 ORDER BY id DESC
@@ -71,8 +72,9 @@ impl SqliteSessionStore {
                     title: row.get(3)?,
                     summary: row.get(4)?,
                     status: row.get(5)?,
-                    created_at: row.get(6)?,
-                    updated_at: row.get(7)?,
+                    goal_id: row.get(6)?,
+                    created_at: row.get(7)?,
+                    updated_at: row.get(8)?,
                 })
             })
             .context("failed to execute opportunity query")?;
@@ -139,7 +141,7 @@ impl SqliteSessionStore {
         connection
             .query_row(
                 "
-                SELECT id, signature, kind, title, summary, status, created_at, updated_at
+                SELECT id, signature, kind, title, summary, status, goal_id, created_at, updated_at
                 FROM opportunities
                 WHERE id = ?1
                 ",
@@ -152,12 +154,61 @@ impl SqliteSessionStore {
                         title: row.get(3)?,
                         summary: row.get(4)?,
                         status: row.get(5)?,
-                        created_at: row.get(6)?,
-                        updated_at: row.get(7)?,
+                        goal_id: row.get(6)?,
+                        created_at: row.get(7)?,
+                        updated_at: row.get(8)?,
                     })
                 },
             )
             .optional()
             .context("failed to load updated opportunity")
+    }
+
+    pub fn get_opportunity(&self, id: i64) -> Result<Option<StoredOpportunity>> {
+        let connection = self.connect()?;
+        connection
+            .query_row(
+                "
+                SELECT id, signature, kind, title, summary, status, goal_id, created_at, updated_at
+                FROM opportunities
+                WHERE id = ?1
+                ",
+                params![id],
+                |row| {
+                    Ok(StoredOpportunity {
+                        id: row.get(0)?,
+                        signature: row.get(1)?,
+                        kind: row.get(2)?,
+                        title: row.get(3)?,
+                        summary: row.get(4)?,
+                        status: row.get(5)?,
+                        goal_id: row.get(6)?,
+                        created_at: row.get(7)?,
+                        updated_at: row.get(8)?,
+                    })
+                },
+            )
+            .optional()
+            .context("failed to load opportunity")
+    }
+
+    pub fn set_opportunity_goal(
+        &self,
+        id: i64,
+        goal_id: Option<&str>,
+        now: DateTime<Utc>,
+    ) -> Result<()> {
+        let connection = self.connect()?;
+        connection
+            .execute(
+                "
+                UPDATE opportunities
+                SET goal_id = ?1, updated_at = ?2
+                WHERE id = ?3
+                ",
+                params![goal_id, now.to_rfc3339(), id],
+            )
+            .context("failed to link opportunity goal")?;
+        Ok(())
     }
 }

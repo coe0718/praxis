@@ -2,7 +2,9 @@ use anyhow::{Context, Result};
 use chrono::Utc;
 use rusqlite::params;
 
-use crate::memory::{MemoryStore, MemoryTier, NewColdMemory, NewHotMemory, StoredMemory};
+use crate::memory::{
+    MemoryStore, MemoryTier, NewColdMemory, NewHotMemory, StoredMemory, to_fts_query,
+};
 
 use super::SqliteSessionStore;
 
@@ -142,13 +144,13 @@ impl MemoryStore for SqliteSessionStore {
     }
 
     fn search_memories(&self, query: &str, limit: usize) -> Result<Vec<StoredMemory>> {
-        if query.trim().is_empty() {
+        let Some(query) = to_fts_query(query) else {
             return Ok(Vec::new());
-        }
+        };
 
         let connection = self.connect()?;
-        let hot = search_hot_memories(&connection, query, limit)?;
-        let cold = search_cold_memories(&connection, query, limit)?;
+        let hot = search_hot_memories(&connection, &query, limit)?;
+        let cold = search_cold_memories(&connection, &query, limit)?;
         let mut combined = hot.into_iter().chain(cold).collect::<Vec<_>>();
         combined.sort_by(|left, right| right.score.total_cmp(&left.score));
         combined.truncate(limit);

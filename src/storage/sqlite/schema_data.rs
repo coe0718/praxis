@@ -1,4 +1,4 @@
-pub(super) const SCHEMA_VERSION: i64 = 8;
+pub(super) const SCHEMA_VERSION: i64 = 9;
 
 pub(super) const BASE_SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -160,6 +160,7 @@ CREATE TABLE IF NOT EXISTS opportunities (
     summary TEXT NOT NULL,
     evidence_json TEXT NOT NULL DEFAULT '[]',
     status TEXT NOT NULL,
+    goal_id TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );

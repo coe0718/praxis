@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{identity::Goal, storage::OperationalMemoryStore};
 
+use super::build_lookup_query;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NewDoNotRepeat {
     pub statement: String,
@@ -54,7 +56,7 @@ impl OperationalMemoryLoader {
         requested_task: Option<&str>,
         open_goals: &[Goal],
     ) -> anyhow::Result<LoadedOperationalContext> {
-        let query = build_query(requested_task, open_goals);
+        let query = build_lookup_query(requested_task, open_goals);
         let (do_not_repeat, known_bugs) = match query.as_deref() {
             Some(query) => (
                 store.search_do_not_repeat(query, 3)?,
@@ -87,17 +89,4 @@ impl LoadedOperationalContext {
             .collect::<Vec<_>>()
             .join("\n")
     }
-}
-
-fn build_query(requested_task: Option<&str>, open_goals: &[Goal]) -> Option<String> {
-    if let Some(task) = requested_task.filter(|task| !task.trim().is_empty()) {
-        return Some(task.to_string());
-    }
-
-    open_goals
-        .iter()
-        .take(2)
-        .map(|goal| goal.title.trim())
-        .find(|title| !title.is_empty())
-        .map(ToString::to_string)
 }

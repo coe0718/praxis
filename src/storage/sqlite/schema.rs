@@ -22,6 +22,7 @@ pub(super) fn initialize(store: &SqliteSessionStore) -> Result<()> {
         "repeated_reads_avoided",
         "INTEGER NOT NULL DEFAULT 0",
     )?;
+    ensure_table_column(&connection, "opportunities", "goal_id", "TEXT")?;
 
     connection
         .execute(
@@ -74,14 +75,26 @@ pub(super) fn validate(store: &SqliteSessionStore) -> Result<()> {
 }
 
 fn ensure_session_column(connection: &Connection, name: &str, definition: &str) -> Result<()> {
+    ensure_table_column(connection, "sessions", name, definition)
+}
+
+fn ensure_table_column(
+    connection: &Connection,
+    table: &str,
+    name: &str,
+    definition: &str,
+) -> Result<()> {
     let mut statement = connection
-        .prepare("PRAGMA table_info(sessions)")
-        .context("failed to inspect sessions table")?;
+        .prepare(&format!("PRAGMA table_info({table})"))
+        .with_context(|| format!("failed to inspect {table} table"))?;
     let mut rows = statement
         .query([])
-        .context("failed to query sessions table")?;
+        .with_context(|| format!("failed to query {table} table"))?;
 
-    while let Some(row) = rows.next().context("failed to read sessions columns")? {
+    while let Some(row) = rows
+        .next()
+        .with_context(|| format!("failed to read {table} columns"))?
+    {
         let column_name: String = row.get(1).context("failed to read column name")?;
         if column_name == name {
             return Ok(());
@@ -90,9 +103,9 @@ fn ensure_session_column(connection: &Connection, name: &str, definition: &str) 
 
     connection
         .execute(
-            &format!("ALTER TABLE sessions ADD COLUMN {name} {definition}"),
+            &format!("ALTER TABLE {table} ADD COLUMN {name} {definition}"),
             [],
         )
-        .with_context(|| format!("failed to add sessions.{name}"))?;
+        .with_context(|| format!("failed to add {table}.{name}"))?;
     Ok(())
 }

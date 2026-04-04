@@ -9,7 +9,7 @@ mod files;
 mod goals;
 
 pub use files::LocalIdentityPolicy;
-pub use goals::MarkdownGoalParser;
+pub use goals::{MarkdownGoalParser, ensure_goal};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Goal {

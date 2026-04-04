@@ -7,7 +7,7 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::{argus, paths::PraxisPaths, storage::SqliteSessionStore};
+use crate::{argus, identity::ensure_goal, paths::PraxisPaths, storage::SqliteSessionStore};
 
 pub use render::{render_action, render_list, render_run};
 
@@ -81,6 +81,7 @@ pub struct StoredOpportunity {
     pub title: String,
     pub summary: String,
     pub status: String,
+    pub goal_id: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -101,6 +102,13 @@ pub struct LearningRunSummary {
     pub opportunities_created: usize,
     pub throttle_reached: bool,
     pub notes: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OpportunityActionResult {
+    pub opportunity: StoredOpportunity,
+    pub promoted_goal_id: Option<String>,
+    pub created_goal: bool,
 }
 
 pub fn run_once(
@@ -140,8 +148,40 @@ pub fn update_opportunity(
     id: i64,
     status: OpportunityStatus,
     now: DateTime<Utc>,
-) -> Result<Option<StoredOpportunity>> {
-    let updated = store.set_opportunity_status(id, status, now)?;
+) -> Result<Option<OpportunityActionResult>> {
+    let updated = match status {
+        OpportunityStatus::Accepted => return accept_opportunity(paths, store, id, now),
+        OpportunityStatus::Pending | OpportunityStatus::Dismissed => store
+            .set_opportunity_status(id, status, now)?
+            .map(|opportunity| OpportunityActionResult {
+                promoted_goal_id: opportunity.goal_id.clone(),
+                created_goal: false,
+                opportunity,
+            }),
+    };
     proposals::sync(paths, store)?;
     Ok(updated)
+}
+
+fn accept_opportunity(
+    paths: &PraxisPaths,
+    store: &SqliteSessionStore,
+    id: i64,
+    now: DateTime<Utc>,
+) -> Result<Option<OpportunityActionResult>> {
+    let Some(current) = store.get_opportunity(id)? else {
+        return Ok(None);
+    };
+    let promotion = ensure_goal(&paths.goals_file, &current.title)?;
+    store.set_opportunity_status(id, OpportunityStatus::Accepted, now)?;
+    store.set_opportunity_goal(id, Some(&promotion.goal_id), now)?;
+    proposals::sync(paths, store)?;
+    let Some(updated) = store.get_opportunity(id)? else {
+        return Ok(None);
+    };
+    Ok(Some(OpportunityActionResult {
+        promoted_goal_id: Some(promotion.goal_id),
+        created_goal: promotion.created,
+        opportunity: updated,
+    }))
 }

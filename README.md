@@ -1,50 +1,47 @@
 # Praxis
 
-Praxis is a standalone, self-evolving personal AI agent framework written in Rust.
+Self-hosted personal AI agent infrastructure in Rust.
 
-It is designed to be self-hosted, private by default, and shaped around one operator instead of a generic user profile. The long-term goal is not to build another chatbot. The goal is to build an always-on personal agent that learns, develops capabilities, and becomes genuinely irreplaceable over time.
+Praxis is built for one operator, long-running local state, and safe autonomous behavior. It is not a hosted assistant and not a generic chatbot shell. The goal is a private, durable agent runtime that can wake up, inspect its own world, learn from execution history, and become more useful over time without losing operator trust.
 
-The reference implementation is Axonix. Praxis is the framework extraction of those ideas into a reusable codebase.
+The reference implementation is Axonix. Praxis is the framework extraction of those patterns into a reusable codebase.
 
-## Current status
+## Why Praxis
 
-Praxis has moved past the bare foundation milestone and now ships a working local operator runtime.
+- Private by default: local files, local SQLite, self-hosted runtime.
+- Built to last: identity, goals, memory, analytics, and proposals survive across sessions.
+- Safety-first autonomy: approvals, path policy checks, loop guards, quality gates, and deterministic offline fallbacks.
+- Rust and Docker friendly: single binary, small modules, and container-ready workflows from the start.
 
-Implemented so far:
+## Current Status
 
-- Rust library-first crate with a single `praxis` binary
-- TOML config loading and validation
-- Cross-platform Linux/macOS data-dir handling
-- Resumable `orient -> decide -> act -> reflect -> sleep` loop
-- SQLite-backed sessions, approvals, memories, reviews, and eval runs
-- Context budgeting plus hot/cold memory search with SQLite FTS
-- Operational memory capture through do-not-repeat notes and known bug entries
-- File anatomy indexing plus repeated-read avoidance inside a session
-- Markdown identity, goals, criteria, and eval definition files
-- Tool registry, approval queue, path policy checks, and loop-guard protection
-- Dependency-aware goal selection with `blocked_by` and `wake_when` metadata
-- A formal stop condition when all tracked goals are complete
-- Config-driven provider routing with Claude, OpenAI, Ollama, and router-mode failover
-- Telegram operator commands and a lightweight polling loop
-- SSE/dashboard server with summary and recent-event views
-- Deterministic reviewer and operator-eval quality gates during Reflect
-- SQLite-backed phase snapshots plus CLI forensics replay
-- Argus performance analysis for recent session quality trends, drift, and recurring work
-- First-pass learning runtime for local source ingestion and opportunity mining
-- Throttled opportunity queue for repeated work and drift-recovery proposals
-- Session-level provider attempt, token, and estimated cost tracking
-- Token-ledger summaries and hotspot reporting in `status` and `argus`
-- Deterministic offline tests plus Docker-first packaging
+Praxis is in active development, but it is already a working local operator runtime.
 
-Not implemented yet:
+Shipped today:
+
+- Resumable `orient -> decide -> act -> reflect -> sleep` session loop
+- Linux/macOS path handling plus Docker-first data-dir support
+- Markdown identity and goal files with dependency-aware goal selection
+- SQLite-backed sessions, approvals, memories, reviews, evals, forensics, learning runs, and provider usage
+- Context budgeting, anatomy indexing, repeated-read avoidance, and token/cost ledgers
+- Hot/cold memory search plus operational memory for do-not-repeat notes and known bugs
+- Tool registry, approval queue, path policy enforcement, and loop-guard protection
+- Provider routing with `stub`, Claude, OpenAI, Ollama, and router-mode failover
+- Telegram operator commands and a lightweight SSE/dashboard server
+- Reviewer/eval quality gates during Reflect
+- Argus analysis for drift, repeated work, failures, and token hotspots
+- Learning runtime that mines opportunities and syncs them into `PROPOSALS.md`
+- Opportunity acceptance that promotes mined work into durable goals in `GOALS.md`
+
+Not finished yet:
 
 - Real tool execution beyond the current safe stub path
-- Memory consolidation, reinforcement, and decay workflows
-- Longer-horizon calibration reports and richer learning synthesis
-- Watchdog heartbeat, canary sessions, and rollback automation
-- Richer dashboard/UI and more messaging surfaces
+- Watchdog heartbeat, rollout canaries, and rollback automation
+- Richer dashboard UI and additional messaging platforms
+- Export/import and backup workflows for long-lived state
+- Deeper memory consolidation, reinforcement, and longer-horizon calibration
 
-## Quick start
+## Quick Start
 
 Initialize a local Praxis data directory:
 
@@ -52,7 +49,7 @@ Initialize a local Praxis data directory:
 cargo run -- --data-dir ./local-data init --name "Praxis" --timezone UTC
 ```
 
-Run one session:
+Run a single session:
 
 ```bash
 cargo run -- --data-dir ./local-data run --once
@@ -64,123 +61,35 @@ Inspect the current state:
 cargo run -- --data-dir ./local-data status
 ```
 
-Validate the setup:
+Validate the installation:
 
 ```bash
 cargo run -- --data-dir ./local-data doctor
 ```
 
-By default Praxis uses the deterministic `stub` backend. `praxis init` also seeds a `providers.toml` file that defines the provider chain Praxis can use for direct or routed execution.
+By default Praxis uses the deterministic `stub` backend, so the basic workflow works fully offline.
 
-To enable a single remote backend, set `agent.backend = "claude"` or `agent.backend = "openai"` in `praxis.toml` and export the matching credential:
+## Provider Setup
+
+`praxis init` seeds both `praxis.toml` and `providers.toml`.
+
+Use a single remote backend:
+
+```toml
+[agent]
+backend = "claude"
+```
 
 ```bash
 export ANTHROPIC_API_KEY=...
-export OPENAI_API_KEY=...
 ```
 
-To enable failover, set `agent.backend = "router"` in `praxis.toml`. Praxis will walk the ordered routes in `providers.toml` until one succeeds, and `praxis status` will report the latest provider, attempt count, failure count, token usage, and estimated cost.
+Or enable routed failover:
 
-## Operator commands
-
-Core lifecycle:
-
-- `praxis init`
-- `praxis run --once`
-- `praxis status`
-- `praxis doctor`
-- `praxis argus --limit 10`
-- `praxis learn run`
-- `praxis learn list`
-- `praxis learn list --all`
-- `praxis learn accept <id>`
-- `praxis learn dismiss <id>`
-- `praxis forensics latest`
-
-Approvals and tool queue:
-
-- `praxis queue`
-- `praxis approve <id>`
-- `praxis reject <id>`
-- `praxis tools list`
-- `praxis tools register ...`
-- `praxis tools request ...`
-
-Messaging and live views:
-
-- `praxis telegram doctor`
-- `praxis telegram poll-once`
-- `praxis telegram run --cycles 0`
-- `praxis telegram send --chat-id <id> --text "hello"`
-- `praxis serve --host 127.0.0.1 --port 8787`
-
-Telegram uses:
-
-```bash
-export PRAXIS_TELEGRAM_BOT_TOKEN=...
-export PRAXIS_TELEGRAM_ALLOWED_CHAT_IDS=12345,67890
+```toml
+[agent]
+backend = "router"
 ```
-
-## Quality gates
-
-Reflect now enforces local quality checks before finalizing the session outcome:
-
-- goal-specific review criteria live in `goals/criteria/<goal-id>.json`
-- operator evals live in `evals/*.json`
-- review failures surface as `review_failed`
-- eval regressions surface as `eval_failed`
-- `praxis status` shows the latest review result and eval summary
-
-The foundation data directory seeds one example goal criteria file and one smoke eval so the behavior is visible immediately after `init`.
-
-## Operational memory and anatomy
-
-Orient now captures a little more than just hot/cold memory:
-
-- file reads are indexed into a lightweight anatomy table with path, description, token estimate, and last modified time
-- repeated reads in the same session fall back to anatomy summaries instead of reopening the same file again
-- review and eval failures write operational memory into `do_not_repeat` and `known_bugs` tables
-- `praxis status` shows anatomy entry counts, repeated-read avoidance, and operational-memory counts
-
-## Goal metadata
-
-Goals can now express lightweight dependency and trigger state directly in `GOALS.md`:
-
-```md
-- [ ] G-002: Ship the dependent feature
-  blocked_by: G-001
-  wake_when: env:PRAXIS_RELEASE_READY
-```
-
-Praxis will prefer prerequisite goals before blocked dependents, skip goals whose trigger is not active, and emit `stop_condition_met` once everything currently tracked is complete.
-
-## Forensics and Argus
-
-Praxis now records phase-boundary snapshots in SQLite during a session so you can replay what happened later:
-
-```bash
-cargo run -- --data-dir ./local-data forensics latest
-```
-
-Argus is a lightweight performance director that analyzes recent session failures, drift, recurring work, and token hotspots to produce concrete improvement directives:
-
-```bash
-cargo run -- --data-dir ./local-data argus --limit 10
-```
-
-Praxis also ships a first-pass learning runtime that ingests local sources from `learning/sources/`, appends fresh syntheses to `LEARNINGS.md`, mines a throttled opportunity queue from repeated work and drift signals, and mirrors that queue into `PROPOSALS.md`:
-
-```bash
-cargo run -- --data-dir ./local-data learn run
-cargo run -- --data-dir ./local-data learn list
-cargo run -- --data-dir ./local-data learn list --all
-cargo run -- --data-dir ./local-data learn accept 1
-cargo run -- --data-dir ./local-data learn dismiss 2
-```
-
-## Provider routing
-
-`providers.toml` is separate from `praxis.toml` so the runtime backend choice stays simple while route details remain editable:
 
 ```toml
 [[providers]]
@@ -197,19 +106,19 @@ model = "llama3.2"
 base_url = "http://127.0.0.1:11434"
 ```
 
-When router mode is active, Praxis tries each route in order for both the Decide and Act phases. Every attempt is stored in SQLite so status and future analytics can see which provider actually handled the session and what the estimated cost was.
+When router mode is active, Praxis records every provider attempt, token count, and estimated cost in SQLite so `status` and Argus can explain what actually happened.
 
 ## Docker
 
-Praxis is meant to stay runnable in Docker from the start.
+Praxis is intended to stay runnable in Docker from the start.
 
-Initialize container data:
+Initialize container state:
 
 ```bash
 docker compose run --rm praxis-init
 ```
 
-Run one session in Docker:
+Run one session:
 
 ```bash
 docker compose run --rm praxis-run
@@ -221,68 +130,98 @@ Check status:
 docker compose run --rm praxis-status
 ```
 
-The compose setup binds `./docker-data` to `/var/lib/praxis` in the container so state persists across runs.
+The compose file binds `./docker-data` to `/var/lib/praxis`, so state persists across container runs.
 
-You can also run validation and the dashboard from containers if you want the whole stack isolated:
+## Core Workflows
+
+### Daily Runtime
+
+- `praxis run --once`
+- `praxis status`
+- `praxis doctor`
+- `praxis forensics latest`
+- `praxis argus --limit 10`
+
+### Approvals and Tools
+
+- `praxis queue`
+- `praxis approve <id>`
+- `praxis reject <id>`
+- `praxis tools list`
+- `praxis tools register ...`
+- `praxis tools request ...`
+
+### Learning and Opportunity Mining
+
+Praxis can ingest notes from `learning/sources/`, synthesize learnings, detect repeated work, and create a throttled proposal queue:
 
 ```bash
-docker compose run --rm praxis-status praxis doctor
-docker compose run --rm --service-ports praxis-run praxis serve --host 0.0.0.0 --port 8787
+cargo run -- --data-dir ./local-data learn run
+cargo run -- --data-dir ./local-data learn list
+cargo run -- --data-dir ./local-data learn accept 1
+cargo run -- --data-dir ./local-data learn dismiss 2
 ```
 
-## Project shape
+Accepted opportunities are not just status changes. Praxis links them into `PROPOSALS.md` and promotes them into `GOALS.md`, so the main loop can pick them up as real work later.
 
-The current codebase is organized around small modules with a preference for keeping Rust source files under 250 lines.
+### Messaging and Live Views
 
-- `src/cli/`: CLI surface and command dispatch
-- `src/config.rs`: typed config schema and validation
-- `src/paths.rs`: data directory and path resolution
-- `src/state.rs`: persisted session checkpoint state
-- `src/anatomy.rs`: file anatomy summaries and token estimates
-- `src/context/`: budget engine and local context assembly
-- `src/identity/`: markdown identity and goal parsing/policy
-- `src/memory/`: memory types and loading logic
-- `src/storage/`: SQLite persistence for sessions, approvals, memories, reviews, evals, and provider attempts
-- `src/loop/`: runtime loop orchestration
-- `src/quality/`: reviewer criteria and operator eval handling
-- `src/messaging/`: Telegram operator bridge
-- `src/dashboard/`: SSE/dashboard server
-- `src/providers/`: provider route config and cost metadata
-- `src/backend/`: provider execution and router failover
+Telegram support currently includes doctoring, polling, and command routing:
+
+```bash
+export PRAXIS_TELEGRAM_BOT_TOKEN=...
+export PRAXIS_TELEGRAM_ALLOWED_CHAT_IDS=12345,67890
+
+cargo run -- --data-dir ./local-data telegram doctor
+cargo run -- --data-dir ./local-data telegram poll-once
+cargo run -- --data-dir ./local-data telegram run --cycles 0
+```
+
+Run the local dashboard/SSE server:
+
+```bash
+cargo run -- --data-dir ./local-data serve --host 127.0.0.1 --port 8787
+```
+
+## Architecture At A Glance
+
+- `src/loop/`: session runtime and phase orchestration
+- `src/context/`: budget engine and context assembly
+- `src/anatomy.rs`: file summaries, token estimates, and repeated-read avoidance
+- `src/identity/`: foundation files, goal parsing, and goal promotion
+- `src/memory/`: memory loading plus operational memory support
+- `src/storage/`: SQLite persistence for runtime state and analytics
+- `src/tools/`: registry, policy, approval flow, and loop guards
+- `src/backend/` and `src/providers/`: model/provider execution and routing
+- `src/quality/`: reviewer and eval gates
+- `src/learning/`: learning runtime, opportunity mining, and proposal sync
+- `src/argus/`: drift, failure, repeated-work, and token hotspot analysis
+- `src/messaging/` and `src/dashboard/`: operator surfaces
 - `tests/`: end-to-end CLI coverage
 
-## Design direction
-
-The broader Praxis vision includes:
-
-- hot and cold memory tiers
-- context budgeting and handoff notes
-- tool registry and approval queues
-- messaging interfaces
-- dashboard and SSE streaming
-- reviewer/eval quality gates that grow toward true sub-agent review
-- a watchdog-managed update path
-
-The detailed design and long-form architecture notes live in [PRAXIS_DESIGN.md](./PRAXIS_DESIGN.md).
+The codebase follows a small-module style and aims to keep Rust source files under 250 lines.
 
 ## Development
 
-Run formatting and tests locally:
+Run the main verification steps locally:
 
 ```bash
-cargo fmt
+cargo fmt --all
 cargo test --locked
 docker build --tag praxis:ci .
 ```
 
-GitHub Actions runs `cargo fmt --check`, `cargo test --locked`, `docker compose config`, and a Docker smoke build on pushes to `main` and on pull requests.
+The project currently targets offline-deterministic tests by default. Live providers and messaging surfaces are wired behind explicit configuration and environment variables.
 
-## Philosophy
+## Design And Roadmap
 
-- One instance per person
-- Privacy by default
-- Self-hosted over hosted
-- Single binary deployment
-- Irreplaceable usefulness as the end goal
+The canonical design document is [PRAXIS_DESIGN.md](PRAXIS_DESIGN.md). It tracks:
 
-Praxis is theory becoming action.
+- core runtime architecture
+- adopted ideas and future enhancements
+- build-order status
+- what is already implemented versus what is still planned
+
+## License
+
+MIT

@@ -4,6 +4,12 @@ use anyhow::{Context, Result, bail};
 
 use super::{Goal, GoalParser};
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GoalPromotion {
+    pub goal_id: String,
+    pub created: bool,
+}
+
 #[derive(Debug, Default, Clone, Copy)]
 pub struct MarkdownGoalParser;
 
@@ -38,6 +44,44 @@ impl GoalParser for MarkdownGoalParser {
             .with_context(|| format!("failed to read {}", path.display()))?;
         self.parse_goals(&raw)
     }
+}
+
+pub fn ensure_goal(path: &Path, title: &str) -> Result<GoalPromotion> {
+    let parser = MarkdownGoalParser;
+    let existing = if path.exists() {
+        let raw = fs::read_to_string(path)
+            .with_context(|| format!("failed to read {}", path.display()))?;
+        parser.parse_goals(&raw)?
+    } else {
+        Vec::new()
+    };
+
+    if let Some(goal) = existing.iter().find(|goal| goal.title == title) {
+        return Ok(GoalPromotion {
+            goal_id: goal.id.clone(),
+            created: false,
+        });
+    }
+
+    let goal_id = next_goal_id(&existing);
+    let mut raw = if path.exists() {
+        fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))?
+    } else {
+        "# Goals\n".to_string()
+    };
+    if !raw.ends_with('\n') {
+        raw.push('\n');
+    }
+    if !raw.ends_with("\n\n") {
+        raw.push('\n');
+    }
+    raw.push_str(&format!("- [ ] {goal_id}: {title}\n"));
+    fs::write(path, raw).with_context(|| format!("failed to write {}", path.display()))?;
+
+    Ok(GoalPromotion {
+        goal_id,
+        created: true,
+    })
 }
 
 fn parse_goal_line(line: &str, line_number: usize) -> Result<Option<Goal>> {
@@ -97,9 +141,24 @@ fn apply_metadata(goal: &mut Goal, line: &str, line_number: usize) -> Result<()>
     Ok(())
 }
 
+fn next_goal_id(goals: &[Goal]) -> String {
+    let next = goals
+        .iter()
+        .filter_map(|goal| goal.id.strip_prefix("G-"))
+        .filter_map(|value| value.parse::<u32>().ok())
+        .max()
+        .unwrap_or(0)
+        + 1;
+    format!("G-{next:03}")
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{GoalParser, MarkdownGoalParser};
+    use std::fs;
+
+    use tempfile::tempdir;
+
+    use super::{GoalParser, MarkdownGoalParser, ensure_goal};
 
     #[test]
     fn parses_goal_markdown() {
@@ -125,5 +184,22 @@ mod tests {
 
         assert_eq!(goals[0].blocked_by, vec!["G-001", "external-api"]);
         assert_eq!(goals[0].wake_when.as_deref(), Some("env:PRAXIS_GO"));
+    }
+
+    #[test]
+    fn appends_new_goal_and_reuses_existing_title() {
+        let temp = tempdir().unwrap();
+        let goals_file = temp.path().join("GOALS.md");
+        fs::write(&goals_file, "# Goals\n\n- [ ] G-001: Foundation\n").unwrap();
+
+        let created = ensure_goal(&goals_file, "Automate recurring work").unwrap();
+        let reused = ensure_goal(&goals_file, "Automate recurring work").unwrap();
+        let raw = fs::read_to_string(&goals_file).unwrap();
+
+        assert_eq!(created.goal_id, "G-002");
+        assert!(created.created);
+        assert_eq!(reused.goal_id, "G-002");
+        assert!(!reused.created);
+        assert_eq!(raw.matches("Automate recurring work").count(), 1);
     }
 }

@@ -1,4 +1,7 @@
-use super::{LearningRunSummary, OpportunityStatus, StoredLearningRun, StoredOpportunity};
+use super::{
+    LearningRunSummary, OpportunityActionResult, OpportunityStatus, StoredLearningRun,
+    StoredOpportunity,
+};
 
 pub fn render_run(summary: &LearningRunSummary) -> String {
     let mut lines = vec![
@@ -47,16 +50,20 @@ pub fn render_list(
     lines.join("\n")
 }
 
-pub fn render_action(action: &str, opportunity: &StoredOpportunity) -> String {
-    [
+pub fn render_action(action: &str, result: &OpportunityActionResult) -> String {
+    let mut lines = vec![
         "learning: updated".to_string(),
         format!("action: {action}"),
-        format!("opportunity_id: {}", opportunity.id),
-        format!("status: {}", opportunity.status),
-        format!("title: {}", opportunity.title),
-        format!("summary: {}", opportunity.summary),
-    ]
-    .join("\n")
+        format!("opportunity_id: {}", result.opportunity.id),
+        format!("status: {}", result.opportunity.status),
+        format!("title: {}", result.opportunity.title),
+        format!("summary: {}", result.opportunity.summary),
+    ];
+    if let Some(goal_id) = &result.promoted_goal_id {
+        lines.push(format!("promoted_goal: {goal_id}"));
+        lines.push(format!("created_goal: {}", result.created_goal));
+    }
+    lines.join("\n")
 }
 
 fn append_section(
@@ -70,9 +77,15 @@ fn append_section(
         return;
     }
     lines.push(format!("{key}:"));
-    lines.extend(
-        opportunities
-            .iter()
-            .map(|item| format!("- #{} [{}] {}", item.id, item.kind, item.title)),
-    );
+    lines.extend(opportunities.iter().map(|item| {
+        item.goal_id.as_ref().map_or_else(
+            || format!("- #{} [{}] {}", item.id, item.kind, item.title),
+            |goal_id| {
+                format!(
+                    "- #{} [{}] {} -> {}",
+                    item.id, item.kind, item.title, goal_id
+                )
+            },
+        )
+    }));
 }

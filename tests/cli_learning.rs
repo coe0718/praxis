@@ -97,7 +97,12 @@ fn learning_runtime_ingests_sources_and_throttles_opportunities() {
         .arg("1")
         .assert()
         .success()
-        .stdout(predicate::str::contains("status: accepted"));
+        .stdout(predicate::str::contains("status: accepted"))
+        .stdout(predicate::str::contains("promoted_goal: G-002"))
+        .stdout(predicate::str::contains("created_goal: true"));
+
+    let goals = fs::read_to_string(data_dir.join("GOALS.md")).unwrap();
+    assert!(goals.contains("- [ ] G-002: Automate recurring work: task: clean notes"));
 
     praxis_command()
         .env("PRAXIS_FIXED_NOW", "2026-04-04T10:20:00Z")
@@ -122,7 +127,33 @@ fn learning_runtime_ingests_sources_and_throttles_opportunities() {
         .stdout(predicate::str::contains("accepted_opportunities: 1"))
         .stdout(predicate::str::contains("dismissed_opportunities: 1"))
         .stdout(predicate::str::contains("accepted:"))
-        .stdout(predicate::str::contains("dismissed:"));
+        .stdout(predicate::str::contains("dismissed:"))
+        .stdout(predicate::str::contains(
+            "Automate recurring work: task: clean notes -> G-002",
+        ));
+
+    fs::write(
+        data_dir.join("GOALS.md"),
+        fs::read_to_string(data_dir.join("GOALS.md"))
+            .unwrap()
+            .replace(
+                "- [ ] G-001: Complete the first Praxis foundation run",
+                "- [x] G-001: Complete the first Praxis foundation run",
+            ),
+    )
+    .unwrap();
+
+    praxis_command()
+        .env("PRAXIS_FIXED_NOW", "2026-04-04T10:30:00Z")
+        .arg("--data-dir")
+        .arg(&data_dir)
+        .arg("run")
+        .arg("--once")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "goal: G-002: Automate recurring work: task: clean notes",
+        ));
 
     praxis_command()
         .arg("--data-dir")
@@ -141,4 +172,5 @@ fn learning_runtime_ingests_sources_and_throttles_opportunities() {
     assert!(proposals.contains("## Dismissed"));
     assert!(proposals.contains("status: accepted"));
     assert!(proposals.contains("status: dismissed"));
+    assert!(proposals.contains("linked_goal: G-002"));
 }

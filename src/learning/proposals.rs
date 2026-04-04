@@ -32,8 +32,14 @@ fn render_section(
 
     lines.extend(opportunities.iter().map(|item| {
         format!(
-            "- [#{}] {} ({})\n  status: {}\n  created_at: {}\n  summary: {}",
-            item.id, item.title, item.kind, item.status, item.created_at, item.summary
+            "- [#{}] {} ({})\n  status: {}\n  created_at: {}\n  linked_goal: {}\n  summary: {}",
+            item.id,
+            item.title,
+            item.kind,
+            item.status,
+            item.created_at,
+            item.goal_id.as_deref().unwrap_or("-"),
+            item.summary
         )
     }));
     lines
