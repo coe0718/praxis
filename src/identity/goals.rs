@@ -111,6 +111,7 @@ fn parse_goal_line(line: &str, line_number: usize) -> Result<Option<Goal>> {
         title,
         completed,
         line_number,
+        parent_id: None,
         blocked_by: Vec::new(),
         wake_when: None,
     }))
@@ -129,6 +130,12 @@ fn apply_metadata(goal: &mut Goal, line: &str, line_number: usize) -> Result<()>
                 .filter(|value| !value.is_empty())
                 .map(ToString::to_string)
                 .collect();
+        }
+        "parent" => {
+            if value.is_empty() {
+                bail!("parent metadata on line {line_number} must not be empty");
+            }
+            goal.parent_id = Some(value.to_string());
         }
         "wake_when" => {
             if value.is_empty() {
@@ -178,10 +185,11 @@ mod tests {
         let parser = MarkdownGoalParser;
         let goals = parser
             .parse_goals(
-                "# Goals\n\n- [ ] G-002: Ship dependent work\n  blocked_by: G-001, external-api\n  wake_when: env:PRAXIS_GO\n",
+                "# Goals\n\n- [ ] G-002: Ship dependent work\n  parent: G-010\n  blocked_by: G-001, external-api\n  wake_when: env:PRAXIS_GO\n",
             )
             .unwrap();
 
+        assert_eq!(goals[0].parent_id.as_deref(), Some("G-010"));
         assert_eq!(goals[0].blocked_by, vec!["G-001", "external-api"]);
         assert_eq!(goals[0].wake_when.as_deref(), Some("env:PRAXIS_GO"));
     }

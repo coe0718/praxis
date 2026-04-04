@@ -242,6 +242,7 @@ pub(super) fn selected_goal(state: &SessionState) -> Option<Goal> {
         title: state.selected_goal_title.clone()?,
         completed: false,
         line_number: 0,
+        parent_id: None,
         blocked_by: Vec::new(),
         wake_when: None,
     })

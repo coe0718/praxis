@@ -83,6 +83,7 @@ mod tests {
                 title: "Ship the dependent feature".to_string(),
                 completed: false,
                 line_number: 1,
+                parent_id: None,
                 blocked_by: Vec::new(),
                 wake_when: None,
             }],

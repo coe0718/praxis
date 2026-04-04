@@ -176,3 +176,32 @@ fn run_once_stops_when_all_goals_are_complete() {
             "summary: All current goals are complete",
         ));
 }
+
+#[test]
+fn run_once_prefers_child_goal_before_open_parent() {
+    let temp = tempdir().unwrap();
+    let data_dir = temp.path().join("praxis");
+
+    praxis_command()
+        .env("PRAXIS_FIXED_NOW", "2026-04-10T12:00:00Z")
+        .arg("--data-dir")
+        .arg(&data_dir)
+        .arg("init")
+        .assert()
+        .success();
+    std::fs::write(
+        data_dir.join("GOALS.md"),
+        "# Goals\n\n- [ ] G-010: Ship parent milestone\n- [ ] G-011: Ship child task\n  parent: G-010\n",
+    )
+    .unwrap();
+
+    praxis_command()
+        .env("PRAXIS_FIXED_NOW", "2026-04-10T12:30:00Z")
+        .arg("--data-dir")
+        .arg(&data_dir)
+        .arg("run")
+        .arg("--once")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("goal: G-011: Ship child task"));
+}

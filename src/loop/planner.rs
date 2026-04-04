@@ -27,6 +27,10 @@ pub fn choose_goal(goals: &[Goal], data_dir: &Path, now: DateTime<Utc>) -> Resul
         .filter(|goal| goal.completed)
         .map(|goal| goal.id.clone())
         .collect::<HashSet<_>>();
+    let active_parent_ids = open_goals
+        .iter()
+        .filter_map(|goal| goal.parent_id.clone())
+        .collect::<HashSet<_>>();
     let goal_ids = goals
         .iter()
         .map(|goal| goal.id.clone())
@@ -34,6 +38,7 @@ pub fn choose_goal(goals: &[Goal], data_dir: &Path, now: DateTime<Utc>) -> Resul
     let dependent_counts = dependency_counts(&open_goals);
     let mut ready = open_goals
         .iter()
+        .filter(|goal| !active_parent_ids.contains(&goal.id))
         .filter(|goal| !is_blocked(goal, &completed_ids, &goal_ids))
         .filter(|goal| wake_condition_met(goal, data_dir, now))
         .cloned()
@@ -128,6 +133,7 @@ mod tests {
                 title: "Dependent".to_string(),
                 completed: false,
                 line_number: 1,
+                parent_id: None,
                 blocked_by: vec!["G-001".to_string()],
                 wake_when: None,
             },
@@ -136,6 +142,7 @@ mod tests {
                 title: "Dependency".to_string(),
                 completed: false,
                 line_number: 2,
+                parent_id: None,
                 blocked_by: Vec::new(),
                 wake_when: None,
             },
@@ -149,9 +156,38 @@ mod tests {
                 title: "Dependency".to_string(),
                 completed: false,
                 line_number: 2,
+                parent_id: None,
                 blocked_by: Vec::new(),
                 wake_when: None,
             })
         );
+    }
+
+    #[test]
+    fn prefers_child_before_open_parent_goal() {
+        let now = chrono::Utc.with_ymd_and_hms(2026, 4, 3, 12, 0, 0).unwrap();
+        let goals = vec![
+            Goal {
+                id: "G-010".to_string(),
+                title: "Parent".to_string(),
+                completed: false,
+                line_number: 1,
+                parent_id: None,
+                blocked_by: Vec::new(),
+                wake_when: None,
+            },
+            Goal {
+                id: "G-011".to_string(),
+                title: "Child".to_string(),
+                completed: false,
+                line_number: 2,
+                parent_id: Some("G-010".to_string()),
+                blocked_by: Vec::new(),
+                wake_when: None,
+            },
+        ];
+
+        let selected = choose_goal(&goals, std::path::Path::new("."), now).unwrap();
+        assert_eq!(selected, GoalDecision::Selected(goals[1].clone()));
     }
 }

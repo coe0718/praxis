@@ -92,6 +92,7 @@ mod tests {
                 title: "Ship memory foundation".to_string(),
                 completed: false,
                 line_number: 1,
+                parent_id: None,
                 blocked_by: Vec::new(),
                 wake_when: None,
             }],

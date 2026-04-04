@@ -17,6 +17,7 @@ pub struct Goal {
     pub title: String,
     pub completed: bool,
     pub line_number: usize,
+    pub parent_id: Option<String>,
     pub blocked_by: Vec<String>,
     pub wake_when: Option<String>,
 }

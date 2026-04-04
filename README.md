@@ -23,6 +23,7 @@ Shipped today:
 - Resumable `orient -> decide -> act -> reflect -> sleep` session loop
 - Linux/macOS path handling plus Docker-first data-dir support
 - Markdown identity and goal files with dependency-aware goal selection
+- Parent/child goal metadata so open child work is selected before umbrella parent goals
 - SQLite-backed sessions, approvals, memories, reviews, evals, forensics, learning runs, and provider usage
 - Context budgeting, anatomy indexing, repeated-read avoidance, and token/cost ledgers
 - Anchor-preserving summarization for oversized context sources
