@@ -256,6 +256,7 @@ cargo run -- --data-dir ./local-data serve --host 127.0.0.1 --port 8787
 - `src/storage/`: SQLite persistence for runtime state and analytics
 - `src/tools/`: registry, policy, approval flow, and loop guards
 - `src/backend/` and `src/providers/`: model/provider execution and routing
+- `docs/agent_runtime.md`: runtime boundary, adapter ownership, and replacement plan
 - `src/quality/`: reviewer and eval gates
 - `src/learning/`: learning runtime, opportunity mining, and proposal sync
 - `src/argus/`: drift, failure, repeated-work, and token hotspot analysis

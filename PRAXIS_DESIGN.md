@@ -1099,10 +1099,10 @@ Move items upward as they ship:
 - **Opportunity-to-goal promotion** — accepting a mined opportunity can now create or reuse a real goal in `GOALS.md`, link the proposal to that goal, and feed the work back into the main loop.
 - **Hierarchical goals** — goals can now declare `parent: G-...`, and the planner will prefer unfinished child work before selecting an umbrella parent goal that still has open children.
 - **Controlled data-write execution** — approved `praxis-data-write` requests can now execute a real append-only write into allowed Praxis data files instead of always stopping at a stubbed act-phase record.
+- **Agent-core dependency hedge** — Praxis now documents the backend ownership boundary and replacement plan in `docs/agent_runtime.md`, making external runtimes adapters rather than core architecture.
 
 ### Adopt Soon
 
-- **Agent-core dependency hedge** — `yoagent` or any external agent-runtime dependency must sit behind a Praxis-owned abstraction with docs explaining its responsibilities, replacement plan, and exit strategy if the crate is abandoned.
 - **Model transition controls** — add `model_pin`, model canaries, regression gates, and a "freeze on known-good model behavior" option so provider-side model updates do not silently change Praxis personality or reliability.
 - **Boundary maintenance loop** — support `/boundaries` as a recurring conversation, and have the weekly alignment review explicitly ask whether hard limits changed.
 - **Attachment policy** — define explicit reject/chunk/summarize behavior for oversized files and never silently truncate.
