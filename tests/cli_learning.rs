@@ -83,15 +83,62 @@ fn learning_runtime_ingests_sources_and_throttles_opportunities() {
             "Automate recurring work: task: review backlog",
         ));
 
+    let proposals = fs::read_to_string(data_dir.join("PROPOSALS.md")).unwrap();
+    assert!(proposals.contains("## Pending"));
+    assert!(proposals.contains("Automate recurring work: task: clean notes"));
+    assert!(proposals.contains("Automate recurring work: task: review backlog"));
+
+    praxis_command()
+        .env("PRAXIS_FIXED_NOW", "2026-04-04T10:15:00Z")
+        .arg("--data-dir")
+        .arg(&data_dir)
+        .arg("learn")
+        .arg("accept")
+        .arg("1")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("status: accepted"));
+
+    praxis_command()
+        .env("PRAXIS_FIXED_NOW", "2026-04-04T10:20:00Z")
+        .arg("--data-dir")
+        .arg(&data_dir)
+        .arg("learn")
+        .arg("dismiss")
+        .arg("2")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("status: dismissed"));
+
+    praxis_command()
+        .arg("--data-dir")
+        .arg(&data_dir)
+        .arg("learn")
+        .arg("list")
+        .arg("--all")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("pending_opportunities: 0"))
+        .stdout(predicate::str::contains("accepted_opportunities: 1"))
+        .stdout(predicate::str::contains("dismissed_opportunities: 1"))
+        .stdout(predicate::str::contains("accepted:"))
+        .stdout(predicate::str::contains("dismissed:"));
+
     praxis_command()
         .arg("--data-dir")
         .arg(&data_dir)
         .arg("status")
         .assert()
         .success()
-        .stdout(predicate::str::contains("pending_opportunities: 2"))
+        .stdout(predicate::str::contains("pending_opportunities: 0"))
         .stdout(predicate::str::contains(
             "last_learning: processed=1 changed=1 opportunities=2",
         ))
         .stdout(predicate::str::contains("drift_status: insufficient_data"));
+
+    let proposals = fs::read_to_string(data_dir.join("PROPOSALS.md")).unwrap();
+    assert!(proposals.contains("## Accepted"));
+    assert!(proposals.contains("## Dismissed"));
+    assert!(proposals.contains("status: accepted"));
+    assert!(proposals.contains("status: dismissed"));
 }

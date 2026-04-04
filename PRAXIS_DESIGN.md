@@ -622,6 +622,8 @@ Agent cannot modify these. If it wants a new tool or different security level, i
 ### Proposal workflow
 `PROPOSALS.md` is the human-readable inbox, not the only state store. Each proposal is also mirrored in a structured queue so Praxis can track lifecycle cleanly.
 
+The current repo has a first-pass version of this for learning/opportunity proposals: the structured queue lives in SQLite, `praxis learn accept|dismiss` updates lifecycle state, and `PROPOSALS.md` is rewritten from the queue so the human-readable file never drifts.
+
 Every proposal includes:
 - proposal id
 - requested change
@@ -1077,6 +1079,7 @@ Move items upward as they ship:
 - **Drift detection** — a first-pass rolling baseline now marks recent quality as stable, regressed, improving, or insufficient-data.
 - **Opportunity miner throttle** — opportunity creation is now deduplicated and capped per day/week so the queue stays bounded.
 - **Active learning runtime** — `praxis learn run` now ingests local learning sources, appends syntheses to `LEARNINGS.md`, and records learning runs.
+- **Proposal inbox sync** — the opportunity queue now mirrors into `PROPOSALS.md`, and operators can accept or dismiss proposals without the markdown view drifting out of sync.
 
 ### Adopt Soon
 

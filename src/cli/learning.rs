@@ -1,10 +1,12 @@
 use std::path::PathBuf;
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
 
 use crate::{
-    learning::{OpportunityStatus, render_list, render_run, run_once},
+    learning::{
+        OpportunityStatus, render_action, render_list, render_run, run_once, update_opportunity,
+    },
     storage::{SessionStore, SqliteSessionStore},
     time::{Clock, SystemClock},
 };
@@ -20,7 +22,20 @@ pub struct LearningArgs {
 #[derive(Debug, Subcommand)]
 enum LearningCommand {
     Run,
-    List,
+    List(LearningListArgs),
+    Accept(LearningActionArgs),
+    Dismiss(LearningActionArgs),
+}
+
+#[derive(Debug, Args)]
+struct LearningListArgs {
+    #[arg(long)]
+    all: bool,
+}
+
+#[derive(Debug, Args)]
+struct LearningActionArgs {
+    id: i64,
 }
 
 pub(crate) fn handle_learning(
@@ -37,9 +52,30 @@ pub(crate) fn handle_learning(
             let now = SystemClock::from_env()?.now_utc();
             Ok(render_run(&run_once(&paths, &store, now)?))
         }
-        LearningCommand::List => Ok(render_list(
+        LearningCommand::List(args) => Ok(render_list(
             store.latest_learning_run()?,
             &store.list_opportunities(OpportunityStatus::Pending, 10)?,
+            &store.list_opportunities(OpportunityStatus::Accepted, 10)?,
+            &store.list_opportunities(OpportunityStatus::Dismissed, 10)?,
+            args.all,
         )),
+        LearningCommand::Accept(args) => {
+            let now = SystemClock::from_env()?.now_utc();
+            let Some(opportunity) =
+                update_opportunity(&paths, &store, args.id, OpportunityStatus::Accepted, now)?
+            else {
+                bail!("opportunity {} was not found", args.id);
+            };
+            Ok(render_action("accept", &opportunity))
+        }
+        LearningCommand::Dismiss(args) => {
+            let now = SystemClock::from_env()?.now_utc();
+            let Some(opportunity) =
+                update_opportunity(&paths, &store, args.id, OpportunityStatus::Dismissed, now)?
+            else {
+                bail!("opportunity {} was not found", args.id);
+            };
+            Ok(render_action("dismiss", &opportunity))
+        }
     }
 }

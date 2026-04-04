@@ -41,6 +41,7 @@ impl SqliteSessionStore {
             summary: candidate.summary.clone(),
             status: OpportunityStatus::Pending.as_str().to_string(),
             created_at,
+            updated_at: now.to_rfc3339(),
         })
     }
 
@@ -53,7 +54,7 @@ impl SqliteSessionStore {
         let mut statement = connection
             .prepare(
                 "
-                SELECT id, signature, kind, title, summary, status, created_at
+                SELECT id, signature, kind, title, summary, status, created_at, updated_at
                 FROM opportunities
                 WHERE status = ?1
                 ORDER BY id DESC
@@ -71,6 +72,7 @@ impl SqliteSessionStore {
                     summary: row.get(4)?,
                     status: row.get(5)?,
                     created_at: row.get(6)?,
+                    updated_at: row.get(7)?,
                 })
             })
             .context("failed to execute opportunity query")?;
@@ -111,5 +113,51 @@ impl SqliteSessionStore {
                 |row| row.get(0),
             )
             .context("failed to count recent opportunities")
+    }
+
+    pub fn set_opportunity_status(
+        &self,
+        id: i64,
+        status: OpportunityStatus,
+        now: DateTime<Utc>,
+    ) -> Result<Option<StoredOpportunity>> {
+        let connection = self.connect()?;
+        let changed = connection
+            .execute(
+                "
+                UPDATE opportunities
+                SET status = ?1, updated_at = ?2
+                WHERE id = ?3
+                ",
+                params![status.as_str(), now.to_rfc3339(), id],
+            )
+            .context("failed to update opportunity status")?;
+        if changed == 0 {
+            return Ok(None);
+        }
+
+        connection
+            .query_row(
+                "
+                SELECT id, signature, kind, title, summary, status, created_at, updated_at
+                FROM opportunities
+                WHERE id = ?1
+                ",
+                params![id],
+                |row| {
+                    Ok(StoredOpportunity {
+                        id: row.get(0)?,
+                        signature: row.get(1)?,
+                        kind: row.get(2)?,
+                        title: row.get(3)?,
+                        summary: row.get(4)?,
+                        status: row.get(5)?,
+                        created_at: row.get(6)?,
+                        updated_at: row.get(7)?,
+                    })
+                },
+            )
+            .optional()
+            .context("failed to load updated opportunity")
     }
 }

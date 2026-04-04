@@ -50,7 +50,7 @@ pub(super) fn foundation_documents(
         ),
         (
             paths.proposals_file.clone(),
-            "# Proposals\n\n- No pending proposals.\n".to_string(),
+            "# Proposals\n\n## Pending\n- No pending proposals.\n\n## Accepted\n- No accepted proposals.\n\n## Dismissed\n- No dismissed proposals.\n".to_string(),
         ),
         (paths.day_count_file.clone(), "0\n".to_string()),
         (

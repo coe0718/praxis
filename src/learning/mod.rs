@@ -1,4 +1,6 @@
 mod opportunities;
+mod proposals;
+mod render;
 mod sources;
 
 use anyhow::Result;
@@ -6,6 +8,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::{argus, paths::PraxisPaths, storage::SqliteSessionStore};
+
+pub use render::{render_action, render_list, render_run};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct StoredLearningSource {
@@ -59,6 +63,14 @@ impl OpportunityStatus {
             Self::Dismissed => "dismissed",
         }
     }
+
+    pub fn heading(&self) -> &'static str {
+        match self {
+            Self::Pending => "Pending",
+            Self::Accepted => "Accepted",
+            Self::Dismissed => "Dismissed",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -70,6 +82,7 @@ pub struct StoredOpportunity {
     pub summary: String,
     pub status: String,
     pub created_at: String,
+    pub updated_at: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -116,47 +129,19 @@ pub fn run_once(
         notes: summary.notes.clone(),
         completed_at: now,
     })?;
+    proposals::sync(paths, store)?;
 
     Ok(summary)
 }
 
-pub fn render_run(summary: &LearningRunSummary) -> String {
-    let mut lines = vec![
-        "learning: ok".to_string(),
-        format!("sources_processed: {}", summary.processed_sources),
-        format!("sources_changed: {}", summary.changed_sources),
-        format!("opportunities_created: {}", summary.opportunities_created),
-        format!("throttle_reached: {}", summary.throttle_reached),
-    ];
-    if summary.notes.is_empty() {
-        lines.push("notes: none".to_string());
-    } else {
-        lines.push("notes:".to_string());
-        lines.extend(summary.notes.iter().map(|note| format!("- {note}")));
-    }
-    lines.join("\n")
-}
-
-pub fn render_list(last_run: Option<StoredLearningRun>, pending: &[StoredOpportunity]) -> String {
-    let mut lines = vec!["learning: ready".to_string()];
-    if let Some(run) = last_run {
-        lines.push(format!(
-            "last_run: processed={} changed={} opportunities={} completed_at={}",
-            run.processed_sources, run.changed_sources, run.opportunities_created, run.completed_at
-        ));
-    } else {
-        lines.push("last_run: none".to_string());
-    }
-    lines.push(format!("pending_opportunities: {}", pending.len()));
-    if pending.is_empty() {
-        lines.push("opportunities: none".to_string());
-    } else {
-        lines.push("opportunities:".to_string());
-        lines.extend(
-            pending
-                .iter()
-                .map(|item| format!("- [{}] {}", item.kind, item.title)),
-        );
-    }
-    lines.join("\n")
+pub fn update_opportunity(
+    paths: &PraxisPaths,
+    store: &SqliteSessionStore,
+    id: i64,
+    status: OpportunityStatus,
+    now: DateTime<Utc>,
+) -> Result<Option<StoredOpportunity>> {
+    let updated = store.set_opportunity_status(id, status, now)?;
+    proposals::sync(paths, store)?;
+    Ok(updated)
 }

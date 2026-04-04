@@ -92,6 +92,9 @@ Core lifecycle:
 - `praxis argus --limit 10`
 - `praxis learn run`
 - `praxis learn list`
+- `praxis learn list --all`
+- `praxis learn accept <id>`
+- `praxis learn dismiss <id>`
 - `praxis forensics latest`
 
 Approvals and tool queue:
@@ -165,11 +168,14 @@ Argus is a lightweight performance director that analyzes recent session failure
 cargo run -- --data-dir ./local-data argus --limit 10
 ```
 
-Praxis also ships a first-pass learning runtime that ingests local sources from `learning/sources/`, appends fresh syntheses to `LEARNINGS.md`, and mines a throttled opportunity queue from repeated work and drift signals:
+Praxis also ships a first-pass learning runtime that ingests local sources from `learning/sources/`, appends fresh syntheses to `LEARNINGS.md`, mines a throttled opportunity queue from repeated work and drift signals, and mirrors that queue into `PROPOSALS.md`:
 
 ```bash
 cargo run -- --data-dir ./local-data learn run
 cargo run -- --data-dir ./local-data learn list
+cargo run -- --data-dir ./local-data learn list --all
+cargo run -- --data-dir ./local-data learn accept 1
+cargo run -- --data-dir ./local-data learn dismiss 2
 ```
 
 ## Provider routing
