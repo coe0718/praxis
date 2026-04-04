@@ -19,14 +19,15 @@ pub(super) fn queue_approval(
         .execute(
             "
             INSERT INTO approval_requests(
-                tool_name, summary, requested_by, write_paths, status, status_note, created_at, updated_at
-            ) VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, ?6)
+                tool_name, summary, requested_by, write_paths, payload_json, status, status_note, created_at, updated_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, NULL, ?7, ?7)
             ",
             params![
                 request.tool_name,
                 request.summary,
                 request.requested_by,
                 write_paths,
+                request.payload_json,
                 request.status.as_str(),
                 now,
             ],
@@ -45,7 +46,7 @@ pub(super) fn list_approvals(
     if let Some(value) = status {
         let mut statement = connection.prepare(
             "
-            SELECT id, tool_name, summary, requested_by, write_paths, status, status_note, created_at, updated_at
+            SELECT id, tool_name, summary, requested_by, write_paths, payload_json, status, status_note, created_at, updated_at
             FROM approval_requests
             WHERE status = ?1
             ORDER BY id ASC
@@ -59,7 +60,7 @@ pub(super) fn list_approvals(
 
     let mut statement = connection.prepare(
         "
-        SELECT id, tool_name, summary, requested_by, write_paths, status, status_note, created_at, updated_at
+        SELECT id, tool_name, summary, requested_by, write_paths, payload_json, status, status_note, created_at, updated_at
         FROM approval_requests
         ORDER BY id ASC
         ",
@@ -77,7 +78,7 @@ pub(super) fn get_approval(
     connection
         .query_row(
             "
-            SELECT id, tool_name, summary, requested_by, write_paths, status, status_note, created_at, updated_at
+            SELECT id, tool_name, summary, requested_by, write_paths, payload_json, status, status_note, created_at, updated_at
             FROM approval_requests
             WHERE id = ?1
             ",
@@ -116,7 +117,7 @@ pub(super) fn next_approved_request(
     connection
         .query_row(
             "
-            SELECT id, tool_name, summary, requested_by, write_paths, status, status_note, created_at, updated_at
+            SELECT id, tool_name, summary, requested_by, write_paths, payload_json, status, status_note, created_at, updated_at
             FROM approval_requests
             WHERE status = 'approved'
             ORDER BY id ASC
@@ -145,9 +146,9 @@ pub(super) fn mark_approval_consumed(store: &SqliteSessionStore, id: i64) -> Res
 }
 
 fn row_to_request(row: &rusqlite::Row<'_>) -> rusqlite::Result<StoredApprovalRequest> {
-    let status = ApprovalStatus::parse(&row.get::<_, String>(5)?).map_err(|error| {
+    let status = ApprovalStatus::parse(&row.get::<_, String>(6)?).map_err(|error| {
         rusqlite::Error::FromSqlConversionFailure(
-            5,
+            6,
             rusqlite::types::Type::Text,
             Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, error)),
         )
@@ -168,9 +169,10 @@ fn row_to_request(row: &rusqlite::Row<'_>) -> rusqlite::Result<StoredApprovalReq
         summary: row.get(2)?,
         requested_by: row.get(3)?,
         write_paths,
+        payload_json: row.get(5)?,
         status,
-        status_note: row.get(6)?,
-        created_at: row.get(7)?,
-        updated_at: row.get(8)?,
+        status_note: row.get(7)?,
+        created_at: row.get(8)?,
+        updated_at: row.get(9)?,
     })
 }

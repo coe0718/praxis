@@ -1,6 +1,6 @@
 use std::{fmt::Write as _, path::PathBuf};
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::{Args, Subcommand, ValueEnum};
 
 use crate::{
@@ -8,7 +8,9 @@ use crate::{
         ApprovalStatus, ApprovalStore, NewApprovalRequest, SessionStore, SqliteSessionStore,
         StoredApprovalRequest,
     },
-    tools::{FileToolRegistry, SecurityPolicy, ToolKind, ToolManifest, ToolRegistry},
+    tools::{
+        FileToolRegistry, SecurityPolicy, ToolKind, ToolManifest, ToolRegistry, build_payload,
+    },
 };
 
 use super::core::load_initialized_config;
@@ -54,6 +56,8 @@ struct RequestToolArgs {
     requested_by: String,
     #[arg(long = "write-path")]
     write_paths: Vec<String>,
+    #[arg(long)]
+    append_text: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -119,11 +123,15 @@ fn handle_request(data_dir_override: Option<PathBuf>, args: RequestToolArgs) -> 
     } else {
         ApprovalStatus::Approved
     };
+    if manifest.name == "praxis-data-write" && args.write_paths.is_empty() {
+        bail!("tool {} requires at least one --write-path", manifest.name);
+    }
     let request = NewApprovalRequest {
         tool_name: manifest.name.clone(),
         summary: args.summary,
         requested_by: args.requested_by,
         write_paths: args.write_paths,
+        payload_json: build_payload(&manifest, args.append_text)?,
         status,
     };
     SecurityPolicy.validate_request(
@@ -136,6 +144,7 @@ fn handle_request(data_dir_override: Option<PathBuf>, args: RequestToolArgs) -> 
             summary: request.summary.clone(),
             requested_by: request.requested_by.clone(),
             write_paths: request.write_paths.clone(),
+            payload_json: request.payload_json.clone(),
             status: request.status,
             status_note: None,
             created_at: String::new(),

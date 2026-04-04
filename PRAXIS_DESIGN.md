@@ -1081,6 +1081,7 @@ Move items upward as they ship:
 - **Active learning runtime** — `praxis learn run` now ingests local learning sources, appends syntheses to `LEARNINGS.md`, and records learning runs.
 - **Proposal inbox sync** — the opportunity queue now mirrors into `PROPOSALS.md`, and operators can accept or dismiss proposals without the markdown view drifting out of sync.
 - **Opportunity-to-goal promotion** — accepting a mined opportunity can now create or reuse a real goal in `GOALS.md`, link the proposal to that goal, and feed the work back into the main loop.
+- **Controlled data-write execution** — approved `praxis-data-write` requests can now execute a real append-only write into allowed Praxis data files instead of always stopping at a stubbed act-phase record.
 
 ### Adopt Soon
 

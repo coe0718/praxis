@@ -94,7 +94,7 @@ fn path_allowed(requested: &Path, scopes: &[String]) -> Result<bool> {
     Ok(false)
 }
 
-fn normalize_relative(raw: &str) -> Result<PathBuf> {
+pub(crate) fn normalize_relative(raw: &str) -> Result<PathBuf> {
     let path = Path::new(raw);
     if path.is_absolute() {
         bail!("absolute paths are not allowed: {raw}");

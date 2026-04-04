@@ -1,5 +1,7 @@
 mod common;
 
+use std::fs;
+
 use predicates::prelude::*;
 use tempfile::tempdir;
 
@@ -29,6 +31,8 @@ fn tool_requests_flow_through_queue_and_execute_after_approval() {
         .arg("Update journal entry")
         .arg("--write-path")
         .arg("JOURNAL.md")
+        .arg("--append-text")
+        .arg("Approved operator note")
         .assert()
         .success()
         .stdout(predicate::str::contains("request: pending"))
@@ -60,7 +64,11 @@ fn tool_requests_flow_through_queue_and_execute_after_approval() {
         .assert()
         .success()
         .stdout(predicate::str::contains("outcome: tool_executed"))
-        .stdout(predicate::str::contains("task: praxis-data-write"));
+        .stdout(predicate::str::contains("task: praxis-data-write"))
+        .stdout(predicate::str::contains("appended operator-approved text"));
+
+    let journal = fs::read_to_string(data_dir.join("JOURNAL.md")).unwrap();
+    assert!(journal.contains("Approved operator note"));
 
     praxis_command()
         .arg("--data-dir")
@@ -96,7 +104,38 @@ fn tool_request_rejects_locked_paths() {
         .arg("Touch config")
         .arg("--write-path")
         .arg("praxis.toml")
+        .arg("--append-text")
+        .arg("Nope")
         .assert()
         .failure()
         .stderr(predicate::str::contains("locked path"));
+}
+
+#[test]
+fn data_write_requests_require_append_text() {
+    let temp = tempdir().unwrap();
+    let data_dir = temp.path().join("praxis");
+
+    praxis_command()
+        .env("PRAXIS_FIXED_NOW", "2026-03-31T12:00:00Z")
+        .arg("--data-dir")
+        .arg(&data_dir)
+        .arg("init")
+        .assert()
+        .success();
+
+    praxis_command()
+        .arg("--data-dir")
+        .arg(&data_dir)
+        .arg("tools")
+        .arg("request")
+        .arg("--name")
+        .arg("praxis-data-write")
+        .arg("--summary")
+        .arg("Update journal entry")
+        .arg("--write-path")
+        .arg("JOURNAL.md")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("--append-text"));
 }

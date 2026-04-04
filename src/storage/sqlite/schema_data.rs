@@ -1,4 +1,4 @@
-pub(super) const SCHEMA_VERSION: i64 = 9;
+pub(super) const SCHEMA_VERSION: i64 = 10;
 
 pub(super) const BASE_SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS approval_requests (
     summary TEXT NOT NULL,
     requested_by TEXT NOT NULL,
     write_paths TEXT NOT NULL DEFAULT '[]',
+    payload_json TEXT,
     status TEXT NOT NULL,
     status_note TEXT,
     created_at TEXT NOT NULL,

@@ -8,7 +8,10 @@ use crate::{
         AnatomyStore, ApprovalStore, OperationalMemoryStore, ProviderUsageStore, QualityStore,
         SessionStore,
     },
-    tools::{DEFAULT_LOOP_GUARD_LIMIT, GuardDecision, LoopGuard, SecurityPolicy, ToolRegistry},
+    tools::{
+        DEFAULT_LOOP_GUARD_LIMIT, GuardDecision, LoopGuard, SecurityPolicy, ToolRegistry,
+        execute_request,
+    },
 };
 
 use super::{
@@ -175,23 +178,14 @@ where
             }
         }
 
+        let execution = execute_request(self.paths, &manifest, &request)?;
         self.store.mark_approval_consumed(request.id)?;
         self.emit(
             "agent:tool_call",
             &format!("{} {}", manifest.name, request.summary),
         )?;
-
-        let rehearsal = if manifest.rehearsal_required {
-            "Rehearsal required; "
-        } else {
-            ""
-        };
         state.last_outcome = Some("tool_executed".to_string());
-        state.action_summary = Some(format!(
-            "{rehearsal}Stub execution recorded for approved tool {} with {} declared write paths. No external side effects were performed in milestone 3.",
-            manifest.name,
-            request.write_paths.len()
-        ));
+        state.action_summary = Some(execution.summary);
         state.updated_at = self.clock.now_utc();
         Ok(())
     }

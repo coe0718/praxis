@@ -95,6 +95,7 @@ fn runtime_blocks_repeated_tool_invocations() {
             summary: "Update JOURNAL.md".to_string(),
             requested_by: "operator".to_string(),
             write_paths: vec!["JOURNAL.md".to_string()],
+            payload_json: Some("{\"append_text\":\"runtime wrote this\"}".to_string()),
             status: ApprovalStatus::Approved,
         })
         .unwrap();

@@ -23,6 +23,7 @@ pub(super) fn initialize(store: &SqliteSessionStore) -> Result<()> {
         "INTEGER NOT NULL DEFAULT 0",
     )?;
     ensure_table_column(&connection, "opportunities", "goal_id", "TEXT")?;
+    ensure_table_column(&connection, "approval_requests", "payload_json", "TEXT")?;
 
     connection
         .execute(

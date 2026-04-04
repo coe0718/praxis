@@ -216,6 +216,7 @@ pub struct NewApprovalRequest {
     pub summary: String,
     pub requested_by: String,
     pub write_paths: Vec<String>,
+    pub payload_json: Option<String>,
     pub status: ApprovalStatus,
 }
 
@@ -226,6 +227,7 @@ pub struct StoredApprovalRequest {
     pub summary: String,
     pub requested_by: String,
     pub write_paths: Vec<String>,
+    pub payload_json: Option<String>,
     pub status: ApprovalStatus,
     pub status_note: Option<String>,
     pub created_at: String,

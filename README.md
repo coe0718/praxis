@@ -26,6 +26,7 @@ Shipped today:
 - Context budgeting, anatomy indexing, repeated-read avoidance, and token/cost ledgers
 - Hot/cold memory search plus operational memory for do-not-repeat notes and known bugs
 - Tool registry, approval queue, path policy enforcement, and loop-guard protection
+- First real tool execution path for approved append-only writes inside allowed Praxis data files
 - Provider routing with `stub`, Claude, OpenAI, Ollama, and router-mode failover
 - Telegram operator commands and a lightweight SSE/dashboard server
 - Reviewer/eval quality gates during Reflect
@@ -35,7 +36,7 @@ Shipped today:
 
 Not finished yet:
 
-- Real tool execution beyond the current safe stub path
+- Broader tool execution beyond the first controlled data-write path
 - Watchdog heartbeat, rollout canaries, and rollback automation
 - Richer dashboard UI and additional messaging platforms
 - Export/import and backup workflows for long-lived state
@@ -150,6 +151,18 @@ The compose file binds `./docker-data` to `/var/lib/praxis`, so state persists a
 - `praxis tools list`
 - `praxis tools register ...`
 - `praxis tools request ...`
+
+Current real execution slice:
+
+```bash
+cargo run -- --data-dir ./local-data tools request \
+  --name praxis-data-write \
+  --summary "Append reviewed journal note" \
+  --write-path JOURNAL.md \
+  --append-text "Operator approved this note."
+```
+
+After approval, `praxis run --once` will execute that request by appending the approved text to the declared allowed file inside the Praxis data directory.
 
 ### Learning and Opportunity Mining
 

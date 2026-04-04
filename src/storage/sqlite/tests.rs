@@ -87,6 +87,7 @@ fn queues_and_updates_approval_requests() {
             summary: "Update JOURNAL.md".to_string(),
             requested_by: "operator".to_string(),
             write_paths: vec!["JOURNAL.md".to_string()],
+            payload_json: Some("{\"append_text\":\"hello\"}".to_string()),
             status: ApprovalStatus::Pending,
         })
         .unwrap();
