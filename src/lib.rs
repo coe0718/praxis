@@ -1,6 +1,7 @@
 pub mod anatomy;
 pub mod archive;
 pub mod argus;
+pub mod attachments;
 pub mod backend;
 pub mod boundaries;
 pub mod cli;

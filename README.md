@@ -41,6 +41,7 @@ Shipped today:
 - Runtime heartbeat file plus `praxis heartbeat check` and `scripts/check-heartbeat.sh` for external liveness checks
 - Telegram operator commands and a lightweight SSE/dashboard server
 - Boundary maintenance commands plus recurring weekly review prompts surfaced in `status` and `/boundaries`
+- Explicit attachment policies for `praxis ask --file ...`, with visible reject, chunk, or summarize handling for oversized text files
 - Reviewer/eval quality gates during Reflect
 - Automatic markdown postmortems for reviewer failures, eval regressions, and similar bad outcomes
 - Fixture-backed replay tests for stateful session, forensics, and approval flows
@@ -138,6 +139,15 @@ Then record a canary before normal remote use:
 ```bash
 cargo run -- --data-dir ./local-data canary run
 cargo run -- --data-dir ./local-data canary status
+```
+
+Ask can also ingest local UTF-8 text attachments with an explicit overflow policy:
+
+```bash
+cargo run -- --data-dir ./local-data ask \
+  --file ./notes/brief.md \
+  --attachment-policy summarize \
+  "Pull out the action items."
 ```
 
 ## Docker

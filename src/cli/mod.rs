@@ -78,6 +78,12 @@ pub struct RunArgs {
 
 #[derive(Debug, Args)]
 pub struct AskArgs {
+    #[arg(long = "file")]
+    pub files: Vec<PathBuf>,
+
+    #[arg(long, default_value = "reject")]
+    pub attachment_policy: String,
+
     #[arg(required = true)]
     pub prompt: Vec<String>,
 }

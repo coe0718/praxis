@@ -3,6 +3,7 @@ use std::{fmt::Write as _, path::PathBuf};
 use anyhow::{Context, Result, bail};
 
 use crate::{
+    attachments::{AttachmentPolicy, render_attachments},
     backend::{AgentBackend, ConfiguredBackend},
     boundaries::BoundaryReviewState,
     canary::ModelCanaryLedger,
@@ -129,10 +130,17 @@ pub(crate) fn handle_run(data_dir_override: Option<PathBuf>, args: RunArgs) -> R
 }
 
 pub(crate) fn handle_ask(data_dir_override: Option<PathBuf>, args: AskArgs) -> Result<String> {
-    let prompt = args.prompt.join(" ").trim().to_string();
-    if prompt.is_empty() {
+    let base_prompt = args.prompt.join(" ").trim().to_string();
+    if base_prompt.is_empty() {
         bail!("ask prompt must not be empty");
     }
+    let policy = AttachmentPolicy::parse(&args.attachment_policy)?;
+    let attachments = render_attachments(&args.files, policy)?;
+    let prompt = if attachments.is_empty() {
+        base_prompt
+    } else {
+        format!("{base_prompt}\n\nAttached files:\n{attachments}")
+    };
 
     let (config, paths) = load_initialized_config(data_dir_override)?;
     let backend = ConfiguredBackend::from_runtime(&config, &paths)?;
@@ -146,6 +154,7 @@ pub(crate) fn handle_ask(data_dir_override: Option<PathBuf>, args: AskArgs) -> R
     writeln!(rendered, "mode: ask")?;
     writeln!(rendered, "backend: {}", backend.name())?;
     writeln!(rendered, "stateful: false")?;
+    writeln!(rendered, "attachments: {}", args.files.len())?;
     writeln!(rendered, "prompt: {prompt}")?;
     if decision.blocked {
         write!(rendered, "answer: {}", decision.summary)?;

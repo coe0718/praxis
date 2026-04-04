@@ -62,6 +62,8 @@ pub fn handle_telegram_command(data_dir: std::path::PathBuf, text: &str) -> Resu
         TelegramCommand::Ask(prompt) => core::handle_ask(
             Some(data_dir),
             AskArgs {
+                files: Vec::new(),
+                attachment_policy: "reject".to_string(),
                 prompt: vec![prompt],
             },
         ),
