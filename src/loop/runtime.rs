@@ -158,6 +158,13 @@ where
         state.save(&self.paths.state_file)?;
         record_snapshot(&self.paths.database_file, state, "agent:reflect_start")?;
         self.reflect(state)?;
+        let decayed = self.store.decay_cold_memories(self.clock.now_utc())?;
+        if decayed > 0 {
+            self.emit(
+                "agent:cold_memory_decayed",
+                &format!("{decayed} stale cold memories decayed in place."),
+            )?;
+        }
         write_heartbeat(
             &self.paths.heartbeat_file,
             "praxis",

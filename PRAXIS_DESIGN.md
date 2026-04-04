@@ -1104,10 +1104,10 @@ Move items upward as they ship:
 - **Model transition controls** — Praxis now stores per-provider/model canary results in `model_canary.json`, exposes `praxis canary run/status`, and can freeze remote routes until a passing canary is recorded.
 - **Boundary maintenance loop** — Praxis now persists weekly boundary review state, exposes `praxis boundaries show/add/confirm`, and surfaces the recurring "have any hard limits changed?" prompt in status plus Telegram `/boundaries`.
 - **Attachment policy** — Praxis now supports `praxis ask --file ...` with explicit `reject`, `chunk`, or `summarize` handling for oversized UTF-8 text attachments, and it never silently truncates what it injects.
+- **Cold-memory decay clarification** — stale cold memories now decay in place through the runtime maintenance pass instead of being automatically demoted back to hot memory.
 
 ### Adopt Soon
 
-- **Cold-memory decay clarification** — decay cold memories in place by default; only demote when certainty genuinely drops.
 - **Automatic backup snapshots** — optional daily snapshots handled by Praxis or the watchdog on top of the manual export/import flow.
 - **Capability benchmarking** — add recurring capability tests and operator-specific replay/eval sessions to measure usefulness over time.
 - **Speculative execution** — compare multiple rehearsed branches before committing to the safest or highest-yield act plan.

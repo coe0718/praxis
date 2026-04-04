@@ -1,3 +1,5 @@
+use chrono::{DateTime, Utc};
+
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
@@ -41,4 +43,5 @@ pub trait MemoryStore {
     fn recent_hot_memories(&self, limit: usize) -> Result<Vec<StoredMemory>>;
     fn strongest_cold_memories(&self, limit: usize) -> Result<Vec<StoredMemory>>;
     fn search_memories(&self, query: &str, limit: usize) -> Result<Vec<StoredMemory>>;
+    fn decay_cold_memories(&self, now: DateTime<Utc>) -> Result<usize>;
 }

@@ -76,6 +76,40 @@ fn stores_and_searches_hot_and_cold_memories() {
 }
 
 #[test]
+fn decays_stale_cold_memories_in_place() {
+    let temp = tempdir().unwrap();
+    let store = SqliteSessionStore::new(temp.path().join("praxis.db"));
+    store.initialize().unwrap();
+
+    let stored = store
+        .insert_cold_memory(NewColdMemory {
+            content: "Operator values durable long-term memory.".to_string(),
+            weight: 1.0,
+            tags: vec!["memory".to_string()],
+            source_ids: vec![1],
+            contradicts: vec![],
+        })
+        .unwrap();
+    let connection = store.connect().unwrap();
+    connection
+        .execute(
+            "UPDATE cold_memories SET last_reinforced = ?1 WHERE id = ?2",
+            rusqlite::params!["2025-12-01T00:00:00Z", stored.id],
+        )
+        .unwrap();
+
+    let decayed = store
+        .decay_cold_memories(chrono::Utc.with_ymd_and_hms(2026, 4, 4, 12, 0, 0).unwrap())
+        .unwrap();
+    let refreshed = store.strongest_cold_memories(5).unwrap();
+
+    assert_eq!(decayed, 1);
+    assert_eq!(refreshed.len(), 1);
+    assert!(refreshed[0].score < 1.0);
+    assert_eq!(refreshed[0].tier, crate::memory::MemoryTier::Cold);
+}
+
+#[test]
 fn queues_and_updates_approval_requests() {
     let temp = tempdir().unwrap();
     let store = SqliteSessionStore::new(temp.path().join("praxis.db"));

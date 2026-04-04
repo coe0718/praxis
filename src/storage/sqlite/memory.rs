@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use rusqlite::params;
 
 use crate::memory::{
@@ -155,6 +155,10 @@ impl MemoryStore for SqliteSessionStore {
         combined.sort_by(|left, right| right.score.total_cmp(&left.score));
         combined.truncate(limit);
         Ok(combined)
+    }
+
+    fn decay_cold_memories(&self, now: DateTime<Utc>) -> Result<usize> {
+        super::memory_decay::decay_cold_memories(self, now)
     }
 }
 

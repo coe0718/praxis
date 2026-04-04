@@ -29,6 +29,7 @@ Shipped today:
 - Anchor-preserving summarization for oversized context sources
 - Adaptive context allocation that nudges source budgets based on prior successful sessions
 - Hot/cold memory search plus operational memory for do-not-repeat notes and known bugs
+- In-place cold-memory decay for stale long-term memories, without blindly demoting them back to hot memory
 - Tool registry, approval queue, path policy enforcement, and loop guards for identical or repeating multi-step tool patterns
 - File-mutation circuit breakers for excessive protected-file writes or oversized append payloads
 - First real tool execution path for approved append-only writes inside allowed Praxis data files

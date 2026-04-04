@@ -2,6 +2,7 @@ mod anatomy;
 mod approvals;
 mod learning;
 mod memory;
+mod memory_decay;
 mod opportunities;
 mod ops;
 mod providers;
