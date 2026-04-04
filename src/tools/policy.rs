@@ -7,9 +7,11 @@ use anyhow::{Result, bail};
 
 use crate::{config::AppConfig, paths::PraxisPaths, storage::StoredApprovalRequest};
 
-use super::ToolManifest;
+use super::{ToolManifest, request::parse_payload};
 
 const MAX_WRITE_PATHS_PER_REQUEST: usize = 8;
+const MAX_PROTECTED_WRITES_PER_REQUEST: usize = 2;
+const MAX_APPEND_TEXT_BYTES: usize = 4 * 1024;
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct SecurityPolicy;
@@ -38,7 +40,9 @@ impl SecurityPolicy {
                 MAX_WRITE_PATHS_PER_REQUEST
             );
         }
+        validate_payload_size(manifest, request)?;
 
+        let mut protected_writes = 0;
         let mut unique_paths = HashSet::new();
         for requested in &request.write_paths {
             if !unique_paths.insert(requested) {
@@ -50,6 +54,9 @@ impl SecurityPolicy {
             }
 
             let requested_path = normalize_relative(requested)?;
+            if is_protected_path(&requested_path) {
+                protected_writes += 1;
+            }
             if is_locked_path(&requested_path) {
                 bail!(
                     "tool request {} targets locked path {}",
@@ -73,6 +80,13 @@ impl SecurityPolicy {
                     request.id
                 );
             }
+        }
+        if protected_writes > MAX_PROTECTED_WRITES_PER_REQUEST {
+            bail!(
+                "tool request {} exceeds the protected-file circuit breaker limit of {}",
+                request.id,
+                MAX_PROTECTED_WRITES_PER_REQUEST
+            );
         }
 
         Ok(())
@@ -121,4 +135,116 @@ pub(crate) fn normalize_relative(raw: &str) -> Result<PathBuf> {
 
 fn is_locked_path(path: &Path) -> bool {
     matches!(path.to_string_lossy().as_ref(), "praxis.toml" | ".env") || path.starts_with("tools")
+}
+
+fn is_protected_path(path: &Path) -> bool {
+    matches!(
+        path.to_string_lossy().as_ref(),
+        "IDENTITY.md"
+            | "GOALS.md"
+            | "ROADMAP.md"
+            | "JOURNAL.md"
+            | "METRICS.md"
+            | "PATTERNS.md"
+            | "LEARNINGS.md"
+            | "AGENTS.md"
+            | "CAPABILITIES.md"
+            | "PROPOSALS.md"
+    )
+}
+
+fn validate_payload_size(manifest: &ToolManifest, request: &StoredApprovalRequest) -> Result<()> {
+    if manifest.name != "praxis-data-write" {
+        return Ok(());
+    }
+    let Some(raw_payload) = request.payload_json.as_deref() else {
+        return Ok(());
+    };
+    let payload = parse_payload(Some(raw_payload))?;
+    let Some(text) = payload.append_text.as_deref() else {
+        return Ok(());
+    };
+    if text.len() > MAX_APPEND_TEXT_BYTES {
+        bail!(
+            "tool request {} exceeds the append-size circuit breaker limit of {} bytes",
+            request.id,
+            MAX_APPEND_TEXT_BYTES
+        );
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        config::AppConfig,
+        paths::PraxisPaths,
+        storage::{ApprovalStatus, StoredApprovalRequest},
+    };
+
+    use super::{SecurityPolicy, ToolManifest};
+
+    fn manifest(paths: &[&str]) -> ToolManifest {
+        ToolManifest {
+            name: "praxis-data-write".to_string(),
+            description: "append notes".to_string(),
+            kind: crate::tools::ToolKind::Shell,
+            required_level: 2,
+            requires_approval: true,
+            rehearsal_required: true,
+            allowed_paths: paths.iter().map(|path| path.to_string()).collect(),
+        }
+    }
+
+    fn request(paths: &[&str], append_text: String) -> StoredApprovalRequest {
+        StoredApprovalRequest {
+            id: 7,
+            tool_name: "praxis-data-write".to_string(),
+            summary: "append note".to_string(),
+            requested_by: "operator".to_string(),
+            write_paths: paths.iter().map(|path| path.to_string()).collect(),
+            payload_json: Some(format!("{{\"append_text\":{append_text:?}}}")),
+            status: ApprovalStatus::Approved,
+            status_note: None,
+            created_at: String::new(),
+            updated_at: String::new(),
+        }
+    }
+
+    #[test]
+    fn rejects_requests_that_touch_too_many_protected_files() {
+        let config = AppConfig::default_for_data_dir("/tmp/praxis".into());
+        let paths = PraxisPaths::for_data_dir("/tmp/praxis".into());
+        let error = SecurityPolicy
+            .validate_request(
+                &config,
+                &paths,
+                &manifest(&["JOURNAL.md", "PROPOSALS.md", "METRICS.md"]),
+                &request(
+                    &["JOURNAL.md", "PROPOSALS.md", "METRICS.md"],
+                    "safe note".to_string(),
+                ),
+            )
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("protected-file circuit breaker"));
+    }
+
+    #[test]
+    fn rejects_oversized_append_payloads() {
+        let config = AppConfig::default_for_data_dir("/tmp/praxis".into());
+        let paths = PraxisPaths::for_data_dir("/tmp/praxis".into());
+        let error = SecurityPolicy
+            .validate_request(
+                &config,
+                &paths,
+                &manifest(&["JOURNAL.md"]),
+                &request(&["JOURNAL.md"], "A".repeat(4 * 1024 + 1)),
+            )
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("append-size circuit breaker"));
+    }
 }

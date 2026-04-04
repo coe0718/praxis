@@ -1093,6 +1093,7 @@ Move items upward as they ship:
 - **Energy budget / rate-limit budget** — `budgets.toml` now sets explicit ask/run attempt, token, and estimated-cost ceilings, and Praxis blocks extra backend work once a session exhausts them.
 - **Local-first model fallback** — an opt-in `agent.local_first_fallback` policy now routes low-risk `ask` and `act` phases through Ollama first, then falls back to configured cloud providers if needed.
 - **Adaptive context allocation** — Praxis now records which context sources were actually included in successful or failed sessions and gently reweights future source caps via a portable `context_adaptation.json` state file.
+- **File-mutation circuit breaker** — tool approval validation now caps write-path fanout, protected identity-surface writes, and append payload size before a real file mutation can execute.
 - **Watchdog heartbeat backstop** — Praxis now writes a runtime heartbeat file, exposes `praxis heartbeat status/check`, and ships a simple external `scripts/check-heartbeat.sh` checker for cron or systemd.
 - **Proposal inbox sync** — the opportunity queue now mirrors into `PROPOSALS.md`, and operators can accept or dismiss proposals without the markdown view drifting out of sync.
 - **Opportunity-to-goal promotion** — accepting a mined opportunity can now create or reuse a real goal in `GOALS.md`, link the proposal to that goal, and feed the work back into the main loop.
@@ -1106,7 +1107,6 @@ Move items upward as they ship:
 - **Boundary maintenance loop** — support `/boundaries` as a recurring conversation, and have the weekly alignment review explicitly ask whether hard limits changed.
 - **Attachment policy** — define explicit reject/chunk/summarize behavior for oversized files and never silently truncate.
 - **Cold-memory decay clarification** — decay cold memories in place by default; only demote when certainty genuinely drops.
-- **File-mutation circuit breaker** — trip a guard if a session attempts to modify too much of the workspace, identity surface, or too many protected files at once.
 - **Automatic backup snapshots** — optional daily snapshots handled by Praxis or the watchdog on top of the manual export/import flow.
 - **Capability benchmarking** — add recurring capability tests and operator-specific replay/eval sessions to measure usefulness over time.
 - **Speculative execution** — compare multiple rehearsed branches before committing to the safest or highest-yield act plan.
