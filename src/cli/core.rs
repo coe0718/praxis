@@ -7,6 +7,7 @@ use crate::{
     cli::{AskArgs, InitArgs, RunArgs},
     config::AppConfig,
     events::FileEventSink,
+    heartbeat::write_heartbeat,
     identity::{IdentityPolicy, LocalIdentityPolicy, MarkdownGoalParser},
     r#loop::{PraxisRuntime, RunOptions},
     paths::{PraxisPaths, default_data_dir},
@@ -48,6 +49,13 @@ pub(crate) fn handle_init(data_dir_override: Option<PathBuf>, args: InitArgs) ->
     identity.ensure_foundation(&paths, &config, now)?;
     FileToolRegistry.ensure_foundation(&paths)?;
     sync_capabilities(&FileToolRegistry, &store, &paths)?;
+    write_heartbeat(
+        &paths.heartbeat_file,
+        "praxis",
+        "sleep",
+        "Initialized data directory.",
+        now,
+    )?;
 
     Ok(format!(
         "initialized: ok\ndata_dir: {}\nconfig: {}\ndatabase: {}\ntools: {}",
@@ -170,6 +178,7 @@ pub(crate) fn handle_doctor(data_dir_override: Option<PathBuf>) -> Result<String
     let providers = ProviderSettings::load_or_default(&paths.providers_file)?;
     providers.validate()?;
     UsageBudgetPolicy::load_or_default(&paths.budgets_file)?.validate()?;
+    crate::heartbeat::read_heartbeat(&paths.heartbeat_file)?;
     let criteria_count = LocalReviewer.validate(&paths)?;
     let eval_count = LocalEvalSuite.validate(&paths)?;
 
@@ -178,7 +187,7 @@ pub(crate) fn handle_doctor(data_dir_override: Option<PathBuf>) -> Result<String
     store.validate_schema()?;
 
     Ok(format!(
-        "doctor: ok\nconfig: ok\nidentity: ok\ndatabase: ok\ntools: ok\nproviders: ok\nbudgets: ok\nquality: ok\ngoal_criteria: {criteria_count}\nevals: {eval_count}\nbackend: {}",
+        "doctor: ok\nconfig: ok\nidentity: ok\ndatabase: ok\ntools: ok\nproviders: ok\nbudgets: ok\nheartbeat: ok\nquality: ok\ngoal_criteria: {criteria_count}\nevals: {eval_count}\nbackend: {}",
         config.agent.backend
     ))
 }

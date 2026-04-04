@@ -8,6 +8,7 @@ pub mod context;
 pub mod dashboard;
 pub mod events;
 pub mod forensics;
+pub mod heartbeat;
 pub mod identity;
 pub mod learning;
 pub mod r#loop;

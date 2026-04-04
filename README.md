@@ -33,6 +33,7 @@ Shipped today:
 - Provider routing with `stub`, Claude, OpenAI, Ollama, and router-mode failover
 - Explicit `budgets.toml` limits for ask/run attempt count, token spend, and estimated cost
 - Opt-in local-first fallback so low-risk `ask` and `act` phases can prefer Ollama before cloud providers
+- Runtime heartbeat file plus `praxis heartbeat check` and `scripts/check-heartbeat.sh` for external liveness checks
 - Telegram operator commands and a lightweight SSE/dashboard server
 - Reviewer/eval quality gates during Reflect
 - Automatic markdown postmortems for reviewer failures, eval regressions, and similar bad outcomes
@@ -47,6 +48,7 @@ Not finished yet:
 
 - Broader tool execution beyond the first controlled data-write path
 - Watchdog heartbeat, rollout canaries, and rollback automation
+- Full watchdog/auto-update process management beyond the new heartbeat backstop
 - Richer dashboard UI and additional messaging platforms
 - Automatic scheduled backup snapshots for long-lived state
 - Deeper memory consolidation, reinforcement, and longer-horizon calibration

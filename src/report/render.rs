@@ -27,6 +27,12 @@ pub fn render_status_report(report: &StatusReport) -> String {
     if let Some(last_event) = &report.last_event {
         lines.push(format!("last_event: {}", last_event.kind));
     }
+    if let Some(heartbeat) = &report.heartbeat {
+        lines.push(format!(
+            "heartbeat: phase={} updated_at={}",
+            heartbeat.phase, heartbeat.updated_at
+        ));
+    }
     if let Some(session) = &report.last_session {
         lines.push(format!(
             "last_session: #{} {}",

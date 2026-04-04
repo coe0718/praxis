@@ -4,6 +4,7 @@ mod archive;
 mod argus;
 pub(crate) mod core;
 mod forensics;
+mod heartbeat;
 mod learning;
 mod serve;
 mod telegram;
@@ -38,6 +39,7 @@ pub enum Commands {
     Argus(argus::ArgusArgs),
     Learn(learning::LearningArgs),
     Forensics(forensics::ForensicsArgs),
+    Heartbeat(heartbeat::HeartbeatArgs),
     Queue(QueueArgs),
     Approve(ApprovalActionArgs),
     Reject(ApprovalActionArgs),
@@ -110,6 +112,7 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::Argus(args) => argus::handle_argus(cli.data_dir, args),
         Commands::Learn(args) => learning::handle_learning(cli.data_dir, args),
         Commands::Forensics(args) => forensics::handle_forensics(cli.data_dir, args),
+        Commands::Heartbeat(args) => heartbeat::handle_heartbeat(cli.data_dir, args),
         Commands::Queue(args) => approvals::handle_queue(cli.data_dir, args),
         Commands::Approve(args) => approvals::handle_approval_action(
             cli.data_dir,

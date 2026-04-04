@@ -43,6 +43,7 @@ pub struct StatusReport {
     pub drift_status: String,
     pub event_count: usize,
     pub last_event: Option<Event>,
+    pub heartbeat: Option<HeartbeatReport>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -89,6 +90,12 @@ pub struct LastTokenHotspotReport {
     pub estimated_cost_micros: i64,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct HeartbeatReport {
+    pub phase: String,
+    pub updated_at: String,
+}
+
 pub fn build_status_report(config: &AppConfig, paths: &PraxisPaths) -> Result<StatusReport> {
     let state = SessionState::load(&paths.state_file)?;
     let store = SqliteSessionStore::new(paths.database_file.clone());
@@ -109,6 +116,7 @@ pub fn build_status_report(config: &AppConfig, paths: &PraxisPaths) -> Result<St
         .status
         .as_str()
         .to_string();
+    let heartbeat = crate::heartbeat::read_heartbeat(&paths.heartbeat_file).ok();
     let (events, _) = read_events_since(&paths.events_file, 0)?;
 
     Ok(StatusReport {
@@ -169,5 +177,9 @@ pub fn build_status_report(config: &AppConfig, paths: &PraxisPaths) -> Result<St
         drift_status,
         event_count: events.len(),
         last_event: events.last().cloned(),
+        heartbeat: heartbeat.map(|record| HeartbeatReport {
+            phase: record.phase,
+            updated_at: record.updated_at,
+        }),
     })
 }

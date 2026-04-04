@@ -4,6 +4,7 @@ use crate::{
     config::AppConfig,
     events::EventSink,
     forensics::record_snapshot,
+    heartbeat::write_heartbeat,
     identity::{GoalParser, IdentityPolicy},
     memory::MemoryStore,
     paths::PraxisPaths,
@@ -56,6 +57,13 @@ where
 
         let mut state = self.load_or_create_state(now, options.task)?;
         let resumed = state.resume_count > 0;
+        write_heartbeat(
+            &self.paths.heartbeat_file,
+            "praxis",
+            state.current_phase.to_string().as_str(),
+            "Session loaded and ready to run.",
+            now,
+        )?;
         state.save(&self.paths.state_file)?;
         record_snapshot(&self.paths.database_file, &state, "session_loaded")?;
 
@@ -114,6 +122,13 @@ where
         next_phase: SessionPhase,
     ) -> Result<()> {
         self.emit(event_kind, detail)?;
+        write_heartbeat(
+            &self.paths.heartbeat_file,
+            "praxis",
+            state.current_phase.to_string().as_str(),
+            detail,
+            self.clock.now_utc(),
+        )?;
         state.save(&self.paths.state_file)?;
         record_snapshot(
             &self.paths.database_file,
@@ -133,9 +148,23 @@ where
 
     fn execute_reflect(&self, state: &mut SessionState) -> Result<()> {
         self.emit("agent:reflect_start", "Recording the session outcome.")?;
+        write_heartbeat(
+            &self.paths.heartbeat_file,
+            "praxis",
+            state.current_phase.to_string().as_str(),
+            "Recording the session outcome.",
+            self.clock.now_utc(),
+        )?;
         state.save(&self.paths.state_file)?;
         record_snapshot(&self.paths.database_file, state, "agent:reflect_start")?;
         self.reflect(state)?;
+        write_heartbeat(
+            &self.paths.heartbeat_file,
+            "praxis",
+            "sleep",
+            "Session completed and returned to sleep.",
+            self.clock.now_utc(),
+        )?;
         record_snapshot(&self.paths.database_file, state, "agent:reflect_complete")?;
         state.save(&self.paths.state_file)?;
         Ok(())

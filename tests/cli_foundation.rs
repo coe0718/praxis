@@ -55,6 +55,7 @@ fn init_is_idempotent_and_creates_foundation_files() {
         "CAPABILITIES.md",
         "PROPOSALS.md",
         "DAY_COUNT",
+        "heartbeat.json",
     ] {
         assert!(data_dir.join(required).exists(), "{required} should exist");
     }
@@ -89,6 +90,7 @@ fn doctor_reports_healthy_and_broken_setups() {
         .stdout(predicate::str::contains("tools: ok"))
         .stdout(predicate::str::contains("providers: ok"))
         .stdout(predicate::str::contains("budgets: ok"))
+        .stdout(predicate::str::contains("heartbeat: ok"))
         .stdout(predicate::str::contains("quality: ok"))
         .stdout(predicate::str::contains("goal_criteria: 1"))
         .stdout(predicate::str::contains("evals: 1"));
