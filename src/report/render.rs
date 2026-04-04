@@ -25,6 +25,7 @@ pub fn render_status_report(report: &StatusReport) -> String {
         ),
         format!("event_count: {}", report.event_count),
         format!("canary_records: {}", report.canary_records),
+        format!("boundary_review_due: {}", report.boundary_review_due),
     ];
 
     if let Some(selected_tool) = &report.selected_tool {
@@ -38,6 +39,9 @@ pub fn render_status_report(report: &StatusReport) -> String {
             "heartbeat: phase={} updated_at={}",
             heartbeat.phase, heartbeat.updated_at
         ));
+    }
+    if let Some(last_boundary_review) = &report.last_boundary_review {
+        lines.push(format!("last_boundary_review: {last_boundary_review}"));
     }
     if let Some(session) = &report.last_session {
         lines.push(format!(

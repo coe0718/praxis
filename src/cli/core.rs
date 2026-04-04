@@ -4,6 +4,7 @@ use anyhow::{Context, Result, bail};
 
 use crate::{
     backend::{AgentBackend, ConfiguredBackend},
+    boundaries::BoundaryReviewState,
     canary::ModelCanaryLedger,
     cli::{AskArgs, InitArgs, RunArgs},
     config::AppConfig,
@@ -45,6 +46,7 @@ pub(crate) fn handle_init(data_dir_override: Option<PathBuf>, args: InitArgs) ->
     ProfileSettings::default().save_if_missing(&paths.profiles_file)?;
     UsageBudgetPolicy::default().save_if_missing(&paths.budgets_file)?;
     ModelCanaryLedger { records: Vec::new() }.save_if_missing(&paths.model_canary_file)?;
+    BoundaryReviewState::default().save_if_missing(&paths.boundary_review_file)?;
 
     let store = SqliteSessionStore::new(paths.database_file.clone());
     store.initialize()?;
@@ -183,6 +185,7 @@ pub(crate) fn handle_doctor(data_dir_override: Option<PathBuf>) -> Result<String
     ProfileSettings::load_or_default(&paths.profiles_file)?.validate()?;
     UsageBudgetPolicy::load_or_default(&paths.budgets_file)?.validate()?;
     ModelCanaryLedger::load_or_default(&paths.model_canary_file)?.validate()?;
+    BoundaryReviewState::load_or_default(&paths.boundary_review_file)?.validate()?;
     crate::heartbeat::read_heartbeat(&paths.heartbeat_file)?;
     let criteria_count = LocalReviewer.validate(&paths)?;
     let eval_count = LocalEvalSuite.validate(&paths)?;

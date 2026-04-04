@@ -6,6 +6,7 @@ use serde::Serialize;
 use crate::{
     argus::analyze,
     canary::ModelCanaryLedger,
+    boundaries::{BoundaryReviewState, review_prompt},
     config::AppConfig,
     events::{Event, read_events_since},
     learning::StoredLearningRun,
@@ -15,6 +16,7 @@ use crate::{
         AnatomyStore, ApprovalStatus, ApprovalStore, OperationalMemoryStore, ProviderUsageStore,
         QualityStore, SessionStore, SqliteSessionStore,
     },
+    time::{Clock, SystemClock},
     tools::{FileToolRegistry, ToolRegistry},
 };
 
@@ -48,6 +50,8 @@ pub struct StatusReport {
     pub last_event: Option<Event>,
     pub heartbeat: Option<HeartbeatReport>,
     pub canary_records: usize,
+    pub boundary_review_due: bool,
+    pub last_boundary_review: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -124,6 +128,9 @@ pub fn build_status_report(config: &AppConfig, paths: &PraxisPaths) -> Result<St
     let canary_records = ModelCanaryLedger::load_or_default(&paths.model_canary_file)?
         .records
         .len();
+    let boundary_review = BoundaryReviewState::load_or_default(&paths.boundary_review_file)?;
+    let boundary_review_due =
+        review_prompt(&boundary_review, SystemClock::from_env()?.now_utc()).is_some();
     let (events, _) = read_events_since(&paths.events_file, 0)?;
 
     Ok(StatusReport {
@@ -191,5 +198,7 @@ pub fn build_status_report(config: &AppConfig, paths: &PraxisPaths) -> Result<St
             updated_at: record.updated_at,
         }),
         canary_records,
+        boundary_review_due,
+        last_boundary_review: boundary_review.last_confirmed_at,
     })
 }

@@ -11,7 +11,7 @@ pub(super) fn foundation_documents(
         (
             paths.identity_file.clone(),
             format!(
-                "# Identity\n\n- Name: {}\n- Timezone: {}\n- Role: A local Praxis instance in foundation mode.\n",
+                "# Identity\n\n- Name: {}\n- Timezone: {}\n- Role: A local Praxis instance in foundation mode.\n\n## Boundaries\n- No hard limits recorded yet.\n",
                 config.instance.name, config.instance.timezone
             ),
         ),

@@ -40,6 +40,7 @@ Shipped today:
 - Model canary ledger plus `freeze_on_model_regression` gating so remote routes can be frozen until they pass an explicit canary run
 - Runtime heartbeat file plus `praxis heartbeat check` and `scripts/check-heartbeat.sh` for external liveness checks
 - Telegram operator commands and a lightweight SSE/dashboard server
+- Boundary maintenance commands plus recurring weekly review prompts surfaced in `status` and `/boundaries`
 - Reviewer/eval quality gates during Reflect
 - Automatic markdown postmortems for reviewer failures, eval regressions, and similar bad outcomes
 - Fixture-backed replay tests for stateful session, forensics, and approval flows
@@ -171,6 +172,7 @@ The compose file binds `./docker-data` to `/var/lib/praxis`, so state persists a
 - `praxis run --once`
 - `praxis status`
 - `praxis doctor`
+- `praxis boundaries show`
 - `praxis forensics latest`
 - `praxis argus --limit 10`
 
@@ -224,6 +226,18 @@ cargo run -- --data-dir ./local-data agents add --section gotcha --note "Docker 
 ```
 
 That file is part of the foundation set, is loaded into Orient as its own context source, and is included in portable exports/imports.
+
+### Boundaries
+
+Praxis now treats hard limits as a maintained surface instead of a one-time setup note:
+
+```bash
+cargo run -- --data-dir ./local-data boundaries show
+cargo run -- --data-dir ./local-data boundaries add Never deploy after midnight
+cargo run -- --data-dir ./local-data boundaries confirm --note "Reviewed after setup"
+```
+
+`status` and Telegram `/boundaries` will surface when the weekly alignment review is due and explicitly ask whether hard limits changed.
 
 ### Durability and Audit
 

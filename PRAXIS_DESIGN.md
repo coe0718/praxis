@@ -1102,10 +1102,10 @@ Move items upward as they ship:
 - **Agent-core dependency hedge** — Praxis now documents the backend ownership boundary and replacement plan in `docs/agent_runtime.md`, making external runtimes adapters rather than core architecture.
 - **Model profiles** — Praxis now seeds `profiles.toml` and applies named `quality`, `budget`, or `offline` execution profiles at config-load time so backend routing and context ceiling can shift together.
 - **Model transition controls** — Praxis now stores per-provider/model canary results in `model_canary.json`, exposes `praxis canary run/status`, and can freeze remote routes until a passing canary is recorded.
+- **Boundary maintenance loop** — Praxis now persists weekly boundary review state, exposes `praxis boundaries show/add/confirm`, and surfaces the recurring "have any hard limits changed?" prompt in status plus Telegram `/boundaries`.
 
 ### Adopt Soon
 
-- **Boundary maintenance loop** — support `/boundaries` as a recurring conversation, and have the weekly alignment review explicitly ask whether hard limits changed.
 - **Attachment policy** — define explicit reject/chunk/summarize behavior for oversized files and never silently truncate.
 - **Cold-memory decay clarification** — decay cold memories in place by default; only demote when certainty genuinely drops.
 - **Automatic backup snapshots** — optional daily snapshots handled by Praxis or the watchdog on top of the manual export/import flow.

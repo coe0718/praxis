@@ -2,6 +2,7 @@ mod agents;
 pub(crate) mod approvals;
 mod archive;
 mod argus;
+mod boundaries;
 mod canary;
 pub(crate) mod core;
 mod forensics;
@@ -35,6 +36,7 @@ pub enum Commands {
     Status,
     Doctor,
     Agents(agents::AgentsArgs),
+    Boundaries(boundaries::BoundariesArgs),
     Export(archive::ExportArgs),
     Import(archive::ImportArgs),
     Argus(argus::ArgusArgs),
@@ -109,6 +111,7 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::Status => core::handle_status(cli.data_dir),
         Commands::Doctor => core::handle_doctor(cli.data_dir),
         Commands::Agents(args) => agents::handle_agents(cli.data_dir, args),
+        Commands::Boundaries(args) => boundaries::handle_boundaries(cli.data_dir, args),
         Commands::Export(args) => archive::handle_export(cli.data_dir, args),
         Commands::Import(args) => archive::handle_import(cli.data_dir, args),
         Commands::Argus(args) => argus::handle_argus(cli.data_dir, args),
