@@ -5,6 +5,7 @@ pub fn render_status_report(report: &StatusReport) -> String {
         "status: ready".to_string(),
         format!("instance: {}", report.instance_name),
         format!("backend: {}", report.backend),
+        format!("profile: {}", report.profile),
         format!("data_dir: {}", report.data_dir),
         format!("phase: {}", report.phase),
         format!("last_outcome: {}", report.last_outcome),

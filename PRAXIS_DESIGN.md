@@ -1100,6 +1100,7 @@ Move items upward as they ship:
 - **Hierarchical goals** — goals can now declare `parent: G-...`, and the planner will prefer unfinished child work before selecting an umbrella parent goal that still has open children.
 - **Controlled data-write execution** — approved `praxis-data-write` requests can now execute a real append-only write into allowed Praxis data files instead of always stopping at a stubbed act-phase record.
 - **Agent-core dependency hedge** — Praxis now documents the backend ownership boundary and replacement plan in `docs/agent_runtime.md`, making external runtimes adapters rather than core architecture.
+- **Model profiles** — Praxis now seeds `profiles.toml` and applies named `quality`, `budget`, or `offline` execution profiles at config-load time so backend routing and context ceiling can shift together.
 
 ### Adopt Soon
 
@@ -1112,7 +1113,6 @@ Move items upward as they ship:
 - **Speculative execution** — compare multiple rehearsed branches before committing to the safest or highest-yield act plan.
 - **Wave execution** — group dependency-aware sub-agent work into parallel waves instead of spawning parallelism ad hoc.
 - **Context-rot prevention** — make "fit work into clean context windows" a structural rule, not just a good habit.
-- **Model profiles** — named execution modes like `quality`, `budget`, or `offline` that change provider/model behavior consistently across subsystems.
 - **Wake-on-intent** — support approved interrupt-style wakes alongside scheduled sessions.
 - **Reviewer cost guardrails** — keep reviewer context and token ceilings explicit so mandatory review stays affordable.
 

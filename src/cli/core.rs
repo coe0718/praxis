@@ -11,6 +11,7 @@ use crate::{
     identity::{IdentityPolicy, LocalIdentityPolicy, MarkdownGoalParser},
     r#loop::{PraxisRuntime, RunOptions},
     paths::{PraxisPaths, default_data_dir},
+    profiles::ProfileSettings,
     providers::ProviderSettings,
     quality::{EvalRunner, LocalEvalSuite, LocalReviewer, Reviewer},
     report::{build_status_report, render_status_report},
@@ -40,6 +41,7 @@ pub(crate) fn handle_init(data_dir_override: Option<PathBuf>, args: InitArgs) ->
     let paths = PraxisPaths::from_config(&config);
     config.save(&paths.config_file)?;
     ProviderSettings::default().save_if_missing(&paths.providers_file)?;
+    ProfileSettings::default().save_if_missing(&paths.profiles_file)?;
     UsageBudgetPolicy::default().save_if_missing(&paths.budgets_file)?;
 
     let store = SqliteSessionStore::new(paths.database_file.clone());
@@ -161,8 +163,7 @@ pub(crate) fn handle_status(data_dir_override: Option<PathBuf>) -> Result<String
         ));
     }
 
-    let config = AppConfig::load(&base_paths.config_file)?.with_overridden_data_dir(data_dir);
-    let paths = PraxisPaths::from_config(&config);
+    let (config, paths) = load_initialized_config(Some(data_dir))?;
     Ok(render_status_report(&build_status_report(&config, &paths)?))
 }
 
@@ -177,6 +178,7 @@ pub(crate) fn handle_doctor(data_dir_override: Option<PathBuf>) -> Result<String
     FileToolRegistry.validate(&paths)?;
     let providers = ProviderSettings::load_or_default(&paths.providers_file)?;
     providers.validate()?;
+    ProfileSettings::load_or_default(&paths.profiles_file)?.validate()?;
     UsageBudgetPolicy::load_or_default(&paths.budgets_file)?.validate()?;
     crate::heartbeat::read_heartbeat(&paths.heartbeat_file)?;
     let criteria_count = LocalReviewer.validate(&paths)?;
@@ -210,5 +212,6 @@ pub(crate) fn load_initialized_config(
         .with_context(|| format!("failed to load {}", base_paths.config_file.display()))?
         .with_overridden_data_dir(data_dir);
     let paths = PraxisPaths::from_config(&config);
+    let config = ProfileSettings::load_or_default(&paths.profiles_file)?.apply(&config)?;
     Ok((config, paths))
 }

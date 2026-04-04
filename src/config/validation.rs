@@ -30,6 +30,10 @@ impl AppConfig {
             );
         }
 
+        if self.agent.profile.trim().is_empty() {
+            bail!("agent.profile must not be empty");
+        }
+
         if !(0.0..=1.0).contains(&self.agent.context_ceiling_pct)
             || self.agent.context_ceiling_pct == 0.0
         {

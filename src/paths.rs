@@ -19,6 +19,7 @@ pub struct PraxisPaths {
     pub data_dir: PathBuf,
     pub config_file: PathBuf,
     pub providers_file: PathBuf,
+    pub profiles_file: PathBuf,
     pub budgets_file: PathBuf,
     pub database_file: PathBuf,
     pub state_file: PathBuf,
@@ -110,6 +111,7 @@ impl PraxisPaths {
         Self {
             config_file: data_dir.join("praxis.toml"),
             providers_file: data_dir.join("providers.toml"),
+            profiles_file: data_dir.join("profiles.toml"),
             budgets_file: data_dir.join("budgets.toml"),
             database_file: resolve_path(&data_dir, &database_path),
             state_file: resolve_path(&data_dir, &state_file),

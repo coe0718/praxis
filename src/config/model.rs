@@ -48,6 +48,8 @@ pub struct SecurityConfig {
 pub struct AgentConfig {
     pub backend: String,
     pub context_ceiling_pct: f32,
+    #[serde(default = "default_profile")]
+    pub profile: String,
     pub model_pin: Option<String>,
     #[serde(default)]
     pub local_first_fallback: bool,
@@ -108,6 +110,7 @@ impl AppConfig {
             agent: AgentConfig {
                 backend: "stub".to_string(),
                 context_ceiling_pct: 0.80,
+                profile: default_profile(),
                 model_pin: None,
                 local_first_fallback: false,
             },
@@ -168,4 +171,8 @@ fn source(name: &str, priority: u8, max_pct: f32) -> ContextSourceConfig {
         priority,
         max_pct,
     }
+}
+
+fn default_profile() -> String {
+    "quality".to_string()
 }

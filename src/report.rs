@@ -23,6 +23,7 @@ pub use render::render_status_report;
 pub struct StatusReport {
     pub instance_name: String,
     pub backend: String,
+    pub profile: String,
     pub data_dir: String,
     pub phase: String,
     pub last_outcome: String,
@@ -122,6 +123,7 @@ pub fn build_status_report(config: &AppConfig, paths: &PraxisPaths) -> Result<St
     Ok(StatusReport {
         instance_name: config.instance.name.clone(),
         backend: config.agent.backend.clone(),
+        profile: config.agent.profile.clone(),
         data_dir: paths.data_dir.display().to_string(),
         phase: state
             .as_ref()
