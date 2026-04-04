@@ -1029,19 +1029,25 @@ strip = true
 
 ## Build Order
 
-| Step | System | Primary modules |
-|---|---|---|
-| 1 | Agent loop skeleton | `src/loop/`, `src/scheduler/` |
-| 2 | Context budget + anatomy index | `src/context/`, `src/loop/orient.rs` |
-| 3 | Memory + operational memory | `src/memory/`, `src/analytics/` |
-| 4 | Tools system | `src/tools/`, `src/agents/` |
-| 5 | Identity policy | `src/identity/`, `PROPOSALS.md` workflow |
-| 6 | SSE event streaming | `src/dashboard/`, `src/analytics/receipts.rs` |
-| 7 | Messaging layer | `src/messaging/` |
-| 8 | Quality system | `src/quality/`, `goals/criteria/` |
-| 9 | Analytics + observability + forensics | `src/analytics/`, `src/forensics/`, `src/tui/`, `docs/` |
-| 10 | Trust + opportunity + learning runtime | `src/quality/`, `src/analytics/`, `src/memory/`, `src/learning/` |
-| 11 | Watchdog + auto-update | `src/watchdog/`, `scripts/install.sh` |
+Status values are intentionally rough:
+
+- `Implemented` means the repo has a working first pass today.
+- `In progress` means the system exists, but the full design goal is not complete yet.
+- `Planned` means the section is still design-only.
+
+| Step | Status | System | Primary modules |
+|---|---|---|---|
+| 1 | Implemented | Agent loop skeleton | `src/loop/`, `src/scheduler/` |
+| 2 | Implemented | Context budget + anatomy index | `src/context/`, `src/loop/orient.rs` |
+| 3 | In progress | Memory + operational memory | `src/memory/`, `src/analytics/` |
+| 4 | In progress | Tools system | `src/tools/`, `src/agents/` |
+| 5 | In progress | Identity policy | `src/identity/`, `PROPOSALS.md` workflow |
+| 6 | Implemented | SSE event streaming | `src/dashboard/`, `src/analytics/receipts.rs` |
+| 7 | In progress | Messaging layer | `src/messaging/` |
+| 8 | Implemented | Quality system | `src/quality/`, `goals/criteria/` |
+| 9 | In progress | Analytics + observability + forensics | `src/analytics/`, `src/forensics/`, `src/tui/`, `docs/` |
+| 10 | Planned | Trust + opportunity + learning runtime | `src/quality/`, `src/analytics/`, `src/memory/`, `src/learning/` |
+| 11 | Planned | Watchdog + auto-update | `src/watchdog/`, `scripts/install.sh` |
 
 This table is intentionally coupled to the repository structure. If the module layout changes, the build order should be updated in the same pull request.
 
@@ -1053,16 +1059,27 @@ The following ideas are explicitly captured so they do not get lost. Some are al
 
 This section now absorbs the old `Praxis_More.md` notes as well.
 
+Move items upward as they ship:
+
+- `Completed` means the feature exists in the current repo.
+- `Adopt Soon` means it should land in a near-term implementation wave.
+- `Future / Optional` means it is intentionally deferred.
+
+### Completed
+
+- **Codebase anatomy index** — file descriptions, token estimates, and timestamps are stored so Orient can reason about files before reopening them.
+- **Do-not-repeat register** — operational mistakes are persisted and can be loaded before similar future work.
+- **Known bug log** — searchable bug/fix memory now exists for instance-specific operational learning.
+- **Repeated-read detection** — sessions can detect and avoid reopening the same file when the anatomy summary is sufficient.
+- **Per-phase token ledger** — token and estimated cost usage is stored by phase and provider in SQLite.
+- **Cross-session failure clustering** — Argus groups repeated failure outcomes instead of treating bad sessions as isolated.
+- **Cross-session pattern mining** — Argus now spots recurring goals or tasks that keep resurfacing across sessions and days.
+
 ### Adopt Soon
 
 - **Portable state export/import** — add `praxis export-memory`, `praxis import-memory`, and versioned backup/restore tooling for memories, preferences, identity files, and analytics so long-lived instances are durable across reinstalls or machine moves.
 - **Schema migration policy** — every exported artifact and SQLite schema needs an explicit version and migration path.
 - **Agent-core dependency hedge** — `yoagent` or any external agent-runtime dependency must sit behind a Praxis-owned abstraction with docs explaining its responsibilities, replacement plan, and exit strategy if the crate is abandoned.
-- **Codebase anatomy index** — make file descriptions, token estimates, and symbol hints a first-class part of Orient so the agent does not keep opening files blindly.
-- **Do-not-repeat register** — store operational mistakes as structured memory that loads before planning and acting on similar work.
-- **Known bug log** — searchable fixes, symptoms, and tags so dev-focused instances can check whether they already solved a class of failure.
-- **Repeated-read detection** — warn when the session keeps reopening the same file without a changed timestamp or narrower scope.
-- **Per-phase token ledger** — store actual token and estimated cost usage by phase and provider, not just blended session totals.
 - **Model transition controls** — add `model_pin`, model canaries, regression gates, and a "freeze on known-good model behavior" option so provider-side model updates do not silently change Praxis personality or reliability.
 - **Drift detection** — compare current reviewer pass rate, eval scores, operator corrections, and boundary violations against rolling baselines to catch silent degradation.
 - **Opportunity miner throttle** — rate-limit proposal generation, enforce priority ordering, and cap how many new opportunities can be surfaced per day or week.
@@ -1117,7 +1134,6 @@ This section now absorbs the old `Praxis_More.md` notes as well.
 - **OpenTelemetry / Prometheus export** — richer external observability once local analytics and SSE are stable.
 - **Local multimodal and local model bundles** — optional heavy extras for privacy-first or travel/offline deployments.
 - **Postmortem generator** — automatically write structured failure postmortems after review or eval regressions.
-- **Cross-session failure clustering** — group repeated failures into named clusters so Argus can reason over patterns rather than isolated incidents.
 - **Synthetic example generation** — turn high-value learnings into reusable structured examples for future prompt shaping or evaluation.
 - **Social runtime** — optional scheduled outward-facing posting or status sharing on behalf of the operator.
 - **VS Code ops surface** — lightweight editor integration for status, current goal, and safe run triggers.

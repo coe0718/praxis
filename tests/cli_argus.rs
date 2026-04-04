@@ -54,3 +54,57 @@ fn argus_surfaces_recent_quality_directives() {
         .stdout(predicate::str::contains("token_hotspots:"))
         .stdout(predicate::str::contains("Tighten completion discipline"));
 }
+
+#[test]
+fn argus_surfaces_repeated_work_across_days() {
+    let temp = tempdir().unwrap();
+    let data_dir = temp.path().join("praxis");
+
+    praxis_command()
+        .env("PRAXIS_FIXED_NOW", "2026-04-03T09:00:00Z")
+        .arg("--data-dir")
+        .arg(&data_dir)
+        .arg("init")
+        .assert()
+        .success();
+
+    praxis_command()
+        .env("PRAXIS_FIXED_NOW", "2026-04-03T09:15:00Z")
+        .arg("--data-dir")
+        .arg(&data_dir)
+        .arg("run")
+        .arg("--once")
+        .arg("--task")
+        .arg("triage recurring inbox")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("task: triage recurring inbox"));
+
+    fs::write(data_dir.join("DAY_COUNT"), "1\n").unwrap();
+
+    praxis_command()
+        .env("PRAXIS_FIXED_NOW", "2026-04-04T09:15:00Z")
+        .arg("--data-dir")
+        .arg(&data_dir)
+        .arg("run")
+        .arg("--once")
+        .arg("--task")
+        .arg("triage recurring inbox")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("task: triage recurring inbox"));
+
+    praxis_command()
+        .arg("--data-dir")
+        .arg(&data_dir)
+        .arg("argus")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("repeated_work:"))
+        .stdout(predicate::str::contains(
+            "task: triage recurring inbox sessions=2 days=2",
+        ))
+        .stdout(predicate::str::contains(
+            "Recurring work is resurfacing across multiple days",
+        ));
+}

@@ -1,6 +1,9 @@
-use std::{collections::BTreeMap, path::Path};
+mod patterns;
+
+use std::path::Path;
 
 use anyhow::{Context, Result};
+use patterns::{RepeatedWorkPattern, cluster_failures, recent_sessions, repeated_work_patterns};
 use rusqlite::{Connection, params};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -11,6 +14,7 @@ pub struct ArgusReport {
     pub loop_guard_blocks: i64,
     pub waiting_sessions: usize,
     pub repeated_reads_avoided: i64,
+    pub repeated_work: Vec<RepeatedWorkPattern>,
     pub failure_clusters: Vec<(String, usize)>,
     pub token_hotspots: Vec<(String, String, i64)>,
     pub directives: Vec<String>,
@@ -38,6 +42,7 @@ pub fn analyze(database_file: &Path, limit: usize) -> Result<ArgusReport> {
         .iter()
         .map(|session| session.repeated_reads_avoided)
         .sum();
+    let repeated_work = repeated_work_patterns(&sessions);
     let failure_clusters = cluster_failures(&sessions);
     let token_hotspots = token_hotspots(&connection, limit.max(1))?;
     let directives = directives(
@@ -47,6 +52,7 @@ pub fn analyze(database_file: &Path, limit: usize) -> Result<ArgusReport> {
         loop_guard_blocks,
         waiting_sessions,
         repeated_reads_avoided,
+        &repeated_work,
         &token_hotspots,
     );
 
@@ -57,6 +63,7 @@ pub fn analyze(database_file: &Path, limit: usize) -> Result<ArgusReport> {
         loop_guard_blocks,
         waiting_sessions,
         repeated_reads_avoided,
+        repeated_work,
         failure_clusters,
         token_hotspots,
         directives,
@@ -73,6 +80,18 @@ pub fn render(report: &ArgusReport) -> String {
         format!("waiting_sessions: {}", report.waiting_sessions),
         format!("repeated_reads_avoided: {}", report.repeated_reads_avoided),
     ];
+
+    if report.repeated_work.is_empty() {
+        lines.push("repeated_work: none".to_string());
+    } else {
+        lines.push("repeated_work:".to_string());
+        lines.extend(report.repeated_work.iter().map(|pattern| {
+            format!(
+                "- {} sessions={} days={} latest={}",
+                pattern.label, pattern.sessions, pattern.distinct_days, pattern.latest_outcome
+            )
+        }));
+    }
 
     if report.failure_clusters.is_empty() {
         lines.push("failure_clusters: none".to_string());
@@ -101,57 +120,6 @@ pub fn render(report: &ArgusReport) -> String {
     lines.push("directives:".to_string());
     lines.extend(report.directives.iter().map(|line| format!("- {line}")));
     lines.join("\n")
-}
-
-#[derive(Debug)]
-struct SessionRow {
-    outcome: String,
-    reviewer_failures: i64,
-    eval_failures: i64,
-    repeated_reads_avoided: i64,
-}
-
-fn recent_sessions(connection: &Connection, limit: usize) -> Result<Vec<SessionRow>> {
-    let mut statement = connection
-        .prepare(
-            "
-            SELECT outcome, reviewer_failures, eval_failures, repeated_reads_avoided
-            FROM sessions
-            ORDER BY id DESC
-            LIMIT ?1
-            ",
-        )
-        .context("failed to prepare Argus session query")?;
-    let rows = statement
-        .query_map(params![limit as i64], |row| {
-            Ok(SessionRow {
-                outcome: row.get(0)?,
-                reviewer_failures: row.get(1)?,
-                eval_failures: row.get(2)?,
-                repeated_reads_avoided: row.get(3)?,
-            })
-        })
-        .context("failed to execute Argus session query")?;
-
-    rows.collect::<std::result::Result<Vec<_>, _>>()
-        .context("failed to load recent sessions for Argus")
-}
-
-fn cluster_failures(sessions: &[SessionRow]) -> Vec<(String, usize)> {
-    let mut clusters = BTreeMap::new();
-    for session in sessions {
-        if matches!(
-            session.outcome.as_str(),
-            "goal_selected" | "task_selected" | "tool_executed" | "stop_condition_met"
-        ) {
-            continue;
-        }
-        *clusters.entry(session.outcome.clone()).or_insert(0) += 1;
-    }
-
-    let mut pairs = clusters.into_iter().collect::<Vec<_>>();
-    pairs.sort_by(|left, right| right.1.cmp(&left.1).then(left.0.cmp(&right.0)));
-    pairs
 }
 
 fn token_hotspots(connection: &Connection, limit: usize) -> Result<Vec<(String, String, i64)>> {
@@ -193,6 +161,7 @@ fn directives(
     loop_guard_blocks: i64,
     waiting_sessions: usize,
     repeated_reads_avoided: i64,
+    repeated_work: &[RepeatedWorkPattern],
     token_hotspots: &[(String, String, i64)],
 ) -> Vec<String> {
     let mut directives = Vec::new();
@@ -217,6 +186,15 @@ fn directives(
     if waiting_sessions > 0 {
         directives.push(
             "Clarify blocked goals: promote prerequisites or satisfy wake conditions so sessions do not idle behind dependencies."
+                .to_string(),
+        );
+    }
+    if repeated_work
+        .iter()
+        .any(|pattern| pattern.distinct_days >= 2)
+    {
+        directives.push(
+            "Recurring work is resurfacing across multiple days; promote it into automation, a parent goal, or the learning runtime."
                 .to_string(),
         );
     }

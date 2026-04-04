@@ -29,7 +29,7 @@ Implemented so far:
 - SSE/dashboard server with summary and recent-event views
 - Deterministic reviewer and operator-eval quality gates during Reflect
 - SQLite-backed phase snapshots plus CLI forensics replay
-- Argus performance analysis for recent session quality trends
+- Argus performance analysis for recent session quality trends and recurring work patterns
 - Session-level provider attempt, token, and estimated cost tracking
 - Token-ledger summaries and hotspot reporting in `status` and `argus`
 - Deterministic offline tests plus Docker-first packaging
@@ -155,7 +155,7 @@ Praxis now records phase-boundary snapshots in SQLite during a session so you ca
 cargo run -- --data-dir ./local-data forensics latest
 ```
 
-Argus is a lightweight performance director that analyzes recent session failures and produces concrete improvement directives:
+Argus is a lightweight performance director that analyzes recent session failures, recurring work, and token hotspots to produce concrete improvement directives:
 
 ```bash
 cargo run -- --data-dir ./local-data argus --limit 10
