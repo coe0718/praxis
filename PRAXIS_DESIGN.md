@@ -1085,6 +1085,7 @@ Move items upward as they ship:
 - **Active learning runtime** — `praxis learn run` now ingests local learning sources, appends syntheses to `LEARNINGS.md`, and records learning runs.
 - **AGENTS-style pattern capture** — Praxis now seeds an `AGENTS.md` file, loads it during Orient, and provides CLI support for recording workflow notes, gotchas, and handoff guidance future runs should remember.
 - **Append-only operational learnings** — `LEARNINGS.md` now acts as a structured append-only log for manual operational notes and automatic learning-source syntheses, so instance discoveries accumulate without silent rewrites.
+- **Hierarchical summarization fallback** — oversized context sources now compress into anchor-preserving summaries that try to keep headings, goal IDs, dates, and boundary-style lines instead of bluntly truncating everything.
 - **Proposal inbox sync** — the opportunity queue now mirrors into `PROPOSALS.md`, and operators can accept or dismiss proposals without the markdown view drifting out of sync.
 - **Opportunity-to-goal promotion** — accepting a mined opportunity can now create or reuse a real goal in `GOALS.md`, link the proposal to that goal, and feed the work back into the main loop.
 - **Controlled data-write execution** — approved `praxis-data-write` requests can now execute a real append-only write into allowed Praxis data files instead of always stopping at a stubbed act-phase record.
@@ -1113,7 +1114,6 @@ Move items upward as they ship:
 - **Postmortem generator** — automatically write structured postmortems after reviewer failures, eval regressions, or other high-signal bad outcomes.
 - **Local-first model fallback** — make Ollama or other local providers a first-class fallback policy for low-risk phases such as reflection and summarization.
 - **Adaptive context allocation** — tune context budgets based on which sources correlate with successful outcomes for this specific operator.
-- **Hierarchical summarization fallback** — summarize oversized context sources aggressively while preserving anchors like dates, goal IDs, names, and boundaries.
 - **Tool auto-documentation** — have Praxis maintain examples, failure modes, and reliability notes for installed tools and capabilities.
 
 ### Future / Optional

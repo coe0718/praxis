@@ -25,6 +25,7 @@ Shipped today:
 - Markdown identity and goal files with dependency-aware goal selection
 - SQLite-backed sessions, approvals, memories, reviews, evals, forensics, learning runs, and provider usage
 - Context budgeting, anatomy indexing, repeated-read avoidance, and token/cost ledgers
+- Anchor-preserving summarization for oversized context sources
 - Hot/cold memory search plus operational memory for do-not-repeat notes and known bugs
 - Tool registry, approval queue, path policy enforcement, and loop-guard protection
 - First real tool execution path for approved append-only writes inside allowed Praxis data files

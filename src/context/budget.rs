@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use crate::config::{AppConfig, ContextSourceConfig};
 
+use super::summarize::summarize_to_tokens;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContextSourceInput {
     pub source: String,
@@ -62,7 +64,7 @@ impl ContextBudgeter {
 
             let estimated_tokens = estimate_tokens(&input.content);
             let (content, summarized) = if estimated_tokens > source_cap {
-                (truncate_to_tokens(&input.content, source_cap), true)
+                (summarize_to_tokens(&input.content, source_cap), true)
             } else {
                 (input.content.clone(), false)
             };
@@ -149,19 +151,6 @@ fn max_tokens_for(total_budget_tokens: usize, source: &ContextSourceConfig) -> u
         .max(1.0) as usize
 }
 
-fn truncate_to_tokens(content: &str, max_tokens: usize) -> String {
-    let max_chars = max_tokens.saturating_mul(4);
-    if content.chars().count() <= max_chars {
-        return content.to_string();
-    }
-
-    let truncated = content
-        .chars()
-        .take(max_chars.saturating_sub(3))
-        .collect::<String>();
-    format!("{}...", truncated.trim_end())
-}
-
 #[cfg(test)]
 mod tests {
     use crate::config::AppConfig;
@@ -202,5 +191,30 @@ mod tests {
         );
 
         assert!(context.included_sources[0].summarized);
+    }
+
+    #[test]
+    fn summarized_context_preserves_anchor_lines() {
+        let config = AppConfig::default_for_data_dir("/tmp/praxis".into());
+        let content = [
+            "# Journal",
+            "This filler line should not dominate the summary.",
+            "- [ ] G-042: Ship the next tool release",
+            "Boundary: never message the operator after quiet hours.",
+            "2026-04-05 review noted repeated context thrash.",
+        ]
+        .join("\n");
+        let context = ContextBudgeter.allocate(
+            &config,
+            vec![ContextSourceInput {
+                source: "identity".to_string(),
+                content: content.repeat(50),
+            }],
+        );
+
+        let summarized = &context.included_sources[0].content;
+        assert!(summarized.contains("G-042"));
+        assert!(summarized.contains("Boundary:"));
+        assert!(summarized.contains("2026-04-05"));
     }
 }
