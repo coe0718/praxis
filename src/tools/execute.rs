@@ -1,9 +1,10 @@
 use std::{
     fs::{self, OpenOptions},
     io::Write,
+    path::{Path, PathBuf},
 };
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 
 use crate::{paths::PraxisPaths, storage::StoredApprovalRequest};
 
@@ -52,14 +53,16 @@ fn append_text(
         .filter(|text| !text.is_empty())
         .ok_or_else(|| anyhow::anyhow!("tool {} requires append_text payload", manifest.name))?;
 
-    for relative in &request.write_paths {
-        let relative = normalize_relative(relative)?;
-        let full_path = paths.data_dir.join(&relative);
-        if let Some(parent) = full_path.parent() {
-            fs::create_dir_all(parent)
-                .with_context(|| format!("failed to create {}", parent.display()))?;
+    let plans = request
+        .write_paths
+        .iter()
+        .map(|raw| plan_append(paths, raw, text))
+        .collect::<Result<Vec<_>>>()?;
+
+    for plan in plans {
+        if let Some(block) = plan.block.as_deref() {
+            append_block(&plan.path, block)?;
         }
-        append_block(&full_path, text)?;
     }
 
     Ok(ToolExecutionResult {
@@ -71,20 +74,74 @@ fn append_text(
     })
 }
 
-fn append_block(path: &std::path::Path, text: &str) -> Result<()> {
-    let needs_separator = fs::read(path)
-        .map(|existing| !existing.is_empty() && !existing.ends_with(b"\n"))
-        .unwrap_or(false);
+#[derive(Debug)]
+struct AppendPlan {
+    path: PathBuf,
+    block: Option<String>,
+}
+
+fn plan_append(paths: &PraxisPaths, raw: &str, text: &str) -> Result<AppendPlan> {
+    let relative = normalize_relative(raw)?;
+    ensure_safe_destination(&paths.data_dir, &relative)?;
+    let full_path = paths.data_dir.join(&relative);
+    if let Some(parent) = full_path.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("failed to create {}", parent.display()))?;
+    }
+    Ok(AppendPlan {
+        block: render_append_block(&full_path, text)?,
+        path: full_path,
+    })
+}
+
+fn ensure_safe_destination(root: &Path, relative: &Path) -> Result<()> {
+    let mut current = PathBuf::new();
+    for component in relative.components() {
+        current.push(component.as_os_str());
+        let candidate = root.join(&current);
+        if !candidate.exists() {
+            continue;
+        }
+        let metadata = fs::symlink_metadata(&candidate)
+            .with_context(|| format!("failed to inspect {}", candidate.display()))?;
+        if metadata.file_type().is_symlink() {
+            bail!(
+                "refusing to write through symlink target {}",
+                candidate.display()
+            );
+        }
+    }
+    Ok(())
+}
+
+fn render_append_block(path: &Path, text: &str) -> Result<Option<String>> {
+    let existing = match fs::read(path) {
+        Ok(existing) => existing,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Vec::new(),
+        Err(error) => {
+            return Err(error).with_context(|| format!("failed to read {}", path.display()));
+        }
+    };
+    let mut block = String::new();
+    if !existing.is_empty() && !existing.ends_with(b"\n") {
+        block.push('\n');
+    }
+    block.push_str(text);
+    block.push('\n');
+    if existing.ends_with(block.as_bytes()) {
+        Ok(None)
+    } else {
+        Ok(Some(block))
+    }
+}
+
+fn append_block(path: &Path, block: &str) -> Result<()> {
     let mut file = OpenOptions::new()
         .create(true)
         .append(true)
         .open(path)
         .with_context(|| format!("failed to open {}", path.display()))?;
-
-    if needs_separator {
-        writeln!(file).with_context(|| format!("failed to write {}", path.display()))?;
-    }
-    writeln!(file, "{text}").with_context(|| format!("failed to append {}", path.display()))?;
+    write!(file, "{block}").with_context(|| format!("failed to append {}", path.display()))?;
     Ok(())
 }
 
