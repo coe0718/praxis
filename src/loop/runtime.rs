@@ -3,6 +3,7 @@ use anyhow::Result;
 use crate::{
     config::AppConfig,
     events::EventSink,
+    forensics::record_snapshot,
     identity::{GoalParser, IdentityPolicy},
     memory::MemoryStore,
     paths::PraxisPaths,
@@ -47,6 +48,7 @@ where
         let mut state = self.load_or_create_state(now, options.task)?;
         let resumed = state.resume_count > 0;
         state.save(&self.paths.state_file)?;
+        record_snapshot(&self.paths.database_file, &state, "session_loaded")?;
 
         while state.current_phase != SessionPhase::Sleep {
             self.run_phase(&mut state)?;
@@ -104,7 +106,17 @@ where
     ) -> Result<()> {
         self.emit(event_kind, detail)?;
         state.save(&self.paths.state_file)?;
+        record_snapshot(
+            &self.paths.database_file,
+            state,
+            &format!("{event_kind}:start"),
+        )?;
         handler(self, state)?;
+        record_snapshot(
+            &self.paths.database_file,
+            state,
+            &format!("{event_kind}:complete"),
+        )?;
         state.mark_phase(next_phase, self.clock.now_utc());
         state.save(&self.paths.state_file)?;
         Ok(())
@@ -113,7 +125,9 @@ where
     fn execute_reflect(&self, state: &mut SessionState) -> Result<()> {
         self.emit("agent:reflect_start", "Recording the session outcome.")?;
         state.save(&self.paths.state_file)?;
+        record_snapshot(&self.paths.database_file, state, "agent:reflect_start")?;
         self.reflect(state)?;
+        record_snapshot(&self.paths.database_file, state, "agent:reflect_complete")?;
         state.save(&self.paths.state_file)?;
         Ok(())
     }

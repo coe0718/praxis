@@ -20,10 +20,14 @@ Implemented so far:
 - Context budgeting plus hot/cold memory search with SQLite FTS
 - Markdown identity, goals, criteria, and eval definition files
 - Tool registry, approval queue, path policy checks, and loop-guard protection
+- Dependency-aware goal selection with `blocked_by` and `wake_when` metadata
+- A formal stop condition when all tracked goals are complete
 - Claude backend support through `ANTHROPIC_API_KEY`
 - Telegram operator commands and a lightweight polling loop
 - SSE/dashboard server with summary and recent-event views
 - Deterministic reviewer and operator-eval quality gates during Reflect
+- SQLite-backed phase snapshots plus CLI forensics replay
+- Argus performance analysis for recent session quality trends
 - Deterministic offline tests plus Docker-first packaging
 
 Not implemented yet:
@@ -74,6 +78,8 @@ Core lifecycle:
 - `praxis run --once`
 - `praxis status`
 - `praxis doctor`
+- `praxis argus --limit 10`
+- `praxis forensics latest`
 
 Approvals and tool queue:
 
@@ -110,6 +116,32 @@ Reflect now enforces local quality checks before finalizing the session outcome:
 - `praxis status` shows the latest review result and eval summary
 
 The foundation data directory seeds one example goal criteria file and one smoke eval so the behavior is visible immediately after `init`.
+
+## Goal metadata
+
+Goals can now express lightweight dependency and trigger state directly in `GOALS.md`:
+
+```md
+- [ ] G-002: Ship the dependent feature
+  blocked_by: G-001
+  wake_when: env:PRAXIS_RELEASE_READY
+```
+
+Praxis will prefer prerequisite goals before blocked dependents, skip goals whose trigger is not active, and emit `stop_condition_met` once everything currently tracked is complete.
+
+## Forensics and Argus
+
+Praxis now records phase-boundary snapshots in SQLite during a session so you can replay what happened later:
+
+```bash
+cargo run -- --data-dir ./local-data forensics latest
+```
+
+Argus is a lightweight performance director that analyzes recent session failures and produces concrete improvement directives:
+
+```bash
+cargo run -- --data-dir ./local-data argus --limit 10
+```
 
 ## Docker
 

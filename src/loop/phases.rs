@@ -8,7 +8,10 @@ use crate::{
     tools::{DEFAULT_LOOP_GUARD_LIMIT, GuardDecision, LoopGuard, SecurityPolicy, ToolRegistry},
 };
 
-use super::{AgentBackend, PraxisRuntime};
+use super::{
+    AgentBackend, PraxisRuntime,
+    planner::{GoalDecision, choose_goal},
+};
 
 impl<'a, B, C, E, G, I, S, T> PraxisRuntime<'a, B, C, E, G, I, S, T>
 where
@@ -75,16 +78,26 @@ where
         }
 
         let goals = self.goal_parser.load_goals(&self.paths.goals_file)?;
-        if let Some(goal) = goals.into_iter().find(|goal| !goal.completed) {
-            state.last_outcome = Some("goal_selected".to_string());
-            state.selected_goal_id = Some(goal.id.clone());
-            state.selected_goal_title = Some(goal.title.clone());
-            state.action_summary = Some(self.backend.plan_action(Some(&goal), None)?);
-        } else {
-            state.last_outcome = Some("idle".to_string());
-            state.selected_goal_id = None;
-            state.selected_goal_title = None;
-            state.action_summary = Some(self.backend.plan_action(None, None)?);
+        match choose_goal(&goals, &self.paths.data_dir, self.clock.now_utc())? {
+            GoalDecision::Selected(goal) => {
+                state.last_outcome = Some("goal_selected".to_string());
+                state.selected_goal_id = Some(goal.id.clone());
+                state.selected_goal_title = Some(goal.title.clone());
+                state.action_summary = Some(self.backend.plan_action(Some(&goal), None)?);
+            }
+            GoalDecision::Waiting(summary) => {
+                state.last_outcome = Some("waiting_on_dependencies".to_string());
+                state.selected_goal_id = None;
+                state.selected_goal_title = None;
+                state.action_summary = Some(summary);
+            }
+            GoalDecision::Complete => {
+                state.last_outcome = Some("stop_condition_met".to_string());
+                state.selected_goal_id = None;
+                state.selected_goal_title = None;
+                state.action_summary =
+                    Some("All current goals are complete. Stop condition reached.".to_string());
+            }
         }
 
         state.updated_at = self.clock.now_utc();

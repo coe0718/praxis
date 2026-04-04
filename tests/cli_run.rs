@@ -134,3 +134,35 @@ fn run_once_resumes_from_interrupted_state() {
         .stdout(predicate::str::contains("resumed: true"))
         .stdout(predicate::str::contains("outcome: goal_selected"));
 }
+
+#[test]
+fn run_once_stops_when_all_goals_are_complete() {
+    let temp = tempdir().unwrap();
+    let data_dir = temp.path().join("praxis");
+
+    praxis_command()
+        .env("PRAXIS_FIXED_NOW", "2026-04-03T12:00:00Z")
+        .arg("--data-dir")
+        .arg(&data_dir)
+        .arg("init")
+        .assert()
+        .success();
+    std::fs::write(
+        data_dir.join("GOALS.md"),
+        "# Goals\n\n- [x] G-001: Complete the first Praxis foundation run\n",
+    )
+    .unwrap();
+
+    praxis_command()
+        .env("PRAXIS_FIXED_NOW", "2026-04-03T12:30:00Z")
+        .arg("--data-dir")
+        .arg(&data_dir)
+        .arg("run")
+        .arg("--once")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("outcome: stop_condition_met"))
+        .stdout(predicate::str::contains(
+            "summary: All current goals are complete",
+        ));
+}

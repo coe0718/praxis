@@ -1,5 +1,7 @@
 pub(crate) mod approvals;
+mod argus;
 pub(crate) mod core;
+mod forensics;
 mod serve;
 mod telegram;
 mod tools;
@@ -26,6 +28,8 @@ pub enum Commands {
     Run(RunArgs),
     Status,
     Doctor,
+    Argus(argus::ArgusArgs),
+    Forensics(forensics::ForensicsArgs),
     Queue(QueueArgs),
     Approve(ApprovalActionArgs),
     Reject(ApprovalActionArgs),
@@ -85,6 +89,8 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::Run(args) => core::handle_run(cli.data_dir, args),
         Commands::Status => core::handle_status(cli.data_dir),
         Commands::Doctor => core::handle_doctor(cli.data_dir),
+        Commands::Argus(args) => argus::handle_argus(cli.data_dir, args),
+        Commands::Forensics(args) => forensics::handle_forensics(cli.data_dir, args),
         Commands::Queue(args) => approvals::handle_queue(cli.data_dir, args),
         Commands::Approve(args) => approvals::handle_approval_action(
             cli.data_dir,

@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 
 use crate::{
+    forensics::attach_session_id,
     identity::Goal,
     memory::{MemoryStore, NewHotMemory},
     quality::{EvalRunner, LocalEvalSuite, LocalReviewer, Reviewer, summarize},
@@ -48,6 +49,7 @@ where
             .to_string(),
         };
         let mut stored = self.store.record_session(&record)?;
+        attach_session_id(&self.paths.database_file, state.started_at, stored.id)?;
 
         let review = LocalReviewer.review(self.paths, stored.selected_goal_id.as_deref())?;
         self.store.record_review(&ReviewRecord {
@@ -153,6 +155,8 @@ pub(super) fn selected_goal(state: &SessionState) -> Option<Goal> {
         title: state.selected_goal_title.clone()?,
         completed: false,
         line_number: 0,
+        blocked_by: Vec::new(),
+        wake_when: None,
     })
 }
 

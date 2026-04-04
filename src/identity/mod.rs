@@ -17,6 +17,8 @@ pub struct Goal {
     pub title: String,
     pub completed: bool,
     pub line_number: usize,
+    pub blocked_by: Vec<String>,
+    pub wake_when: Option<String>,
 }
 
 pub trait GoalParser {
