@@ -32,6 +32,10 @@ pub struct RuntimeConfig {
     pub quiet_hours_start: String,
     pub quiet_hours_end: String,
     pub state_file: PathBuf,
+    #[serde(default)]
+    pub daily_backup_snapshots: bool,
+    #[serde(default = "default_snapshot_retention_days")]
+    pub snapshot_retention_days: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -104,6 +108,8 @@ impl AppConfig {
                 quiet_hours_start: "23:00".to_string(),
                 quiet_hours_end: "07:00".to_string(),
                 state_file: PathBuf::from("session_state.json"),
+                daily_backup_snapshots: false,
+                snapshot_retention_days: default_snapshot_retention_days(),
             },
             database: DatabaseConfig {
                 path: PathBuf::from("praxis.db"),
@@ -178,4 +184,8 @@ fn source(name: &str, priority: u8, max_pct: f32) -> ContextSourceConfig {
 
 fn default_profile() -> String {
     "quality".to_string()
+}
+
+fn default_snapshot_retention_days() -> usize {
+    7
 }

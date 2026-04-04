@@ -50,6 +50,7 @@ Shipped today:
 - Learning runtime that mines opportunities and syncs them into `PROPOSALS.md`
 - Opportunity acceptance that promotes mined work into durable goals in `GOALS.md`
 - Manifest-versioned state export/import plus human-readable audit export
+- Optional daily backup snapshots with retention pruning on top of manual export/import
 - `AGENTS.md` pattern capture with CLI support for future-run conventions and gotchas
 
 Not finished yet:

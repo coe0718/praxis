@@ -153,7 +153,7 @@ pub fn import_bundle(
     })
 }
 
-fn schema_version(database_file: &Path) -> Result<i64> {
+pub(super) fn schema_version(database_file: &Path) -> Result<i64> {
     let connection = Connection::open(database_file)
         .with_context(|| format!("failed to open {}", database_file.display()))?;
     connection

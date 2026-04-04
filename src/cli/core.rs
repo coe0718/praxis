@@ -3,6 +3,7 @@ use std::{fmt::Write as _, path::PathBuf};
 use anyhow::{Context, Result, bail};
 
 use crate::{
+    archive::maybe_create_daily_snapshot,
     attachments::{AttachmentPolicy, render_attachments},
     backend::{AgentBackend, ConfiguredBackend},
     boundaries::BoundaryReviewState,
@@ -105,6 +106,11 @@ pub(crate) fn handle_run(data_dir_override: Option<PathBuf>, args: RunArgs) -> R
         force: args.force,
         task: args.task,
     })?;
+    let snapshot = if config.runtime.daily_backup_snapshots {
+        maybe_create_daily_snapshot(&config, &paths, clock.now_utc())?
+    } else {
+        None
+    };
 
     let mut output = String::new();
     writeln!(output, "outcome: {}", summary.outcome)?;
@@ -125,6 +131,14 @@ pub(crate) fn handle_run(data_dir_override: Option<PathBuf>, args: RunArgs) -> R
         "task: {}",
         summary.selected_task.as_deref().unwrap_or("-")
     )?;
+    if let Some(snapshot) = snapshot {
+        writeln!(
+            output,
+            "snapshot: created {} pruned={}",
+            snapshot.output_dir.display(),
+            snapshot.pruned
+        )?;
+    }
     write!(output, "summary: {}", summary.action_summary)?;
     Ok(output)
 }

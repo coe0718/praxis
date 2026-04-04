@@ -42,6 +42,7 @@ pub struct PraxisPaths {
     pub telegram_state_file: PathBuf,
     pub learning_dir: PathBuf,
     pub learning_sources_dir: PathBuf,
+    pub backups_dir: PathBuf,
     pub evals_dir: PathBuf,
     pub goals_dir: PathBuf,
     pub goals_criteria_dir: PathBuf,
@@ -109,6 +110,7 @@ impl PraxisPaths {
         let tools_dir = data_dir.join("tools");
         let learning_dir = data_dir.join("learning");
         let learning_sources_dir = learning_dir.join("sources");
+        let backups_dir = data_dir.join("backups");
 
         Self {
             config_file: data_dir.join("praxis.toml"),
@@ -136,6 +138,7 @@ impl PraxisPaths {
             telegram_state_file: data_dir.join("telegram_state.json"),
             learning_dir,
             learning_sources_dir,
+            backups_dir,
             evals_dir,
             goals_dir,
             goals_criteria_dir,

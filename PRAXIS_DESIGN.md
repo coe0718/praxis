@@ -1105,10 +1105,10 @@ Move items upward as they ship:
 - **Boundary maintenance loop** — Praxis now persists weekly boundary review state, exposes `praxis boundaries show/add/confirm`, and surfaces the recurring "have any hard limits changed?" prompt in status plus Telegram `/boundaries`.
 - **Attachment policy** — Praxis now supports `praxis ask --file ...` with explicit `reject`, `chunk`, or `summarize` handling for oversized UTF-8 text attachments, and it never silently truncates what it injects.
 - **Cold-memory decay clarification** — stale cold memories now decay in place through the runtime maintenance pass instead of being automatically demoted back to hot memory.
+- **Automatic backup snapshots** — Praxis can now create opt-in daily snapshot bundles in `backups/` during normal runs and prune old snapshots according to retention settings in `praxis.toml`.
 
 ### Adopt Soon
 
-- **Automatic backup snapshots** — optional daily snapshots handled by Praxis or the watchdog on top of the manual export/import flow.
 - **Capability benchmarking** — add recurring capability tests and operator-specific replay/eval sessions to measure usefulness over time.
 - **Speculative execution** — compare multiple rehearsed branches before committing to the safest or highest-yield act plan.
 - **Wave execution** — group dependency-aware sub-agent work into parallel waves instead of spawning parallelism ad hoc.

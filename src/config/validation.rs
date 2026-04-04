@@ -57,6 +57,9 @@ impl AppConfig {
         if self.runtime.state_file.as_os_str().is_empty() {
             bail!("runtime.state_file must not be empty");
         }
+        if self.runtime.snapshot_retention_days == 0 {
+            bail!("runtime.snapshot_retention_days must be greater than 0");
+        }
 
         if self.context.window_tokens == 0 {
             bail!("context.window_tokens must be greater than 0");

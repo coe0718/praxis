@@ -1,5 +1,6 @@
 mod audit;
 mod bundle;
+mod snapshots;
 mod tree;
 
 use std::path::PathBuf;
@@ -8,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 pub use audit::{AuditExportSummary, export_audit};
 pub use bundle::{BundleExportSummary, BundleImportSummary, export_bundle, import_bundle};
+pub use snapshots::{SnapshotExportSummary, maybe_create_daily_snapshot};
 
 pub(crate) const EXPORT_FORMAT_VERSION: u32 = 1;
 pub(crate) const MANIFEST_FILE: &str = "manifest.json";
