@@ -119,7 +119,8 @@ fn runtime_blocks_repeated_tool_invocations() {
         file_reads: Vec::new(),
         repeated_reads_avoided: 0,
     };
-    let invocation = "praxis-data-write|Update JOURNAL.md|JOURNAL.md";
+    let invocation =
+        "praxis-data-write|Update JOURNAL.md|JOURNAL.md|{\"append_text\":\"runtime wrote this\"}";
     LoopGuard.record(&mut state, invocation, 3);
     LoopGuard.record(&mut state, invocation, 3);
     state.save(&paths.state_file).unwrap();

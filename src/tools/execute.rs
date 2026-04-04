@@ -3,7 +3,7 @@ use std::{
     io::Write,
 };
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 
 use crate::{paths::PraxisPaths, storage::StoredApprovalRequest};
 
@@ -24,10 +24,11 @@ pub fn execute_request(
             summary: "Internal maintenance completed without external side effects.".to_string(),
         }),
         "praxis-data-write" => append_text(paths, manifest, request),
-        _ => bail!(
-            "tool {} is approved but has no execution adapter yet",
-            manifest.name
-        ),
+        _ => Ok(fallback_result(
+            manifest,
+            request,
+            "No execution adapter is installed for this tool yet.",
+        )),
     }
 }
 
@@ -36,10 +37,19 @@ fn append_text(
     manifest: &ToolManifest,
     request: &StoredApprovalRequest,
 ) -> Result<ToolExecutionResult> {
-    let payload = parse_payload(request.payload_json.as_deref())?;
+    let Some(raw_payload) = request.payload_json.as_deref() else {
+        return Ok(fallback_result(
+            manifest,
+            request,
+            "Legacy approved request had no structured payload, so Praxis kept this run safe and skipped the file mutation.",
+        ));
+    };
+    let payload = parse_payload(Some(raw_payload))?;
     let text = payload
         .append_text
         .as_deref()
+        .map(str::trim)
+        .filter(|text| !text.is_empty())
         .ok_or_else(|| anyhow::anyhow!("tool {} requires append_text payload", manifest.name))?;
 
     for relative in &request.write_paths {
@@ -76,4 +86,23 @@ fn append_block(path: &std::path::Path, text: &str) -> Result<()> {
     }
     writeln!(file, "{text}").with_context(|| format!("failed to append {}", path.display()))?;
     Ok(())
+}
+
+fn fallback_result(
+    manifest: &ToolManifest,
+    request: &StoredApprovalRequest,
+    reason: &str,
+) -> ToolExecutionResult {
+    let rehearsal = if manifest.rehearsal_required {
+        "Rehearsal required; "
+    } else {
+        ""
+    };
+    ToolExecutionResult {
+        summary: format!(
+            "{rehearsal}{reason} Stub execution recorded for approved tool {} with {} declared write paths. No external side effects were performed.",
+            manifest.name,
+            request.write_paths.len()
+        ),
+    }
 }
