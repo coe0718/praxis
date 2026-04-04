@@ -62,6 +62,8 @@ pub struct SessionState {
     pub file_reads: Vec<FileReadRecord>,
     #[serde(default)]
     pub repeated_reads_avoided: u32,
+    #[serde(default)]
+    pub context_sources: Vec<String>,
 }
 
 impl SessionState {
@@ -84,6 +86,7 @@ impl SessionState {
             provider_attempts: Vec::new(),
             file_reads: Vec::new(),
             repeated_reads_avoided: 0,
+            context_sources: Vec::new(),
         }
     }
 

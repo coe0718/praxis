@@ -57,7 +57,11 @@ where
                 open_goals: &open_goals,
             },
         )?;
-
+        state.context_sources = context
+            .included_sources
+            .iter()
+            .map(|s| s.source.clone())
+            .collect();
         state.orientation_summary = Some(format!(
             "Loaded {} open goals. {} Repeated reads avoided: {}.",
             open_goals.len(),

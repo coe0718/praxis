@@ -9,7 +9,9 @@ use crate::{
     storage::{AnatomyStore, OperationalMemoryStore},
 };
 
-use super::{BudgetedContext, ContextBudgeter, ContextSourceInput, TrackedContextReader};
+use super::{
+    BudgetedContext, ContextBudgeter, ContextSourceInput, TrackedContextReader, adapt_config,
+};
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct LocalContextLoader;
@@ -37,6 +39,7 @@ impl LocalContextLoader {
             requested_task,
             open_goals,
         } = request;
+        let config = adapt_config(config, &paths.context_adaptation_file)?;
         let memory = MemoryLoader.load(store, requested_task, open_goals)?;
         let operational = OperationalMemoryLoader.load(store, requested_task, open_goals)?;
         let reader = TrackedContextReader;
@@ -69,7 +72,7 @@ impl LocalContextLoader {
             source("task", requested_task.unwrap_or_default().to_string()),
         ];
 
-        Ok(ContextBudgeter.allocate(config, inputs))
+        Ok(ContextBudgeter.allocate(&config, inputs))
     }
 }
 

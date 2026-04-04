@@ -1092,6 +1092,7 @@ Move items upward as they ship:
 - **End-to-end replay testing** — fixture-backed transcript replays now cover stateful foundation and approval flows so regressions can be caught against recorded multi-step sessions.
 - **Energy budget / rate-limit budget** — `budgets.toml` now sets explicit ask/run attempt, token, and estimated-cost ceilings, and Praxis blocks extra backend work once a session exhausts them.
 - **Local-first model fallback** — an opt-in `agent.local_first_fallback` policy now routes low-risk `ask` and `act` phases through Ollama first, then falls back to configured cloud providers if needed.
+- **Adaptive context allocation** — Praxis now records which context sources were actually included in successful or failed sessions and gently reweights future source caps via a portable `context_adaptation.json` state file.
 - **Watchdog heartbeat backstop** — Praxis now writes a runtime heartbeat file, exposes `praxis heartbeat status/check`, and ships a simple external `scripts/check-heartbeat.sh` checker for cron or systemd.
 - **Proposal inbox sync** — the opportunity queue now mirrors into `PROPOSALS.md`, and operators can accept or dismiss proposals without the markdown view drifting out of sync.
 - **Opportunity-to-goal promotion** — accepting a mined opportunity can now create or reuse a real goal in `GOALS.md`, link the proposal to that goal, and feed the work back into the main loop.
@@ -1114,7 +1115,6 @@ Move items upward as they ship:
 - **Wake-on-intent** — support approved interrupt-style wakes alongside scheduled sessions.
 - **Reviewer cost guardrails** — keep reviewer context and token ceilings explicit so mandatory review stays affordable.
 - **Hierarchical goals** — support parent/child goals and dependency-aware progression once the richer lifecycle is stable.
-- **Adaptive context allocation** — tune context budgets based on which sources correlate with successful outcomes for this specific operator.
 
 ### Future / Optional
 

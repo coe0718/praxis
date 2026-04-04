@@ -130,6 +130,7 @@ fn tool_state(started_at: chrono::DateTime<chrono::Utc>, request_id: i64) -> Ses
         provider_attempts: Vec::new(),
         file_reads: Vec::new(),
         repeated_reads_avoided: 0,
+        context_sources: Vec::new(),
     }
 }
 

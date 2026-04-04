@@ -26,6 +26,7 @@ Shipped today:
 - SQLite-backed sessions, approvals, memories, reviews, evals, forensics, learning runs, and provider usage
 - Context budgeting, anatomy indexing, repeated-read avoidance, and token/cost ledgers
 - Anchor-preserving summarization for oversized context sources
+- Adaptive context allocation that nudges source budgets based on prior successful sessions
 - Hot/cold memory search plus operational memory for do-not-repeat notes and known bugs
 - Tool registry, approval queue, path policy enforcement, and loop guards for identical or repeating multi-step tool patterns
 - First real tool execution path for approved append-only writes inside allowed Praxis data files

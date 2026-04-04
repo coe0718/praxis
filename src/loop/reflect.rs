@@ -130,6 +130,12 @@ where
             &review.findings,
             eval_summary.failed,
         )?;
+        crate::context::record_context_feedback(
+            &self.paths.context_adaptation_file,
+            ended_at,
+            &state.context_sources,
+            &final_outcome,
+        )?;
         self.identity.append_journal(self.paths, &stored)?;
         self.identity.append_metrics(self.paths, &stored)?;
         self.emit_review_events(review.status, eval_summary.failed)?;
