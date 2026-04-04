@@ -33,13 +33,14 @@ Shipped today:
 - Argus analysis for drift, repeated work, failures, and token hotspots
 - Learning runtime that mines opportunities and syncs them into `PROPOSALS.md`
 - Opportunity acceptance that promotes mined work into durable goals in `GOALS.md`
+- Manifest-versioned state export/import plus human-readable audit export
 
 Not finished yet:
 
 - Broader tool execution beyond the first controlled data-write path
 - Watchdog heartbeat, rollout canaries, and rollback automation
 - Richer dashboard UI and additional messaging platforms
-- Export/import and backup workflows for long-lived state
+- Automatic scheduled backup snapshots for long-lived state
 - Deeper memory consolidation, reinforcement, and longer-horizon calibration
 
 ## Quick Start
@@ -176,6 +177,18 @@ cargo run -- --data-dir ./local-data learn dismiss 2
 ```
 
 Accepted opportunities are not just status changes. Praxis links them into `PROPOSALS.md` and promotes them into `GOALS.md`, so the main loop can pick them up as real work later.
+
+### Durability and Audit
+
+Praxis can now export a portable state bundle, import it into a different data directory, and generate a human-readable audit report:
+
+```bash
+cargo run -- --data-dir ./local-data export state --output ./praxis-backup
+cargo run -- --data-dir ./restored-data import --input ./praxis-backup
+cargo run -- --data-dir ./local-data export audit --output ./audit.md --days 30
+```
+
+State bundles include a versioned manifest, the SQLite schema version, runtime state, config, tools, goals, evals, learning sources, and the core markdown identity files. Imports re-home the config to the target data directory so restores stay portable across machines and Docker paths.
 
 ### Messaging and Live Views
 
