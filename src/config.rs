@@ -143,9 +143,12 @@ impl AppConfig {
             bail!("security.level must be between 1 and 4");
         }
 
-        if !matches!(self.agent.backend.as_str(), "stub" | "claude") {
+        if !matches!(
+            self.agent.backend.as_str(),
+            "stub" | "claude" | "openai" | "ollama" | "router"
+        ) {
             bail!(
-                "agent.backend must be \"stub\" or \"claude\", got {}",
+                "agent.backend must be one of \"stub\", \"claude\", \"openai\", \"ollama\", or \"router\", got {}",
                 self.agent.backend
             );
         }
@@ -156,7 +159,7 @@ impl AppConfig {
             bail!("agent.context_ceiling_pct must be greater than 0.0 and at most 1.0");
         }
 
-        if self.agent.backend == "claude"
+        if matches!(self.agent.backend.as_str(), "claude" | "openai")
             && self
                 .agent
                 .model_pin

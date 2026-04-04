@@ -24,6 +24,14 @@ fn accepts_claude_backend() {
 }
 
 #[test]
+fn accepts_router_backend() {
+    let mut config = AppConfig::default_for_data_dir("/tmp/praxis".into());
+    config.agent.backend = "router".to_string();
+
+    config.validate().unwrap();
+}
+
+#[test]
 fn rejects_invalid_backend() {
     let mut config = AppConfig::default_for_data_dir("/tmp/praxis".into());
     config.agent.backend = "gpt".to_string();

@@ -46,6 +46,7 @@ fn run_once_records_goal_session_and_updates_status() {
         .assert()
         .success()
         .stdout(predicate::str::contains("backend: stub"))
+        .stdout(predicate::str::contains("last_provider: stub"))
         .stdout(predicate::str::contains("registered_tools: 2"))
         .stdout(predicate::str::contains("event_count:"))
         .stdout(predicate::str::contains("phase: sleep"))
@@ -120,6 +121,7 @@ fn run_once_resumes_from_interrupted_state() {
         selected_tool_name: None,
         selected_tool_request_id: None,
         tool_invocation_hashes: Vec::new(),
+        provider_attempts: Vec::new(),
     };
     state.save(&data_dir.join("session_state.json")).unwrap();
 

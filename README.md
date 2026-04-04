@@ -22,12 +22,13 @@ Implemented so far:
 - Tool registry, approval queue, path policy checks, and loop-guard protection
 - Dependency-aware goal selection with `blocked_by` and `wake_when` metadata
 - A formal stop condition when all tracked goals are complete
-- Claude backend support through `ANTHROPIC_API_KEY`
+- Config-driven provider routing with Claude, OpenAI, Ollama, and router-mode failover
 - Telegram operator commands and a lightweight polling loop
 - SSE/dashboard server with summary and recent-event views
 - Deterministic reviewer and operator-eval quality gates during Reflect
 - SQLite-backed phase snapshots plus CLI forensics replay
 - Argus performance analysis for recent session quality trends
+- Session-level provider attempt, token, and estimated cost tracking
 - Deterministic offline tests plus Docker-first packaging
 
 Not implemented yet:
@@ -64,11 +65,16 @@ Validate the setup:
 cargo run -- --data-dir ./local-data doctor
 ```
 
-By default Praxis uses the deterministic `stub` backend. To enable Claude, set `agent.backend = "claude"` in `praxis.toml` and export:
+By default Praxis uses the deterministic `stub` backend. `praxis init` also seeds a `providers.toml` file that defines the provider chain Praxis can use for direct or routed execution.
+
+To enable a single remote backend, set `agent.backend = "claude"` or `agent.backend = "openai"` in `praxis.toml` and export the matching credential:
 
 ```bash
 export ANTHROPIC_API_KEY=...
+export OPENAI_API_KEY=...
 ```
+
+To enable failover, set `agent.backend = "router"` in `praxis.toml`. Praxis will walk the ordered routes in `providers.toml` until one succeeds, and `praxis status` will report the latest provider, attempt count, failure count, token usage, and estimated cost.
 
 ## Operator commands
 
@@ -143,6 +149,27 @@ Argus is a lightweight performance director that analyzes recent session failure
 cargo run -- --data-dir ./local-data argus --limit 10
 ```
 
+## Provider routing
+
+`providers.toml` is separate from `praxis.toml` so the runtime backend choice stays simple while route details remain editable:
+
+```toml
+[[providers]]
+provider = "claude"
+model = "claude-3-5-sonnet-latest"
+
+[[providers]]
+provider = "openai"
+model = "gpt-5.4-mini"
+
+[[providers]]
+provider = "ollama"
+model = "llama3.2"
+base_url = "http://127.0.0.1:11434"
+```
+
+When router mode is active, Praxis tries each route in order for both the Decide and Act phases. Every attempt is stored in SQLite so status and future analytics can see which provider actually handled the session and what the estimated cost was.
+
 ## Docker
 
 Praxis is meant to stay runnable in Docker from the start.
@@ -185,11 +212,13 @@ The current codebase is organized around small modules with a preference for kee
 - `src/context/`: budget engine and local context assembly
 - `src/identity/`: markdown identity and goal parsing/policy
 - `src/memory/`: memory types and loading logic
-- `src/storage/`: SQLite persistence for sessions, approvals, memories, reviews, and evals
+- `src/storage/`: SQLite persistence for sessions, approvals, memories, reviews, evals, and provider attempts
 - `src/loop/`: runtime loop orchestration
 - `src/quality/`: reviewer criteria and operator eval handling
 - `src/messaging/`: Telegram operator bridge
 - `src/dashboard/`: SSE/dashboard server
+- `src/providers/`: provider route config and cost metadata
+- `src/backend/`: provider execution and router failover
 - `tests/`: end-to-end CLI coverage
 
 ## Design direction

@@ -7,7 +7,7 @@ use crate::{
     quality::{EvalRunner, LocalEvalSuite, LocalReviewer, Reviewer, summarize},
     state::SessionState,
     storage::{
-        ApprovalStore, EvalRunRecord, QualityStore, ReviewRecord, ReviewStatus,
+        ApprovalStore, EvalRunRecord, ProviderUsageStore, QualityStore, ReviewRecord, ReviewStatus,
         SessionQualityUpdate, SessionRecord, SessionStore,
     },
     tools::ToolRegistry,
@@ -22,7 +22,7 @@ where
     E: crate::events::EventSink,
     G: crate::identity::GoalParser,
     I: crate::identity::IdentityPolicy,
-    S: SessionStore + MemoryStore + ApprovalStore + QualityStore,
+    S: SessionStore + MemoryStore + ApprovalStore + QualityStore + ProviderUsageStore,
     T: ToolRegistry,
 {
     pub(super) fn reflect(&self, state: &mut SessionState) -> Result<()> {
@@ -50,6 +50,8 @@ where
         };
         let mut stored = self.store.record_session(&record)?;
         attach_session_id(&self.paths.database_file, state.started_at, stored.id)?;
+        self.store
+            .record_provider_attempts(stored.id, &state.provider_attempts)?;
 
         let review = LocalReviewer.review(self.paths, stored.selected_goal_id.as_deref())?;
         self.store.record_review(&ReviewRecord {

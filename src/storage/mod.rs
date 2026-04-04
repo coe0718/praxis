@@ -2,8 +2,10 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+mod provider;
 mod sqlite;
 
+pub use provider::ProviderUsageStore;
 pub use sqlite::SqliteSessionStore;
 
 pub trait SessionStore {

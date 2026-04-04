@@ -5,9 +5,10 @@ use crate::{
     memory::{MemoryStore, NewColdMemory, NewHotMemory},
     storage::{
         ApprovalStatus, ApprovalStore, EvalRunRecord, EvalSeverity, EvalStatus, NewApprovalRequest,
-        QualityStore, ReviewRecord, ReviewStatus, SessionQualityUpdate, SessionRecord,
-        SessionStore,
+        ProviderUsageStore, QualityStore, ReviewRecord, ReviewStatus, SessionQualityUpdate,
+        SessionRecord, SessionStore,
     },
+    usage::ProviderAttempt,
 };
 
 use super::SqliteSessionStore;
@@ -167,4 +168,61 @@ fn records_review_and_eval_quality_metadata() {
         ReviewStatus::Passed
     );
     assert_eq!(store.latest_eval_summary().unwrap().unwrap().passed, 1);
+}
+
+#[test]
+fn records_latest_provider_usage() {
+    let temp = tempdir().unwrap();
+    let store = SqliteSessionStore::new(temp.path().join("praxis.db"));
+    store.initialize().unwrap();
+
+    let session = store
+        .record_session(&SessionRecord {
+            day: 0,
+            started_at: chrono::Utc.with_ymd_and_hms(2026, 4, 3, 12, 0, 0).unwrap(),
+            ended_at: chrono::Utc.with_ymd_and_hms(2026, 4, 3, 12, 5, 0).unwrap(),
+            outcome: "goal_selected".to_string(),
+            selected_goal_id: Some("G-002".to_string()),
+            selected_goal_title: Some("Use provider fallback".to_string()),
+            selected_task: None,
+            action_summary: "Provider routing completed.".to_string(),
+            phase_durations_json: "{\"orient\":0}".to_string(),
+        })
+        .unwrap();
+
+    store
+        .record_provider_attempts(
+            session.id,
+            &[
+                ProviderAttempt {
+                    phase: "decide".to_string(),
+                    provider: "claude".to_string(),
+                    model: "claude-3-5-sonnet-latest".to_string(),
+                    success: false,
+                    input_tokens: 0,
+                    output_tokens: 0,
+                    estimated_cost_micros: 0,
+                    error: Some("simulated rate limit".to_string()),
+                },
+                ProviderAttempt {
+                    phase: "decide".to_string(),
+                    provider: "openai".to_string(),
+                    model: "gpt-5.4-mini".to_string(),
+                    success: true,
+                    input_tokens: 120,
+                    output_tokens: 45,
+                    estimated_cost_micros: 321,
+                    error: None,
+                },
+            ],
+        )
+        .unwrap();
+
+    let usage = store.latest_provider_usage().unwrap().unwrap();
+    assert_eq!(usage.session_id, session.id);
+    assert_eq!(usage.attempt_count, 2);
+    assert_eq!(usage.failure_count, 1);
+    assert_eq!(usage.last_provider, "openai");
+    assert_eq!(usage.tokens_used, 165);
+    assert_eq!(usage.estimated_cost_micros, 321);
 }

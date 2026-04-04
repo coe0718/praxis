@@ -1,5 +1,6 @@
 mod approvals;
 mod memory;
+mod providers;
 mod quality;
 mod schema;
 mod sessions;

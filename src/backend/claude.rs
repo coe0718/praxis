@@ -4,122 +4,95 @@ use anyhow::{Context, Result, bail};
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 
-use crate::{config::AppConfig, identity::Goal};
+use crate::providers::ProviderRoute;
 
-use super::AgentBackend;
+use super::{ProviderRequest, ProviderResponse, successful_attempt};
 
 const ANTHROPIC_URL: &str = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION: &str = "2023-06-01";
-const DEFAULT_MODEL: &str = "claude-3-5-sonnet-latest";
 
-pub struct ClaudeBackend {
-    client: Client,
-    api_key: String,
-    model: String,
-}
+pub(super) fn execute(
+    route: &ProviderRoute,
+    request: &ProviderRequest,
+) -> Result<ProviderResponse> {
+    if let Some(response) = stubbed(route, request.phase)? {
+        return Ok(response);
+    }
 
-impl ClaudeBackend {
-    pub fn from_config(config: &AppConfig) -> Result<Self> {
-        let api_key = std::env::var("ANTHROPIC_API_KEY")
-            .context("ANTHROPIC_API_KEY is required when agent.backend = \"claude\"")?;
-        let model = config
-            .agent
-            .model_pin
-            .clone()
-            .unwrap_or_else(|| DEFAULT_MODEL.to_string());
-        let client = Client::builder()
-            .timeout(Duration::from_secs(45))
-            .build()
-            .context("failed to build Claude HTTP client")?;
-        Ok(Self {
-            client,
-            api_key,
-            model,
+    let api_key = std::env::var("ANTHROPIC_API_KEY")
+        .context("ANTHROPIC_API_KEY is required for the Claude provider")?;
+    let client = Client::builder()
+        .timeout(Duration::from_secs(45))
+        .build()
+        .context("failed to build Claude HTTP client")?;
+    let response = client
+        .post(ANTHROPIC_URL)
+        .header("anthropic-version", ANTHROPIC_VERSION)
+        .header("x-api-key", api_key)
+        .json(&ClaudeRequest {
+            model: route.model.clone(),
+            max_tokens: request.max_output_tokens,
+            system: request.system,
+            messages: vec![ClaudeMessage {
+                role: "user".to_string(),
+                content: request.input.clone(),
+            }],
         })
+        .send()
+        .context("failed to call Claude provider")?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().unwrap_or_default();
+        bail!("Claude provider request failed with {status}: {body}");
     }
+
+    let parsed = response
+        .json::<ClaudeResponse>()
+        .context("failed to parse Claude provider response")?;
+    let text = parsed
+        .content
+        .into_iter()
+        .find_map(|block| match block {
+            ClaudeContent::Text { text } => Some(text.trim().to_string()),
+            ClaudeContent::Other => None,
+        })
+        .filter(|text| !text.is_empty())
+        .context("Claude provider returned no text content")?;
+    let input_tokens = parsed
+        .usage
+        .as_ref()
+        .map(|usage| usage.input_tokens)
+        .unwrap_or(0);
+    let output_tokens = parsed
+        .usage
+        .as_ref()
+        .map(|usage| usage.output_tokens)
+        .unwrap_or(0);
+
+    Ok(ProviderResponse {
+        summary: text,
+        attempt: successful_attempt(
+            request.phase,
+            "claude",
+            &route.model,
+            input_tokens,
+            output_tokens,
+            route.estimated_cost_micros(input_tokens, output_tokens),
+        ),
+    })
 }
 
-impl AgentBackend for ClaudeBackend {
-    fn name(&self) -> &'static str {
-        "claude"
+fn stubbed(route: &ProviderRoute, phase: &str) -> Result<Option<ProviderResponse>> {
+    if let Ok(error) = std::env::var("PRAXIS_CLAUDE_FORCE_ERROR") {
+        bail!("{error}");
     }
-
-    fn plan_action(&self, goal: Option<&Goal>, task: Option<&str>) -> Result<String> {
-        let target = render_target(goal, task)?;
-        let request = ClaudeRequest {
-            model: self.model.clone(),
-            max_tokens: 180,
-            system: "You are Praxis, a careful personal AI agent. Respond with one concise action summary describing the next safe step.",
-            messages: vec![ClaudeMessage {
-                role: "user".to_string(),
-                content: format!("Plan the next step for this Praxis session:\n\n{target}"),
-            }],
-        };
-        self.send_request(request)
-    }
-
-    fn finalize_action(
-        &self,
-        planned_summary: &str,
-        goal: Option<&Goal>,
-        task: Option<&str>,
-    ) -> Result<String> {
-        let target = render_target(goal, task)?;
-        let request = ClaudeRequest {
-            model: self.model.clone(),
-            max_tokens: 180,
-            system: "You are Praxis in the act phase. Write one concise operator-facing progress note. Do not claim external actions happened unless explicitly stated in the prompt.",
-            messages: vec![ClaudeMessage {
-                role: "user".to_string(),
-                content: format!(
-                    "Task context:\n{target}\n\nPlanned summary:\n{planned_summary}\n\nReturn a single concise status update."
-                ),
-            }],
-        };
-        self.send_request(request)
-    }
-}
-
-fn render_target(goal: Option<&Goal>, task: Option<&str>) -> Result<String> {
-    if let Some(task) = task {
-        return Ok(format!("Operator task: {task}"));
-    }
-    if let Some(goal) = goal {
-        return Ok(format!("Goal {}: {}", goal.id, goal.title));
-    }
-    bail!("Claude backend needs a goal or task to plan")
-}
-
-impl ClaudeBackend {
-    fn send_request(&self, request: ClaudeRequest) -> Result<String> {
-        let response = self
-            .client
-            .post(ANTHROPIC_URL)
-            .header("anthropic-version", ANTHROPIC_VERSION)
-            .header("x-api-key", &self.api_key)
-            .json(&request)
-            .send()
-            .context("failed to call Claude backend")?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().unwrap_or_default();
-            bail!("Claude backend request failed with {status}: {body}");
-        }
-
-        let parsed = response
-            .json::<ClaudeResponse>()
-            .context("failed to parse Claude backend response")?;
-        parsed
-            .content
-            .into_iter()
-            .find_map(|block| match block {
-                ClaudeContent::Text { text } => Some(text.trim().to_string()),
-                ClaudeContent::Other => None,
-            })
-            .filter(|text| !text.is_empty())
-            .context("Claude backend returned no text content")
-    }
+    Ok(std::env::var("PRAXIS_CLAUDE_STUB_RESPONSE")
+        .ok()
+        .map(|summary| ProviderResponse {
+            summary,
+            attempt: successful_attempt(phase, "claude", &route.model, 0, 0, 0),
+        }))
 }
 
 #[derive(Debug, Serialize)]
@@ -139,6 +112,13 @@ struct ClaudeMessage {
 #[derive(Debug, Deserialize)]
 struct ClaudeResponse {
     content: Vec<ClaudeContent>,
+    usage: Option<ClaudeUsage>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ClaudeUsage {
+    input_tokens: i64,
+    output_tokens: i64,
 }
 
 #[derive(Debug, Deserialize)]

@@ -4,7 +4,7 @@ use crate::{
     context::LocalContextLoader,
     memory::MemoryStore,
     state::SessionState,
-    storage::{ApprovalStore, QualityStore, SessionStore},
+    storage::{ApprovalStore, ProviderUsageStore, QualityStore, SessionStore},
     tools::{DEFAULT_LOOP_GUARD_LIMIT, GuardDecision, LoopGuard, SecurityPolicy, ToolRegistry},
 };
 
@@ -20,7 +20,7 @@ where
     E: crate::events::EventSink,
     G: crate::identity::GoalParser,
     I: crate::identity::IdentityPolicy,
-    S: SessionStore + MemoryStore + ApprovalStore + QualityStore,
+    S: SessionStore + MemoryStore + ApprovalStore + QualityStore + ProviderUsageStore,
     T: ToolRegistry,
 {
     pub(super) fn orient(&self, state: &mut SessionState) -> Result<()> {
@@ -58,7 +58,9 @@ where
             state.last_outcome = Some("task_selected".to_string());
             state.selected_goal_id = None;
             state.selected_goal_title = None;
-            state.action_summary = Some(self.backend.plan_action(None, Some(task))?);
+            let output = self.backend.plan_action(None, Some(task))?;
+            state.provider_attempts.extend(output.attempts);
+            state.action_summary = Some(output.summary);
             state.updated_at = self.clock.now_utc();
             return Ok(());
         }
@@ -83,7 +85,9 @@ where
                 state.last_outcome = Some("goal_selected".to_string());
                 state.selected_goal_id = Some(goal.id.clone());
                 state.selected_goal_title = Some(goal.title.clone());
-                state.action_summary = Some(self.backend.plan_action(Some(&goal), None)?);
+                let output = self.backend.plan_action(Some(&goal), None)?;
+                state.provider_attempts.extend(output.attempts);
+                state.action_summary = Some(output.summary);
             }
             GoalDecision::Waiting(summary) => {
                 state.last_outcome = Some("waiting_on_dependencies".to_string());
@@ -113,11 +117,13 @@ where
             .action_summary
             .clone()
             .unwrap_or_else(|| "No action was selected.".to_string());
-        state.action_summary = Some(self.backend.finalize_action(
+        let output = self.backend.finalize_action(
             &summary,
             super::reflect::selected_goal(state).as_ref(),
             state.requested_task.as_deref(),
-        )?);
+        )?;
+        state.provider_attempts.extend(output.attempts);
+        state.action_summary = Some(output.summary);
         state.updated_at = self.clock.now_utc();
         Ok(())
     }

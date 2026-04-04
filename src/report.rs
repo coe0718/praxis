@@ -6,7 +6,10 @@ use crate::{
     events::{Event, read_events_since},
     paths::PraxisPaths,
     state::{SessionPhase, SessionState},
-    storage::{ApprovalStatus, ApprovalStore, QualityStore, SessionStore, SqliteSessionStore},
+    storage::{
+        ApprovalStatus, ApprovalStore, ProviderUsageStore, QualityStore, SessionStore,
+        SqliteSessionStore,
+    },
     tools::{FileToolRegistry, ToolRegistry},
 };
 
@@ -23,6 +26,7 @@ pub struct StatusReport {
     pub last_session: Option<LastSessionReport>,
     pub last_review_status: Option<String>,
     pub last_eval: Option<LastEvalReport>,
+    pub last_provider_usage: Option<LastProviderUsageReport>,
     pub event_count: usize,
     pub last_event: Option<Event>,
 }
@@ -42,6 +46,15 @@ pub struct LastEvalReport {
     pub trust_failures: i64,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct LastProviderUsageReport {
+    pub attempt_count: i64,
+    pub failure_count: i64,
+    pub last_provider: String,
+    pub tokens_used: i64,
+    pub estimated_cost_micros: i64,
+}
+
 pub fn build_status_report(config: &AppConfig, paths: &PraxisPaths) -> Result<StatusReport> {
     let state = SessionState::load(&paths.state_file)?;
     let store = SqliteSessionStore::new(paths.database_file.clone());
@@ -50,6 +63,7 @@ pub fn build_status_report(config: &AppConfig, paths: &PraxisPaths) -> Result<St
     let registered_tools = FileToolRegistry.list(paths)?.len();
     let last_review = store.last_review()?;
     let last_eval = store.latest_eval_summary()?;
+    let last_provider_usage = store.latest_provider_usage()?;
     let (events, _) = read_events_since(&paths.events_file, 0)?;
 
     Ok(StatusReport {
@@ -78,6 +92,13 @@ pub fn build_status_report(config: &AppConfig, paths: &PraxisPaths) -> Result<St
             failed: summary.failed,
             skipped: summary.skipped,
             trust_failures: summary.trust_failures,
+        }),
+        last_provider_usage: last_provider_usage.map(|usage| LastProviderUsageReport {
+            attempt_count: usage.attempt_count,
+            failure_count: usage.failure_count,
+            last_provider: usage.last_provider,
+            tokens_used: usage.tokens_used,
+            estimated_cost_micros: usage.estimated_cost_micros,
         }),
         event_count: events.len(),
         last_event: events.last().cloned(),
@@ -123,6 +144,17 @@ pub fn render_status_report(report: &StatusReport) -> String {
         lines.push(format!(
             "last_eval: passed={} failed={} skipped={} trust_failures={}",
             eval.passed, eval.failed, eval.skipped, eval.trust_failures
+        ));
+    }
+
+    if let Some(usage) = &report.last_provider_usage {
+        lines.push(format!(
+            "last_provider: {} attempts={} failures={} tokens={} est_cost_usd={:.6}",
+            usage.last_provider,
+            usage.attempt_count,
+            usage.failure_count,
+            usage.tokens_used,
+            usage.estimated_cost_micros as f64 / 1_000_000.0
         ));
     }
 

@@ -96,6 +96,18 @@ pub(super) fn initialize(store: &SqliteSessionStore) -> Result<()> {
                 state_json TEXT NOT NULL,
                 recorded_at TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS provider_attempts (
+                id INTEGER PRIMARY KEY,
+                session_id INTEGER NOT NULL,
+                phase TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                model TEXT NOT NULL,
+                success INTEGER NOT NULL,
+                input_tokens INTEGER NOT NULL DEFAULT 0,
+                output_tokens INTEGER NOT NULL DEFAULT 0,
+                estimated_cost_micros INTEGER NOT NULL DEFAULT 0,
+                error TEXT
+            );
             ",
         )
         .context("failed to initialize SQLite schema")?;
@@ -111,7 +123,7 @@ pub(super) fn initialize(store: &SqliteSessionStore) -> Result<()> {
     connection
         .execute(
             "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?1, ?2)",
-            params![5_i64, Utc::now().to_rfc3339()],
+            params![6_i64, Utc::now().to_rfc3339()],
         )
         .context("failed to register schema migration")?;
     Ok(())
@@ -129,9 +141,9 @@ pub(super) fn validate(store: &SqliteSessionStore) -> Result<()> {
         })
         .optional()
         .context("failed to query schema migrations")?;
-    if version.unwrap_or_default() < 5 {
+    if version.unwrap_or_default() < 6 {
         bail!(
-            "expected schema migration version 5 in {}",
+            "expected schema migration version 6 in {}",
             store.path.display()
         );
     }
@@ -146,6 +158,7 @@ pub(super) fn validate(store: &SqliteSessionStore) -> Result<()> {
         "review_runs",
         "eval_runs",
         "session_snapshots",
+        "provider_attempts",
     ] {
         let table: Option<String> = connection
             .query_row(

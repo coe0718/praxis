@@ -41,6 +41,7 @@ fn init_is_idempotent_and_creates_foundation_files() {
 
     for required in [
         "praxis.toml",
+        "providers.toml",
         "praxis.db",
         "IDENTITY.md",
         "GOALS.md",
@@ -82,6 +83,7 @@ fn doctor_reports_healthy_and_broken_setups() {
         .success()
         .stdout(predicate::str::contains("doctor: ok"))
         .stdout(predicate::str::contains("tools: ok"))
+        .stdout(predicate::str::contains("providers: ok"))
         .stdout(predicate::str::contains("quality: ok"))
         .stdout(predicate::str::contains("goal_criteria: 1"))
         .stdout(predicate::str::contains("evals: 1"));

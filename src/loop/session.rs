@@ -15,7 +15,9 @@ where
     E: crate::events::EventSink,
     G: crate::identity::GoalParser,
     I: crate::identity::IdentityPolicy,
-    S: crate::storage::SessionStore + crate::storage::ApprovalStore,
+    S: crate::storage::SessionStore
+        + crate::storage::ApprovalStore
+        + crate::storage::ProviderUsageStore,
     T: crate::tools::ToolRegistry,
 {
     pub(super) fn validate_options(&self, options: &RunOptions) -> Result<()> {

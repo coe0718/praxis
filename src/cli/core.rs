@@ -10,6 +10,7 @@ use crate::{
     identity::{IdentityPolicy, LocalIdentityPolicy, MarkdownGoalParser},
     r#loop::{PraxisRuntime, RunOptions},
     paths::{PraxisPaths, default_data_dir},
+    providers::ProviderSettings,
     quality::{EvalRunner, LocalEvalSuite, LocalReviewer, Reviewer},
     report::{build_status_report, render_status_report},
     storage::{SessionStore, SqliteSessionStore},
@@ -36,6 +37,7 @@ pub(crate) fn handle_init(data_dir_override: Option<PathBuf>, args: InitArgs) ->
 
     let paths = PraxisPaths::from_config(&config);
     config.save(&paths.config_file)?;
+    ProviderSettings::default().save_if_missing(&paths.providers_file)?;
 
     let store = SqliteSessionStore::new(paths.database_file.clone());
     store.initialize()?;
@@ -57,7 +59,7 @@ pub(crate) fn handle_run(data_dir_override: Option<PathBuf>, args: RunArgs) -> R
     let (config, paths) = load_initialized_config(data_dir_override)?;
     let identity = LocalIdentityPolicy;
     let tools = FileToolRegistry;
-    let backend = ConfiguredBackend::from_config(&config)?;
+    let backend = ConfiguredBackend::from_runtime(&config, &paths)?;
     let events = FileEventSink::new(paths.events_file.clone());
 
     identity.validate(&paths)?;
@@ -129,11 +131,13 @@ pub(crate) fn handle_doctor(data_dir_override: Option<PathBuf>) -> Result<String
     let (config, paths) = load_initialized_config(data_dir_override)?;
     config.validate()?;
     parse_timezone(&config.instance.timezone)?;
-    ConfiguredBackend::validate_environment(&config)?;
+    ConfiguredBackend::validate_environment(&config, &paths)?;
 
     let identity = LocalIdentityPolicy;
     identity.validate(&paths)?;
     FileToolRegistry.validate(&paths)?;
+    let providers = ProviderSettings::load_or_default(&paths.providers_file)?;
+    providers.validate()?;
     let criteria_count = LocalReviewer.validate(&paths)?;
     let eval_count = LocalEvalSuite.validate(&paths)?;
 
@@ -142,7 +146,7 @@ pub(crate) fn handle_doctor(data_dir_override: Option<PathBuf>) -> Result<String
     store.validate_schema()?;
 
     Ok(format!(
-        "doctor: ok\nconfig: ok\nidentity: ok\ndatabase: ok\ntools: ok\nquality: ok\ngoal_criteria: {criteria_count}\nevals: {eval_count}\nbackend: {}",
+        "doctor: ok\nconfig: ok\nidentity: ok\ndatabase: ok\ntools: ok\nproviders: ok\nquality: ok\ngoal_criteria: {criteria_count}\nevals: {eval_count}\nbackend: {}",
         config.agent.backend
     ))
 }

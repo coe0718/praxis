@@ -114,6 +114,7 @@ fn runtime_blocks_repeated_tool_invocations() {
         selected_tool_name: Some("praxis-data-write".to_string()),
         selected_tool_request_id: Some(approved.id),
         tool_invocation_hashes: Vec::new(),
+        provider_attempts: Vec::new(),
     };
     let invocation = "praxis-data-write|Update JOURNAL.md|JOURNAL.md";
     LoopGuard.record(&mut state, invocation, 3);

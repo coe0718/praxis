@@ -4,6 +4,8 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::usage::ProviderAttempt;
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum SessionPhase {
     Orient,
@@ -46,6 +48,8 @@ pub struct SessionState {
     pub selected_tool_request_id: Option<i64>,
     #[serde(default)]
     pub tool_invocation_hashes: Vec<String>,
+    #[serde(default)]
+    pub provider_attempts: Vec<ProviderAttempt>,
 }
 
 impl SessionState {
@@ -65,6 +69,7 @@ impl SessionState {
             selected_tool_name: None,
             selected_tool_request_id: None,
             tool_invocation_hashes: Vec::new(),
+            provider_attempts: Vec::new(),
         }
     }
 
