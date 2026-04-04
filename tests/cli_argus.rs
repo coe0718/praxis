@@ -49,6 +49,8 @@ fn argus_surfaces_recent_quality_directives() {
         .assert()
         .success()
         .stdout(predicate::str::contains("review_failures: 1"))
+        .stdout(predicate::str::contains("repeated_reads_avoided: 0"))
         .stdout(predicate::str::contains("failure_clusters:"))
+        .stdout(predicate::str::contains("token_hotspots:"))
         .stdout(predicate::str::contains("Tighten completion discipline"));
 }

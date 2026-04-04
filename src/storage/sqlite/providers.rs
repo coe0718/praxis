@@ -3,7 +3,7 @@ use rusqlite::{OptionalExtension, params};
 
 use crate::{
     storage::ProviderUsageStore,
-    usage::{ProviderAttempt, ProviderUsageSummary},
+    usage::{PhaseTokenUsage, ProviderAttempt, ProviderUsageSummary, TokenLedgerSummary},
 };
 
 use super::SqliteSessionStore;
@@ -37,6 +37,26 @@ pub(super) fn record_attempts(
                 ],
             )
             .context("failed to insert provider attempt")?;
+        connection
+            .execute(
+                "
+                INSERT INTO token_ledger(
+                    session_id, phase, provider, model,
+                    input_tokens, output_tokens, estimated_cost_micros
+                )
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+                ",
+                params![
+                    session_id,
+                    attempt.phase,
+                    attempt.provider,
+                    attempt.model,
+                    attempt.input_tokens,
+                    attempt.output_tokens,
+                    attempt.estimated_cost_micros,
+                ],
+            )
+            .context("failed to insert token ledger row")?;
     }
     Ok(())
 }
@@ -89,6 +109,67 @@ pub(super) fn latest_usage(store: &SqliteSessionStore) -> Result<Option<Provider
         })
 }
 
+pub(super) fn latest_token_summary(
+    store: &SqliteSessionStore,
+) -> Result<Option<TokenLedgerSummary>> {
+    let connection = store.connect()?;
+    connection
+        .query_row(
+            "
+            SELECT session_id,
+                   SUM(input_tokens + output_tokens) AS tokens_used,
+                   SUM(estimated_cost_micros) AS estimated_cost_micros
+            FROM token_ledger
+            WHERE session_id = (SELECT session_id FROM token_ledger ORDER BY id DESC LIMIT 1)
+            GROUP BY session_id
+            ",
+            [],
+            |row| {
+                Ok(TokenLedgerSummary {
+                    session_id: row.get(0)?,
+                    tokens_used: row.get(1)?,
+                    estimated_cost_micros: row.get(2)?,
+                })
+            },
+        )
+        .optional()
+        .context("failed to query latest token summary")
+}
+
+pub(super) fn latest_phase_usage(
+    store: &SqliteSessionStore,
+    limit: usize,
+) -> Result<Vec<PhaseTokenUsage>> {
+    let connection = store.connect()?;
+    let mut statement = connection
+        .prepare(
+            "
+            SELECT phase,
+                   provider,
+                   SUM(input_tokens + output_tokens) AS tokens_used,
+                   SUM(estimated_cost_micros) AS estimated_cost_micros
+            FROM token_ledger
+            WHERE session_id = (SELECT session_id FROM token_ledger ORDER BY id DESC LIMIT 1)
+            GROUP BY phase, provider
+            ORDER BY tokens_used DESC, estimated_cost_micros DESC
+            LIMIT ?1
+            ",
+        )
+        .context("failed to prepare token hotspot query")?;
+    let rows = statement
+        .query_map(params![limit as i64], |row| {
+            Ok(PhaseTokenUsage {
+                phase: row.get(0)?,
+                provider: row.get(1)?,
+                tokens_used: row.get(2)?,
+                estimated_cost_micros: row.get(3)?,
+            })
+        })
+        .context("failed to execute token hotspot query")?;
+    rows.collect::<std::result::Result<Vec<_>, _>>()
+        .context("failed to load token hotspots")
+}
+
 impl ProviderUsageStore for SqliteSessionStore {
     fn record_provider_attempts(
         &self,
@@ -100,5 +181,13 @@ impl ProviderUsageStore for SqliteSessionStore {
 
     fn latest_provider_usage(&self) -> Result<Option<ProviderUsageSummary>> {
         latest_usage(self)
+    }
+
+    fn latest_token_summary(&self) -> Result<Option<TokenLedgerSummary>> {
+        latest_token_summary(self)
+    }
+
+    fn latest_phase_token_usage(&self, limit: usize) -> Result<Vec<PhaseTokenUsage>> {
+        latest_phase_usage(self, limit)
     }
 }

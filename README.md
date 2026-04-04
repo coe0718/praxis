@@ -18,6 +18,8 @@ Implemented so far:
 - Resumable `orient -> decide -> act -> reflect -> sleep` loop
 - SQLite-backed sessions, approvals, memories, reviews, and eval runs
 - Context budgeting plus hot/cold memory search with SQLite FTS
+- Operational memory capture through do-not-repeat notes and known bug entries
+- File anatomy indexing plus repeated-read avoidance inside a session
 - Markdown identity, goals, criteria, and eval definition files
 - Tool registry, approval queue, path policy checks, and loop-guard protection
 - Dependency-aware goal selection with `blocked_by` and `wake_when` metadata
@@ -29,6 +31,7 @@ Implemented so far:
 - SQLite-backed phase snapshots plus CLI forensics replay
 - Argus performance analysis for recent session quality trends
 - Session-level provider attempt, token, and estimated cost tracking
+- Token-ledger summaries and hotspot reporting in `status` and `argus`
 - Deterministic offline tests plus Docker-first packaging
 
 Not implemented yet:
@@ -123,6 +126,15 @@ Reflect now enforces local quality checks before finalizing the session outcome:
 
 The foundation data directory seeds one example goal criteria file and one smoke eval so the behavior is visible immediately after `init`.
 
+## Operational memory and anatomy
+
+Orient now captures a little more than just hot/cold memory:
+
+- file reads are indexed into a lightweight anatomy table with path, description, token estimate, and last modified time
+- repeated reads in the same session fall back to anatomy summaries instead of reopening the same file again
+- review and eval failures write operational memory into `do_not_repeat` and `known_bugs` tables
+- `praxis status` shows anatomy entry counts, repeated-read avoidance, and operational-memory counts
+
 ## Goal metadata
 
 Goals can now express lightweight dependency and trigger state directly in `GOALS.md`:
@@ -209,6 +221,7 @@ The current codebase is organized around small modules with a preference for kee
 - `src/config.rs`: typed config schema and validation
 - `src/paths.rs`: data directory and path resolution
 - `src/state.rs`: persisted session checkpoint state
+- `src/anatomy.rs`: file anatomy summaries and token estimates
 - `src/context/`: budget engine and local context assembly
 - `src/identity/`: markdown identity and goal parsing/policy
 - `src/memory/`: memory types and loading logic

@@ -30,6 +30,7 @@ fn initializes_and_records_sessions() {
         selected_task: None,
         action_summary: "Stub backend prepared the goal.".to_string(),
         phase_durations_json: "{\"orient\":0}".to_string(),
+        repeated_reads_avoided: 0,
     };
 
     let stored = store.record_session(&record).unwrap();
@@ -125,6 +126,7 @@ fn records_review_and_eval_quality_metadata() {
             selected_task: None,
             action_summary: "Stub backend prepared the goal.".to_string(),
             phase_durations_json: "{\"orient\":0}".to_string(),
+            repeated_reads_avoided: 0,
         })
         .unwrap();
 
@@ -187,6 +189,7 @@ fn records_latest_provider_usage() {
             selected_task: None,
             action_summary: "Provider routing completed.".to_string(),
             phase_durations_json: "{\"orient\":0}".to_string(),
+            repeated_reads_avoided: 0,
         })
         .unwrap();
 

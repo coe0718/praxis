@@ -17,7 +17,9 @@ where
     I: crate::identity::IdentityPolicy,
     S: crate::storage::SessionStore
         + crate::storage::ApprovalStore
-        + crate::storage::ProviderUsageStore,
+        + crate::storage::ProviderUsageStore
+        + crate::storage::OperationalMemoryStore
+        + crate::storage::AnatomyStore,
     T: crate::tools::ToolRegistry,
 {
     pub(super) fn validate_options(&self, options: &RunOptions) -> Result<()> {

@@ -8,7 +8,10 @@ use crate::{
     memory::MemoryStore,
     paths::PraxisPaths,
     state::{SessionPhase, SessionState},
-    storage::{ApprovalStore, ProviderUsageStore, QualityStore, SessionStore},
+    storage::{
+        AnatomyStore, ApprovalStore, OperationalMemoryStore, ProviderUsageStore, QualityStore,
+        SessionStore,
+    },
     time::Clock,
     tools::ToolRegistry,
 };
@@ -34,7 +37,13 @@ where
     E: EventSink,
     G: GoalParser,
     I: IdentityPolicy,
-    S: SessionStore + MemoryStore + ApprovalStore + QualityStore + ProviderUsageStore,
+    S: SessionStore
+        + MemoryStore
+        + ApprovalStore
+        + QualityStore
+        + ProviderUsageStore
+        + OperationalMemoryStore
+        + AnatomyStore,
     T: ToolRegistry,
 {
     pub fn run_once(&self, options: RunOptions) -> Result<RunSummary> {

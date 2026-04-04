@@ -2,9 +2,13 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+mod anatomy;
+mod ops;
 mod provider;
 mod sqlite;
 
+pub use anatomy::AnatomyStore;
+pub use ops::{OperationalMemoryCounts, OperationalMemoryStore};
 pub use provider::ProviderUsageStore;
 pub use sqlite::SqliteSessionStore;
 
@@ -48,6 +52,7 @@ pub struct SessionRecord {
     pub selected_task: Option<String>,
     pub action_summary: String,
     pub phase_durations_json: String,
+    pub repeated_reads_avoided: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

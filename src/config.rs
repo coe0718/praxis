@@ -72,13 +72,15 @@ impl Default for ContextConfig {
             budget: vec![
                 source("identity", 1, 0.05),
                 source("active_goals", 2, 0.10),
-                source("memory_hot", 3, 0.20),
-                source("memory_cold", 4, 0.15),
-                source("predictions", 5, 0.05),
-                source("patterns", 6, 0.05),
-                source("journal", 7, 0.10),
-                source("tools", 8, 0.05),
-                source("task", 9, 0.25),
+                source("do_not_repeat", 3, 0.08),
+                source("known_bugs", 4, 0.07),
+                source("memory_hot", 5, 0.18),
+                source("memory_cold", 6, 0.12),
+                source("predictions", 7, 0.05),
+                source("patterns", 8, 0.05),
+                source("journal", 9, 0.05),
+                source("tools", 10, 0.05),
+                source("task", 11, 0.20),
             ],
         }
     }

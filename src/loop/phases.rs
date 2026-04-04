@@ -4,7 +4,10 @@ use crate::{
     context::LocalContextLoader,
     memory::MemoryStore,
     state::SessionState,
-    storage::{ApprovalStore, ProviderUsageStore, QualityStore, SessionStore},
+    storage::{
+        AnatomyStore, ApprovalStore, OperationalMemoryStore, ProviderUsageStore, QualityStore,
+        SessionStore,
+    },
     tools::{DEFAULT_LOOP_GUARD_LIMIT, GuardDecision, LoopGuard, SecurityPolicy, ToolRegistry},
 };
 
@@ -20,7 +23,13 @@ where
     E: crate::events::EventSink,
     G: crate::identity::GoalParser,
     I: crate::identity::IdentityPolicy,
-    S: SessionStore + MemoryStore + ApprovalStore + QualityStore + ProviderUsageStore,
+    S: SessionStore
+        + MemoryStore
+        + ApprovalStore
+        + QualityStore
+        + ProviderUsageStore
+        + OperationalMemoryStore
+        + AnatomyStore,
     T: ToolRegistry,
 {
     pub(super) fn orient(&self, state: &mut SessionState) -> Result<()> {
@@ -32,19 +41,22 @@ where
             .filter(|goal| !goal.completed)
             .collect::<Vec<_>>();
         let tool_summary = self.tools.summary(self.paths)?;
+        let requested_task = state.requested_task.clone();
         let context = LocalContextLoader.load(
             self.config,
             self.paths,
             self.store,
+            state,
             &tool_summary,
-            state.requested_task.as_deref(),
+            requested_task.as_deref(),
             &open_goals,
         )?;
 
         state.orientation_summary = Some(format!(
-            "Loaded {} open goals. {}",
+            "Loaded {} open goals. {} Repeated reads avoided: {}.",
             open_goals.len(),
             context.summary(),
+            state.repeated_reads_avoided,
         ));
         state.updated_at = self.clock.now_utc();
         Ok(())

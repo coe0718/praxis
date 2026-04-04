@@ -22,6 +22,21 @@ pub struct ProviderUsageSummary {
     pub estimated_cost_micros: i64,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TokenLedgerSummary {
+    pub session_id: i64,
+    pub tokens_used: i64,
+    pub estimated_cost_micros: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PhaseTokenUsage {
+    pub phase: String,
+    pub provider: String,
+    pub tokens_used: i64,
+    pub estimated_cost_micros: i64,
+}
+
 impl ProviderAttempt {
     pub fn tokens_used(&self) -> i64 {
         self.input_tokens + self.output_tokens

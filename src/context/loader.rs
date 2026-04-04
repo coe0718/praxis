@@ -1,37 +1,54 @@
-use std::{fs, path::Path};
-
-use anyhow::{Context, Result};
+use anyhow::Result;
 
 use crate::{
     config::AppConfig,
     identity::Goal,
-    memory::{MemoryLoader, MemoryStore},
+    memory::{MemoryLoader, MemoryStore, OperationalMemoryLoader},
     paths::PraxisPaths,
+    state::SessionState,
+    storage::{AnatomyStore, OperationalMemoryStore},
 };
 
-use super::{BudgetedContext, ContextBudgeter, ContextSourceInput};
+use super::{BudgetedContext, ContextBudgeter, ContextSourceInput, TrackedContextReader};
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct LocalContextLoader;
 
 impl LocalContextLoader {
-    pub fn load<S: MemoryStore>(
+    pub fn load<S: MemoryStore + OperationalMemoryStore + AnatomyStore>(
         &self,
         config: &AppConfig,
         paths: &PraxisPaths,
         store: &S,
+        state: &mut SessionState,
         tool_summary: &str,
         requested_task: Option<&str>,
         open_goals: &[Goal],
     ) -> Result<BudgetedContext> {
         let memory = MemoryLoader.load(store, requested_task, open_goals)?;
+        let operational = OperationalMemoryLoader.load(store, requested_task, open_goals)?;
+        let reader = TrackedContextReader;
         let inputs = vec![
-            source("identity", read_file(&paths.identity_file)?),
+            source(
+                "identity",
+                reader.read(store, state, &paths.identity_file, "identity")?,
+            ),
             source("active_goals", render_goals(open_goals)),
+            source("do_not_repeat", operational.render_do_not_repeat()),
+            source("known_bugs", operational.render_known_bugs()),
             source("memory_hot", memory.render_hot()),
             source("memory_cold", memory.render_cold()),
-            source("patterns", read_file(&paths.patterns_file)?),
-            source("journal", tail_lines(&read_file(&paths.journal_file)?, 12)),
+            source(
+                "patterns",
+                reader.read(store, state, &paths.patterns_file, "patterns")?,
+            ),
+            source(
+                "journal",
+                tail_lines(
+                    &reader.read(store, state, &paths.journal_file, "journal")?,
+                    12,
+                ),
+            ),
             source("tools", tool_summary.to_string()),
             source("task", requested_task.unwrap_or_default().to_string()),
         ];
@@ -45,10 +62,6 @@ fn source(name: &str, content: String) -> ContextSourceInput {
         source: name.to_string(),
         content,
     }
-}
-
-fn read_file(path: &Path) -> Result<String> {
-    fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))
 }
 
 fn render_goals(goals: &[Goal]) -> String {
@@ -75,6 +88,7 @@ mod tests {
         identity::{Goal, IdentityPolicy, LocalIdentityPolicy},
         memory::{MemoryStore, NewHotMemory},
         paths::PraxisPaths,
+        state::SessionState,
         storage::{SessionStore, SqliteSessionStore},
     };
 
@@ -104,12 +118,17 @@ mod tests {
                 expires_at: None,
             })
             .unwrap();
+        let mut state = SessionState::new(
+            chrono::Utc.with_ymd_and_hms(2026, 3, 31, 12, 0, 0).unwrap(),
+            Some("improve local memory search".to_string()),
+        );
 
         let context = LocalContextLoader
             .load(
                 &config,
                 &paths,
                 &store,
+                &mut state,
                 "- internal-maintenance [internal] level=1 approval=false rehearsal=false",
                 Some("improve local memory search"),
                 &[Goal {
@@ -124,5 +143,37 @@ mod tests {
             .unwrap();
 
         assert!(context.render().contains("memory_hot"));
+    }
+
+    #[test]
+    fn repeated_reads_fall_back_to_anatomy_summaries() {
+        let temp = tempdir().unwrap();
+        let paths = PraxisPaths::for_data_dir(temp.path().join("praxis"));
+        let config = AppConfig::default_for_data_dir(paths.data_dir.clone());
+        LocalIdentityPolicy
+            .ensure_foundation(
+                &paths,
+                &config,
+                chrono::Utc.with_ymd_and_hms(2026, 4, 3, 12, 0, 0).unwrap(),
+            )
+            .unwrap();
+
+        let store = SqliteSessionStore::new(paths.database_file.clone());
+        store.initialize().unwrap();
+        let mut state = SessionState::new(
+            chrono::Utc.with_ymd_and_hms(2026, 4, 3, 12, 0, 0).unwrap(),
+            None,
+        );
+
+        let first = LocalContextLoader
+            .load(&config, &paths, &store, &mut state, "tools", None, &[])
+            .unwrap();
+        let second = LocalContextLoader
+            .load(&config, &paths, &store, &mut state, "tools", None, &[])
+            .unwrap();
+
+        assert!(first.render().contains("## identity"));
+        assert!(second.render().contains("Repeated read avoided."));
+        assert!(state.repeated_reads_avoided >= 3);
     }
 }

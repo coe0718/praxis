@@ -19,9 +19,10 @@ pub(super) fn record_session(
             "
             INSERT INTO sessions (
                 day, session_num, started_at, ended_at, phase_durations, outcome,
-                selected_goal_id, selected_goal_title, selected_task, action_summary
+                selected_goal_id, selected_goal_title, selected_task, action_summary,
+                repeated_reads_avoided
             )
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
             ",
             params![
                 record.day,
@@ -34,6 +35,7 @@ pub(super) fn record_session(
                 record.selected_goal_title,
                 record.selected_task,
                 record.action_summary,
+                record.repeated_reads_avoided,
             ],
         )
         .context("failed to insert session row")?;

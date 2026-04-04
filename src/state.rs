@@ -30,6 +30,14 @@ impl std::fmt::Display for SessionPhase {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileReadRecord {
+    pub path: String,
+    pub modified_at: String,
+    pub reason: String,
+    pub token_estimate: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionState {
     pub current_phase: SessionPhase,
     pub started_at: DateTime<Utc>,
@@ -50,6 +58,10 @@ pub struct SessionState {
     pub tool_invocation_hashes: Vec<String>,
     #[serde(default)]
     pub provider_attempts: Vec<ProviderAttempt>,
+    #[serde(default)]
+    pub file_reads: Vec<FileReadRecord>,
+    #[serde(default)]
+    pub repeated_reads_avoided: u32,
 }
 
 impl SessionState {
@@ -70,6 +82,8 @@ impl SessionState {
             selected_tool_request_id: None,
             tool_invocation_hashes: Vec::new(),
             provider_attempts: Vec::new(),
+            file_reads: Vec::new(),
+            repeated_reads_avoided: 0,
         }
     }
 

@@ -1,3 +1,4 @@
+pub mod anatomy;
 pub mod argus;
 pub mod backend;
 pub mod cli;

@@ -3,17 +3,21 @@ use anyhow::{Context, Result};
 use crate::{
     forensics::attach_session_id,
     identity::Goal,
-    memory::{MemoryStore, NewHotMemory},
+    memory::{MemoryStore, NewDoNotRepeat, NewHotMemory, NewKnownBug},
     quality::{EvalRunner, LocalEvalSuite, LocalReviewer, Reviewer, summarize},
     state::SessionState,
     storage::{
-        ApprovalStore, EvalRunRecord, ProviderUsageStore, QualityStore, ReviewRecord, ReviewStatus,
-        SessionQualityUpdate, SessionRecord, SessionStore,
+        AnatomyStore, ApprovalStore, EvalRunRecord, OperationalMemoryStore, ProviderUsageStore,
+        QualityStore, ReviewRecord, ReviewStatus, SessionQualityUpdate, SessionRecord,
+        SessionStore,
     },
     tools::ToolRegistry,
 };
 
-use super::{AgentBackend, PraxisRuntime};
+use super::{
+    AgentBackend, PraxisRuntime,
+    outcome::{compose_summary, final_outcome},
+};
 
 impl<'a, B, C, E, G, I, S, T> PraxisRuntime<'a, B, C, E, G, I, S, T>
 where
@@ -22,7 +26,13 @@ where
     E: crate::events::EventSink,
     G: crate::identity::GoalParser,
     I: crate::identity::IdentityPolicy,
-    S: SessionStore + MemoryStore + ApprovalStore + QualityStore + ProviderUsageStore,
+    S: SessionStore
+        + MemoryStore
+        + ApprovalStore
+        + QualityStore
+        + ProviderUsageStore
+        + OperationalMemoryStore
+        + AnatomyStore,
     T: ToolRegistry,
 {
     pub(super) fn reflect(&self, state: &mut SessionState) -> Result<()> {
@@ -47,6 +57,7 @@ where
                 "reflect": 0
             })
             .to_string(),
+            repeated_reads_avoided: state.repeated_reads_avoided as i64,
         };
         let mut stored = self.store.record_session(&record)?;
         attach_session_id(&self.paths.database_file, state.started_at, stored.id)?;
@@ -101,6 +112,14 @@ where
         stored.outcome = final_outcome.clone();
         stored.action_summary = final_summary.clone();
         self.capture_session_memory(&stored, &final_outcome)?;
+        self.capture_operational_memory(
+            stored.id,
+            state,
+            review.status,
+            &review.summary,
+            &review.findings,
+            eval_summary.failed,
+        )?;
         self.identity.append_journal(self.paths, &stored)?;
         self.identity.append_metrics(self.paths, &stored)?;
         self.emit_review_events(review.status, eval_summary.failed)?;
@@ -126,6 +145,56 @@ where
             importance: 0.7,
             tags: vec!["session".to_string(), "foundation".to_string()],
             expires_at: None,
+        })?;
+        Ok(())
+    }
+
+    fn capture_operational_memory(
+        &self,
+        session_id: i64,
+        state: &SessionState,
+        review_status: ReviewStatus,
+        review_summary: &str,
+        findings: &[String],
+        eval_failures: usize,
+    ) -> Result<()> {
+        if review_status != ReviewStatus::Failed && eval_failures == 0 {
+            return Ok(());
+        }
+
+        let target = state.selected_task_label().unwrap_or_else(|| {
+            state
+                .selected_goal_id
+                .clone()
+                .zip(state.selected_goal_title.clone())
+                .map(|(id, title)| format!("{id}: {title}"))
+                .unwrap_or_else(|| "this workflow".to_string())
+        });
+        let severity = if review_status == ReviewStatus::Failed {
+            "review_failed"
+        } else {
+            "eval_failed"
+        };
+
+        self.store.record_do_not_repeat(NewDoNotRepeat {
+            statement: format!(
+                "Do not treat {} as complete until reviewer and eval checks pass cleanly.",
+                target
+            ),
+            tags: vec![severity.to_string(), "operations".to_string()],
+            severity: severity.to_string(),
+            source_session_id: Some(session_id),
+            expires_at: None,
+        })?;
+        self.store.record_known_bug(NewKnownBug {
+            signature: target,
+            symptoms: review_summary.to_string(),
+            fix_summary: findings.first().cloned().unwrap_or_else(|| {
+                "Repair the failing work, rerun verification, and only then mark the session complete."
+                    .to_string()
+            }),
+            tags: vec![severity.to_string(), "quality".to_string()],
+            source_session_id: Some(session_id),
         })?;
         Ok(())
     }
@@ -160,33 +229,4 @@ pub(super) fn selected_goal(state: &SessionState) -> Option<Goal> {
         blocked_by: Vec::new(),
         wake_when: None,
     })
-}
-
-fn final_outcome(initial: &str, review_status: ReviewStatus, eval_failures: usize) -> String {
-    if review_status == ReviewStatus::Failed {
-        "review_failed".to_string()
-    } else if eval_failures > 0 {
-        "eval_failed".to_string()
-    } else {
-        initial.to_string()
-    }
-}
-
-fn compose_summary(
-    action_summary: &str,
-    review_summary: &str,
-    eval_summary: crate::quality::EvalSummary,
-    findings: &[String],
-) -> String {
-    let mut summary = format!(
-        "{action_summary} {review_summary} Evals passed={}, failed={}, skipped={}.",
-        eval_summary.passed, eval_summary.failed, eval_summary.skipped
-    );
-
-    if !findings.is_empty() {
-        summary.push_str(" Findings: ");
-        summary.push_str(&findings.join(" | "));
-    }
-
-    summary
 }

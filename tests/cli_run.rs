@@ -47,6 +47,11 @@ fn run_once_records_goal_session_and_updates_status() {
         .success()
         .stdout(predicate::str::contains("backend: stub"))
         .stdout(predicate::str::contains("last_provider: stub"))
+        .stdout(predicate::str::contains("last_tokens: total=0"))
+        .stdout(predicate::str::contains("token_hotspot:"))
+        .stdout(predicate::str::contains("anatomy_entries:"))
+        .stdout(predicate::str::contains("operational_memory: dnr=0 bugs=0"))
+        .stdout(predicate::str::contains("repeated_reads_avoided: 0"))
         .stdout(predicate::str::contains("registered_tools: 2"))
         .stdout(predicate::str::contains("event_count:"))
         .stdout(predicate::str::contains("phase: sleep"))
@@ -122,6 +127,8 @@ fn run_once_resumes_from_interrupted_state() {
         selected_tool_request_id: None,
         tool_invocation_hashes: Vec::new(),
         provider_attempts: Vec::new(),
+        file_reads: Vec::new(),
+        repeated_reads_avoided: 0,
     };
     state.save(&data_dir.join("session_state.json")).unwrap();
 

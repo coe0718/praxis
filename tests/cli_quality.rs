@@ -86,7 +86,8 @@ fn run_once_surfaces_reviewer_failures() {
         .arg("status")
         .assert()
         .success()
-        .stdout(predicate::str::contains("last_review: failed"));
+        .stdout(predicate::str::contains("last_review: failed"))
+        .stdout(predicate::str::contains("operational_memory: dnr=1 bugs=1"));
 }
 
 #[test]
@@ -137,5 +138,6 @@ fn run_once_surfaces_eval_failures() {
         .success()
         .stdout(predicate::str::contains(
             "last_eval: passed=0 failed=1 skipped=0 trust_failures=0",
-        ));
+        ))
+        .stdout(predicate::str::contains("operational_memory: dnr=1 bugs=1"));
 }
