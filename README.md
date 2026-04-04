@@ -35,6 +35,7 @@ Shipped today:
 - Learning runtime that mines opportunities and syncs them into `PROPOSALS.md`
 - Opportunity acceptance that promotes mined work into durable goals in `GOALS.md`
 - Manifest-versioned state export/import plus human-readable audit export
+- `AGENTS.md` pattern capture with CLI support for future-run conventions and gotchas
 
 Not finished yet:
 
@@ -182,6 +183,18 @@ cargo run -- --data-dir ./local-data learn dismiss 2
 
 Accepted opportunities are not just status changes. Praxis links them into `PROPOSALS.md` and promotes them into `GOALS.md`, so the main loop can pick them up as real work later.
 
+### Future-Run Notes
+
+Praxis now has an explicit `AGENTS.md` surface for project-specific conventions, gotchas, and handoff notes that future sessions should load early:
+
+```bash
+cargo run -- --data-dir ./local-data agents view
+cargo run -- --data-dir ./local-data agents add --section workflow --note "Prefer project-local scripts over one-off shell commands."
+cargo run -- --data-dir ./local-data agents add --section gotcha --note "Docker rebuilds are expected to take a while after backend changes."
+```
+
+That file is part of the foundation set, is loaded into Orient as its own context source, and is included in portable exports/imports.
+
 ### Durability and Audit
 
 Praxis can now export a portable state bundle, import it into a different data directory, and generate a human-readable audit report:
@@ -224,6 +237,7 @@ cargo run -- --data-dir ./local-data serve --host 127.0.0.1 --port 8787
 - `src/context/`: budget engine and context assembly
 - `src/anatomy.rs`: file summaries, token estimates, and repeated-read avoidance
 - `src/identity/`: foundation files, goal parsing, and goal promotion
+- `AGENTS.md`: future-run conventions, gotchas, and handoff notes
 - `src/memory/`: memory loading plus operational memory support
 - `src/storage/`: SQLite persistence for runtime state and analytics
 - `src/tools/`: registry, policy, approval flow, and loop guards

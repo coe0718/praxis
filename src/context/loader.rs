@@ -45,6 +45,10 @@ impl LocalContextLoader {
                 "identity",
                 reader.read(store, state, &paths.identity_file, "identity")?,
             ),
+            source(
+                "agents",
+                reader.read(store, state, &paths.agents_file, "agents")?,
+            ),
             source("active_goals", render_goals(open_goals)),
             source("do_not_repeat", operational.render_do_not_repeat()),
             source("known_bugs", operational.render_known_bugs()),
@@ -157,6 +161,7 @@ mod tests {
             )
             .unwrap();
 
+        assert!(context.render().contains("## agents"));
         assert!(context.render().contains("memory_hot"));
     }
 

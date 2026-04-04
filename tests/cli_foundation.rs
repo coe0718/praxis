@@ -50,6 +50,7 @@ fn init_is_idempotent_and_creates_foundation_files() {
         "METRICS.md",
         "PATTERNS.md",
         "LEARNINGS.md",
+        "AGENTS.md",
         "CAPABILITIES.md",
         "PROPOSALS.md",
         "DAY_COUNT",

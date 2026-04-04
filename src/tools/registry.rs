@@ -140,6 +140,7 @@ fn default_manifests() -> Vec<ToolManifest> {
             allowed_paths: vec![
                 "JOURNAL.md".to_string(),
                 "LEARNINGS.md".to_string(),
+                "AGENTS.md".to_string(),
                 "METRICS.md".to_string(),
                 "PROPOSALS.md".to_string(),
             ],

@@ -44,6 +44,10 @@ pub(super) fn foundation_documents(
             "# Learnings\n\n- No learnings captured yet.\n".to_string(),
         ),
         (
+            paths.agents_file.clone(),
+            "# Agents\n\n## Workflow Notes\n- Capture conventions future Praxis runs should remember here.\n\n## Gotchas\n- No project-specific gotchas captured yet.\n\n## Handoffs\n- No handoff notes captured yet.\n".to_string(),
+        ),
+        (
             paths.capabilities_file.clone(),
             "# Capabilities\n\n- CLI foundation\n- SQLite session storage\n- Resumable loop state\n"
                 .to_string(),
