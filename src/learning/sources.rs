@@ -1,9 +1,13 @@
-use std::{collections::BTreeMap, fs, io::Write};
+use std::{collections::BTreeMap, fs};
 
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 
-use crate::{learning::NewLearningSourceState, paths::PraxisPaths, storage::SqliteSessionStore};
+use crate::{
+    learning::{NewLearningSourceState, entries},
+    paths::PraxisPaths,
+    storage::SqliteSessionStore,
+};
 
 pub(super) struct SourceProcessing {
     pub processed_sources: usize,
@@ -51,7 +55,7 @@ pub(super) fn process_sources(
         let raw = fs::read_to_string(&path)
             .with_context(|| format!("failed to read learning source {}", path.display()))?;
         let summary = summarize_source(&raw);
-        append_learning(paths, &relative, &summary, now)?;
+        entries::append_source_learning(paths, &relative, &summary, now)?;
         store.upsert_learning_source(NewLearningSourceState {
             path: relative.clone(),
             last_modified_at,
@@ -105,22 +109,4 @@ fn summarize_source(raw: &str) -> String {
     } else {
         lines.join("; ")
     }
-}
-
-fn append_learning(
-    paths: &PraxisPaths,
-    source: &str,
-    summary: &str,
-    now: DateTime<Utc>,
-) -> Result<()> {
-    let mut file = fs::OpenOptions::new()
-        .append(true)
-        .create(true)
-        .open(&paths.learnings_file)
-        .with_context(|| format!("failed to open {}", paths.learnings_file.display()))?;
-    writeln!(file)?;
-    writeln!(file, "## {}", now.to_rfc3339())?;
-    writeln!(file, "- Source: {source}")?;
-    writeln!(file, "- Summary: {summary}")?;
-    Ok(())
 }

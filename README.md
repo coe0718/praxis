@@ -175,11 +175,14 @@ After approval, `praxis run --once` will execute that request by appending the a
 Praxis can ingest notes from `learning/sources/`, synthesize learnings, detect repeated work, and create a throttled proposal queue:
 
 ```bash
+cargo run -- --data-dir ./local-data learn note "Prefer cargo test --locked before pushing"
 cargo run -- --data-dir ./local-data learn run
 cargo run -- --data-dir ./local-data learn list
 cargo run -- --data-dir ./local-data learn accept 1
 cargo run -- --data-dir ./local-data learn dismiss 2
 ```
+
+`LEARNINGS.md` is now an append-only operational log. Manual `learn note` entries and automatic source syntheses both append structured timestamped records instead of rewriting history.
 
 Accepted opportunities are not just status changes. Praxis links them into `PROPOSALS.md` and promotes them into `GOALS.md`, so the main loop can pick them up as real work later.
 

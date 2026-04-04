@@ -1084,6 +1084,7 @@ Move items upward as they ship:
 - **Opportunity miner throttle** — opportunity creation is now deduplicated and capped per day/week so the queue stays bounded.
 - **Active learning runtime** — `praxis learn run` now ingests local learning sources, appends syntheses to `LEARNINGS.md`, and records learning runs.
 - **AGENTS-style pattern capture** — Praxis now seeds an `AGENTS.md` file, loads it during Orient, and provides CLI support for recording workflow notes, gotchas, and handoff guidance future runs should remember.
+- **Append-only operational learnings** — `LEARNINGS.md` now acts as a structured append-only log for manual operational notes and automatic learning-source syntheses, so instance discoveries accumulate without silent rewrites.
 - **Proposal inbox sync** — the opportunity queue now mirrors into `PROPOSALS.md`, and operators can accept or dismiss proposals without the markdown view drifting out of sync.
 - **Opportunity-to-goal promotion** — accepting a mined opportunity can now create or reuse a real goal in `GOALS.md`, link the proposal to that goal, and feed the work back into the main loop.
 - **Controlled data-write execution** — approved `praxis-data-write` requests can now execute a real append-only write into allowed Praxis data files instead of always stopping at a stubbed act-phase record.
@@ -1102,7 +1103,6 @@ Move items upward as they ship:
 - **Wave execution** — group dependency-aware sub-agent work into parallel waves instead of spawning parallelism ad hoc.
 - **Context-rot prevention** — make "fit work into clean context windows" a structural rule, not just a good habit.
 - **Model profiles** — named execution modes like `quality`, `budget`, or `offline` that change provider/model behavior consistently across subsystems.
-- **Append-only operational learnings** — sharpen `LEARNINGS.md` or an equivalent file into an append-only record of codebase-specific discoveries and instance conventions.
 - **Wake-on-intent** — support approved interrupt-style wakes alongside scheduled sessions.
 - **Reviewer cost guardrails** — keep reviewer context and token ceilings explicit so mandatory review stays affordable.
 - **Watchdog heartbeat backstop** — pair the internal watchdog with a simple external liveness check.

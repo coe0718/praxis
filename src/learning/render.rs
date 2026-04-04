@@ -1,6 +1,6 @@
 use super::{
-    LearningRunSummary, OpportunityActionResult, OpportunityStatus, StoredLearningRun,
-    StoredOpportunity,
+    LearningNoteResult, LearningRunSummary, OpportunityActionResult, OpportunityStatus,
+    StoredLearningRun, StoredOpportunity,
 };
 
 pub fn render_run(summary: &LearningRunSummary) -> String {
@@ -64,6 +64,16 @@ pub fn render_action(action: &str, result: &OpportunityActionResult) -> String {
         lines.push(format!("created_goal: {}", result.created_goal));
     }
     lines.join("\n")
+}
+
+pub fn render_note(result: &LearningNoteResult) -> String {
+    [
+        "learning: noted".to_string(),
+        "kind: operational-note".to_string(),
+        format!("appended_at: {}", result.appended_at.to_rfc3339()),
+        format!("summary: {}", result.summary),
+    ]
+    .join("\n")
 }
 
 fn append_section(

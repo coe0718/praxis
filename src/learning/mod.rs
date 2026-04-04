@@ -1,3 +1,4 @@
+mod entries;
 mod opportunities;
 mod proposals;
 mod render;
@@ -9,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{argus, identity::ensure_goal, paths::PraxisPaths, storage::SqliteSessionStore};
 
-pub use render::{render_action, render_list, render_run};
+pub use render::{render_action, render_list, render_note, render_run};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct StoredLearningSource {
@@ -111,6 +112,12 @@ pub struct OpportunityActionResult {
     pub created_goal: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LearningNoteResult {
+    pub summary: String,
+    pub appended_at: DateTime<Utc>,
+}
+
 pub fn run_once(
     paths: &PraxisPaths,
     store: &SqliteSessionStore,
@@ -161,6 +168,17 @@ pub fn update_opportunity(
     };
     proposals::sync(paths, store)?;
     Ok(updated)
+}
+
+pub fn append_note(
+    paths: &PraxisPaths,
+    summary: &str,
+    now: DateTime<Utc>,
+) -> Result<LearningNoteResult> {
+    Ok(LearningNoteResult {
+        summary: entries::append_operational_learning(paths, summary, now)?,
+        appended_at: now,
+    })
 }
 
 fn accept_opportunity(
