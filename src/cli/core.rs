@@ -16,6 +16,7 @@ use crate::{
     storage::{SessionStore, SqliteSessionStore},
     time::{Clock, SystemClock, parse_timezone},
     tools::{FileToolRegistry, ToolRegistry, sync_capabilities},
+    usage::{UsageBudgetMode, UsageBudgetPolicy, estimate_tokens},
 };
 
 pub(crate) fn handle_init(data_dir_override: Option<PathBuf>, args: InitArgs) -> Result<String> {
@@ -38,6 +39,7 @@ pub(crate) fn handle_init(data_dir_override: Option<PathBuf>, args: InitArgs) ->
     let paths = PraxisPaths::from_config(&config);
     config.save(&paths.config_file)?;
     ProviderSettings::default().save_if_missing(&paths.providers_file)?;
+    UsageBudgetPolicy::default().save_if_missing(&paths.budgets_file)?;
 
     let store = SqliteSessionStore::new(paths.database_file.clone());
     store.initialize()?;
@@ -120,14 +122,23 @@ pub(crate) fn handle_ask(data_dir_override: Option<PathBuf>, args: AskArgs) -> R
 
     let (config, paths) = load_initialized_config(data_dir_override)?;
     let backend = ConfiguredBackend::from_runtime(&config, &paths)?;
-    let output = backend.answer_prompt(&prompt)?;
+    let budgets = UsageBudgetPolicy::load_or_default(&paths.budgets_file)?;
+    let estimate = estimate_tokens(&prompt) + 220;
+    let decision = budgets
+        .rule(UsageBudgetMode::Ask)
+        .check_estimate(estimate, UsageBudgetMode::Ask);
 
     let mut rendered = String::new();
     writeln!(rendered, "mode: ask")?;
     writeln!(rendered, "backend: {}", backend.name())?;
     writeln!(rendered, "stateful: false")?;
     writeln!(rendered, "prompt: {prompt}")?;
-    write!(rendered, "answer: {}", output.summary)?;
+    if decision.blocked {
+        write!(rendered, "answer: {}", decision.summary)?;
+    } else {
+        let output = backend.answer_prompt(&prompt)?;
+        write!(rendered, "answer: {}", output.summary)?;
+    }
     Ok(rendered)
 }
 
@@ -158,6 +169,7 @@ pub(crate) fn handle_doctor(data_dir_override: Option<PathBuf>) -> Result<String
     FileToolRegistry.validate(&paths)?;
     let providers = ProviderSettings::load_or_default(&paths.providers_file)?;
     providers.validate()?;
+    UsageBudgetPolicy::load_or_default(&paths.budgets_file)?.validate()?;
     let criteria_count = LocalReviewer.validate(&paths)?;
     let eval_count = LocalEvalSuite.validate(&paths)?;
 
@@ -166,7 +178,7 @@ pub(crate) fn handle_doctor(data_dir_override: Option<PathBuf>) -> Result<String
     store.validate_schema()?;
 
     Ok(format!(
-        "doctor: ok\nconfig: ok\nidentity: ok\ndatabase: ok\ntools: ok\nproviders: ok\nquality: ok\ngoal_criteria: {criteria_count}\nevals: {eval_count}\nbackend: {}",
+        "doctor: ok\nconfig: ok\nidentity: ok\ndatabase: ok\ntools: ok\nproviders: ok\nbudgets: ok\nquality: ok\ngoal_criteria: {criteria_count}\nevals: {eval_count}\nbackend: {}",
         config.agent.backend
     ))
 }

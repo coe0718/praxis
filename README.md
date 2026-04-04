@@ -31,6 +31,7 @@ Shipped today:
 - First real tool execution path for approved append-only writes inside allowed Praxis data files
 - Auto-maintained `CAPABILITIES.md` notes for installed tools, recent examples, and failure history
 - Provider routing with `stub`, Claude, OpenAI, Ollama, and router-mode failover
+- Explicit `budgets.toml` limits for ask/run attempt count, token spend, and estimated cost
 - Telegram operator commands and a lightweight SSE/dashboard server
 - Reviewer/eval quality gates during Reflect
 - Automatic markdown postmortems for reviewer failures, eval regressions, and similar bad outcomes

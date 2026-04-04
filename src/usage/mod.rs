@@ -1,3 +1,9 @@
+mod budget;
+
+pub use budget::{
+    UsageBudgetDecision, UsageBudgetMode, UsageBudgetPolicy, UsageBudgetRule, estimate_tokens,
+};
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

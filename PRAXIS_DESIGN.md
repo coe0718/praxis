@@ -1090,6 +1090,7 @@ Move items upward as they ship:
 - **Tool auto-documentation** — `CAPABILITIES.md` now stays synced with installed tool manifests plus approval/execution history, including recent examples, rejection notes, and simple reliability counts.
 - **Postmortem generator** — Reflect now appends structured `POSTMORTEMS.md` entries for reviewer failures, eval regressions, and similar bad session outcomes.
 - **End-to-end replay testing** — fixture-backed transcript replays now cover stateful foundation and approval flows so regressions can be caught against recorded multi-step sessions.
+- **Energy budget / rate-limit budget** — `budgets.toml` now sets explicit ask/run attempt, token, and estimated-cost ceilings, and Praxis blocks extra backend work once a session exhausts them.
 - **Proposal inbox sync** — the opportunity queue now mirrors into `PROPOSALS.md`, and operators can accept or dismiss proposals without the markdown view drifting out of sync.
 - **Opportunity-to-goal promotion** — accepting a mined opportunity can now create or reuse a real goal in `GOALS.md`, link the proposal to that goal, and feed the work back into the main loop.
 - **Controlled data-write execution** — approved `praxis-data-write` requests can now execute a real append-only write into allowed Praxis data files instead of always stopping at a stubbed act-phase record.
@@ -1112,7 +1113,6 @@ Move items upward as they ship:
 - **Reviewer cost guardrails** — keep reviewer context and token ceilings explicit so mandatory review stays affordable.
 - **Watchdog heartbeat backstop** — pair the internal watchdog with a simple external liveness check.
 - **Hierarchical goals** — support parent/child goals and dependency-aware progression once the richer lifecycle is stable.
-- **Energy budget / rate-limit budget** — turn provider quota, token usage, and operator attention into explicit resources that sessions consume and must budget against.
 - **Local-first model fallback** — make Ollama or other local providers a first-class fallback policy for low-risk phases such as reflection and summarization.
 - **Adaptive context allocation** — tune context budgets based on which sources correlate with successful outcomes for this specific operator.
 

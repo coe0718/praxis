@@ -12,6 +12,7 @@ use crate::{
         DEFAULT_LOOP_GUARD_LIMIT, GuardDecision, LoopGuard, SecurityPolicy, ToolRegistry,
         execute_request, sync_capabilities,
     },
+    usage::{UsageBudgetMode, UsageBudgetPolicy},
 };
 
 use super::{
@@ -71,11 +72,14 @@ where
         state.selected_tool_name = None;
         state.selected_tool_request_id = None;
 
-        if let Some(task) = state.requested_task.as_deref() {
+        if let Some(task) = state.requested_task.clone() {
+            if self.block_for_usage_budget(state, UsageBudgetMode::Run)? {
+                return Ok(());
+            }
             state.last_outcome = Some("task_selected".to_string());
             state.selected_goal_id = None;
             state.selected_goal_title = None;
-            let output = self.backend.plan_action(None, Some(task))?;
+            let output = self.backend.plan_action(None, Some(&task))?;
             state.provider_attempts.extend(output.attempts);
             state.action_summary = Some(output.summary);
             state.updated_at = self.clock.now_utc();
@@ -102,6 +106,9 @@ where
                 state.last_outcome = Some("goal_selected".to_string());
                 state.selected_goal_id = Some(goal.id.clone());
                 state.selected_goal_title = Some(goal.title.clone());
+                if self.block_for_usage_budget(state, UsageBudgetMode::Run)? {
+                    return Ok(());
+                }
                 let output = self.backend.plan_action(Some(&goal), None)?;
                 state.provider_attempts.extend(output.attempts);
                 state.action_summary = Some(output.summary);
@@ -134,6 +141,9 @@ where
             .action_summary
             .clone()
             .unwrap_or_else(|| "No action was selected.".to_string());
+        if self.block_for_usage_budget(state, UsageBudgetMode::Run)? {
+            return Ok(());
+        }
         let output = self.backend.finalize_action(
             &summary,
             super::reflect::selected_goal(state).as_ref(),
@@ -197,6 +207,28 @@ where
         state.action_summary = Some(execution.summary);
         state.updated_at = self.clock.now_utc();
         Ok(())
+    }
+
+    fn block_for_usage_budget(
+        &self,
+        state: &mut SessionState,
+        mode: UsageBudgetMode,
+    ) -> Result<bool> {
+        let budgets = UsageBudgetPolicy::load_or_default(&self.paths.budgets_file)?;
+        let decision = budgets
+            .rule(mode)
+            .check_attempts(&state.provider_attempts, mode);
+        if !decision.blocked {
+            return Ok(false);
+        }
+        state.last_outcome = Some("budget_exhausted".to_string());
+        state.action_summary = Some(decision.summary);
+        state.updated_at = self.clock.now_utc();
+        self.emit(
+            "agent:usage_budget_blocked",
+            "Usage budget blocked another backend call.",
+        )?;
+        Ok(true)
     }
 }
 
