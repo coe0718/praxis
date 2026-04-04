@@ -1107,6 +1107,14 @@ Move items upward as they ship:
 - **Reviewer cost guardrails** — keep reviewer context and token ceilings explicit so mandatory review stays affordable.
 - **Watchdog heartbeat backstop** — pair the internal watchdog with a simple external liveness check.
 - **Hierarchical goals** — support parent/child goals and dependency-aware progression once the richer lifecycle is stable.
+- **End-to-end replay testing** — add recorded transcript and session replay coverage so Praxis can catch stateful regressions that unit and CLI tests miss.
+- **Energy budget / rate-limit budget** — turn provider quota, token usage, and operator attention into explicit resources that sessions consume and must budget against.
+- **Cross-tool loop detection** — extend the loop guard beyond identical single-tool invocations so repeating multi-tool thrash patterns get blocked too.
+- **Postmortem generator** — automatically write structured postmortems after reviewer failures, eval regressions, or other high-signal bad outcomes.
+- **Local-first model fallback** — make Ollama or other local providers a first-class fallback policy for low-risk phases such as reflection and summarization.
+- **Adaptive context allocation** — tune context budgets based on which sources correlate with successful outcomes for this specific operator.
+- **Hierarchical summarization fallback** — summarize oversized context sources aggressively while preserving anchors like dates, goal IDs, names, and boundaries.
+- **Tool auto-documentation** — have Praxis maintain examples, failure modes, and reliability notes for installed tools and capabilities.
 
 ### Future / Optional
 
@@ -1115,12 +1123,8 @@ Move items upward as they ship:
 - **Memory typing** — extend memory with episodic, semantic, and procedural classes, each with different decay and reinforcement rules.
 - **Operator reinforcement commands** — allow `/reinforce <memory_id>` or message reactions to strengthen memories directly.
 - **Conflict workbench** — create `MEMORY_CONFLICTS.md` or an equivalent workflow to surface conflicting memories with evidence and proposed resolution.
-- **Adaptive context allocation** — learn which context sources correlate with successful outcomes for this specific operator and tune budgets accordingly.
-- **Hierarchical summarization fallback** — aggressive summarization that preserves anchors like dates, goal IDs, boundaries, and names when context is tight.
 - **Persistent context cache** — store a compressed working set from recent sessions for faster warm starts on constrained hardware.
 - **Automatic anatomy refresh daemon** — beyond on-demand updates, optionally re-index changed files during idle windows.
-- **Tool auto-documentation** — have Praxis maintain examples, failure modes, and reliability notes for installed tools and capabilities.
-- **Cross-tool loop detection** — extend the loop guard to catch repeating multi-tool patterns, not just identical single-tool calls.
 - **Community tool registry improvements** — include compatibility metadata, usage examples, and read-only community discovery.
 - **Local multimodal processing** — optional on-device transcription, captioning, or light image understanding for privacy-preserving installs.
 - **System anomaly correlation** — track CPU, memory, disk, and load anomalies against reviewer failures and bad outcomes.
@@ -1128,17 +1132,13 @@ Move items upward as they ship:
 - **Meta-evolution workflow** — let Praxis propose changes to the framework itself via `SELF_EVOLUTION.md`, with heavy approval gating.
 - **Irreplaceability score** — track anticipation, follow-through, reliability, and operator dependence as a private metric, not as a vanity metric.
 - **Adaptive scheduling** — let wake times and non-urgent session timing learn from actual operator behavior and quiet-hour patterns.
-- **Local-first model fallback** — optionally use local or Ollama-compatible models for low-risk phases such as reflection or summarization.
 - **Cargo feature modularity** — keep the single binary lean while allowing optional compile-time extras like voice, vector memory, or advanced graph features.
 - **Auto-maintained docs** — let Praxis keep public docs and examples current as capabilities mature.
-- **End-to-end replay testing** — run recorded transcript replays to catch behavioral regressions that unit tests miss.
 - **Lite mode** — reduce sub-agent usage, tighten budgets, and simplify behavior for Raspberry Pi or low-power installs.
-- **Energy budget / rate-limit budget** — model provider quota and operator attention as explicit resources that sessions consume.
 - **Anonymous learning exchange** — possibly allow instances to publish sanitized, non-personal learnings to a shared registry later, but only with strong privacy guarantees.
 - **WASM tool runtime** — support ultra-sandboxed community tools without granting broad local execution.
 - **OpenTelemetry / Prometheus export** — richer external observability once local analytics and SSE are stable.
 - **Local multimodal and local model bundles** — optional heavy extras for privacy-first or travel/offline deployments.
-- **Postmortem generator** — automatically write structured failure postmortems after review or eval regressions.
 - **Synthetic example generation** — turn high-value learnings into reusable structured examples for future prompt shaping or evaluation.
 - **Social runtime** — optional scheduled outward-facing posting or status sharing on behalf of the operator.
 - **VS Code ops surface** — lightweight editor integration for status, current goal, and safe run triggers.
