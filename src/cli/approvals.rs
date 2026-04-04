@@ -5,6 +5,7 @@ use anyhow::{Context, Result};
 use crate::{
     cli::{ApprovalActionArgs, QueueArgs},
     storage::{ApprovalStatus, ApprovalStore, SessionStore, SqliteSessionStore},
+    tools::{FileToolRegistry, sync_capabilities},
 };
 
 use super::core::load_initialized_config;
@@ -51,6 +52,7 @@ pub(crate) fn handle_approval_action(
     let updated = store
         .set_approval_status(args.id, status, args.note.as_deref())?
         .with_context(|| format!("approval request {} not found", args.id))?;
+    sync_capabilities(&FileToolRegistry, &store, &paths)?;
 
     Ok(format!(
         "approval: {}\nid: {}\ntool: {}",

@@ -10,6 +10,7 @@ use crate::{
     },
     tools::{
         FileToolRegistry, SecurityPolicy, ToolKind, ToolManifest, ToolRegistry, build_payload,
+        sync_capabilities,
     },
 };
 
@@ -92,6 +93,8 @@ fn handle_list(data_dir_override: Option<PathBuf>) -> Result<String> {
 
 fn handle_register(data_dir_override: Option<PathBuf>, args: RegisterToolArgs) -> Result<String> {
     let (_, paths) = load_initialized_config(data_dir_override)?;
+    let store = SqliteSessionStore::new(paths.database_file.clone());
+    store.initialize()?;
     let manifest = ToolManifest {
         name: args.name,
         description: args.description,
@@ -103,6 +106,7 @@ fn handle_register(data_dir_override: Option<PathBuf>, args: RegisterToolArgs) -
     };
 
     let path = FileToolRegistry.register(&paths, &manifest)?;
+    sync_capabilities(&FileToolRegistry, &store, &paths)?;
     Ok(format!(
         "tool: registered\nname: {}\nmanifest: {}",
         manifest.name,
@@ -152,6 +156,7 @@ fn handle_request(data_dir_override: Option<PathBuf>, args: RequestToolArgs) -> 
         },
     )?;
     let stored = store.queue_approval(&request)?;
+    sync_capabilities(&FileToolRegistry, &store, &paths)?;
 
     let mut output = String::new();
     writeln!(output, "request: {}", stored.status.as_str())?;

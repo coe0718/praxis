@@ -15,7 +15,7 @@ use crate::{
     report::{build_status_report, render_status_report},
     storage::{SessionStore, SqliteSessionStore},
     time::{Clock, SystemClock, parse_timezone},
-    tools::{FileToolRegistry, ToolRegistry},
+    tools::{FileToolRegistry, ToolRegistry, sync_capabilities},
 };
 
 pub(crate) fn handle_init(data_dir_override: Option<PathBuf>, args: InitArgs) -> Result<String> {
@@ -45,6 +45,7 @@ pub(crate) fn handle_init(data_dir_override: Option<PathBuf>, args: InitArgs) ->
     let identity = LocalIdentityPolicy;
     identity.ensure_foundation(&paths, &config, now)?;
     FileToolRegistry.ensure_foundation(&paths)?;
+    sync_capabilities(&FileToolRegistry, &store, &paths)?;
 
     Ok(format!(
         "initialized: ok\ndata_dir: {}\nconfig: {}\ndatabase: {}\ntools: {}",

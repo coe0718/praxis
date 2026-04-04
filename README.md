@@ -29,6 +29,7 @@ Shipped today:
 - Hot/cold memory search plus operational memory for do-not-repeat notes and known bugs
 - Tool registry, approval queue, path policy enforcement, and loop guards for identical or repeating multi-step tool patterns
 - First real tool execution path for approved append-only writes inside allowed Praxis data files
+- Auto-maintained `CAPABILITIES.md` notes for installed tools, recent examples, and failure history
 - Provider routing with `stub`, Claude, OpenAI, Ollama, and router-mode failover
 - Telegram operator commands and a lightweight SSE/dashboard server
 - Reviewer/eval quality gates during Reflect
