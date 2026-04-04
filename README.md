@@ -32,6 +32,7 @@ Shipped today:
 - Auto-maintained `CAPABILITIES.md` notes for installed tools, recent examples, and failure history
 - Provider routing with `stub`, Claude, OpenAI, Ollama, and router-mode failover
 - Explicit `budgets.toml` limits for ask/run attempt count, token spend, and estimated cost
+- Opt-in local-first fallback so low-risk `ask` and `act` phases can prefer Ollama before cloud providers
 - Telegram operator commands and a lightweight SSE/dashboard server
 - Reviewer/eval quality gates during Reflect
 - Automatic markdown postmortems for reviewer failures, eval regressions, and similar bad outcomes

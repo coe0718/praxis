@@ -49,6 +49,8 @@ pub struct AgentConfig {
     pub backend: String,
     pub context_ceiling_pct: f32,
     pub model_pin: Option<String>,
+    #[serde(default)]
+    pub local_first_fallback: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -107,6 +109,7 @@ impl AppConfig {
                 backend: "stub".to_string(),
                 context_ceiling_pct: 0.80,
                 model_pin: None,
+                local_first_fallback: false,
             },
             context: ContextConfig::default(),
         }
