@@ -4,6 +4,7 @@ use anyhow::{Context, Result, bail};
 
 use crate::{
     backend::{AgentBackend, ConfiguredBackend},
+    canary::ModelCanaryLedger,
     cli::{AskArgs, InitArgs, RunArgs},
     config::AppConfig,
     events::FileEventSink,
@@ -43,6 +44,7 @@ pub(crate) fn handle_init(data_dir_override: Option<PathBuf>, args: InitArgs) ->
     ProviderSettings::default().save_if_missing(&paths.providers_file)?;
     ProfileSettings::default().save_if_missing(&paths.profiles_file)?;
     UsageBudgetPolicy::default().save_if_missing(&paths.budgets_file)?;
+    ModelCanaryLedger { records: Vec::new() }.save_if_missing(&paths.model_canary_file)?;
 
     let store = SqliteSessionStore::new(paths.database_file.clone());
     store.initialize()?;
@@ -180,6 +182,7 @@ pub(crate) fn handle_doctor(data_dir_override: Option<PathBuf>) -> Result<String
     providers.validate()?;
     ProfileSettings::load_or_default(&paths.profiles_file)?.validate()?;
     UsageBudgetPolicy::load_or_default(&paths.budgets_file)?.validate()?;
+    ModelCanaryLedger::load_or_default(&paths.model_canary_file)?.validate()?;
     crate::heartbeat::read_heartbeat(&paths.heartbeat_file)?;
     let criteria_count = LocalReviewer.validate(&paths)?;
     let eval_count = LocalEvalSuite.validate(&paths)?;

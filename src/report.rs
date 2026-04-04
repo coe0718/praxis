@@ -5,6 +5,7 @@ use serde::Serialize;
 
 use crate::{
     argus::analyze,
+    canary::ModelCanaryLedger,
     config::AppConfig,
     events::{Event, read_events_since},
     learning::StoredLearningRun,
@@ -24,6 +25,7 @@ pub struct StatusReport {
     pub instance_name: String,
     pub backend: String,
     pub profile: String,
+    pub freeze_on_model_regression: bool,
     pub data_dir: String,
     pub phase: String,
     pub last_outcome: String,
@@ -45,6 +47,7 @@ pub struct StatusReport {
     pub event_count: usize,
     pub last_event: Option<Event>,
     pub heartbeat: Option<HeartbeatReport>,
+    pub canary_records: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -118,12 +121,16 @@ pub fn build_status_report(config: &AppConfig, paths: &PraxisPaths) -> Result<St
         .as_str()
         .to_string();
     let heartbeat = crate::heartbeat::read_heartbeat(&paths.heartbeat_file).ok();
+    let canary_records = ModelCanaryLedger::load_or_default(&paths.model_canary_file)?
+        .records
+        .len();
     let (events, _) = read_events_since(&paths.events_file, 0)?;
 
     Ok(StatusReport {
         instance_name: config.instance.name.clone(),
         backend: config.agent.backend.clone(),
         profile: config.agent.profile.clone(),
+        freeze_on_model_regression: config.agent.freeze_on_model_regression,
         data_dir: paths.data_dir.display().to_string(),
         phase: state
             .as_ref()
@@ -183,5 +190,6 @@ pub fn build_status_report(config: &AppConfig, paths: &PraxisPaths) -> Result<St
             phase: record.phase,
             updated_at: record.updated_at,
         }),
+        canary_records,
     })
 }

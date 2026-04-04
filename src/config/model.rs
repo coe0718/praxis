@@ -53,6 +53,8 @@ pub struct AgentConfig {
     pub model_pin: Option<String>,
     #[serde(default)]
     pub local_first_fallback: bool,
+    #[serde(default)]
+    pub freeze_on_model_regression: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -113,6 +115,7 @@ impl AppConfig {
                 profile: default_profile(),
                 model_pin: None,
                 local_first_fallback: false,
+                freeze_on_model_regression: false,
             },
             context: ContextConfig::default(),
         }

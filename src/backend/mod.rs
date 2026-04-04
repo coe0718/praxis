@@ -1,8 +1,10 @@
 mod attempts;
 mod claude;
 mod configured;
+mod gating;
 mod ollama;
 mod openai;
+mod provider_routes;
 mod prompts;
 
 use anyhow::Result;

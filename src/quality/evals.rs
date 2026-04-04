@@ -47,6 +47,12 @@ pub trait EvalRunner {
     fn run(&self, paths: &PraxisPaths) -> Result<Vec<EvalOutcome>>;
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EvalTrigger {
+    Always,
+    Canary,
+}
+
 #[derive(Debug, Default, Clone, Copy)]
 pub struct LocalEvalSuite;
 
@@ -60,10 +66,16 @@ impl EvalRunner for LocalEvalSuite {
     }
 
     fn run(&self, paths: &PraxisPaths) -> Result<Vec<EvalOutcome>> {
+        self.run_trigger(paths, EvalTrigger::Always)
+    }
+}
+
+impl LocalEvalSuite {
+    pub fn run_trigger(&self, paths: &PraxisPaths, trigger: EvalTrigger) -> Result<Vec<EvalOutcome>> {
         let mut results = Vec::new();
         for path in json_files(&paths.evals_dir)? {
             let definition = load_eval(&path)?;
-            if definition.when != "always" {
+            if !should_run(&definition, trigger) {
                 results.push(EvalOutcome {
                     eval_id: definition.id,
                     name: definition.name,
@@ -91,6 +103,13 @@ impl EvalRunner for LocalEvalSuite {
         }
 
         Ok(results)
+    }
+}
+
+fn should_run(definition: &EvalDefinition, trigger: EvalTrigger) -> bool {
+    match trigger {
+        EvalTrigger::Always => definition.when == "always",
+        EvalTrigger::Canary => matches!(definition.when.as_str(), "always" | "canary"),
     }
 }
 

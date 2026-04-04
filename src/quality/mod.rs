@@ -5,7 +5,9 @@ use std::path::Path;
 
 use anyhow::Result;
 
-pub use evals::{EvalDefinition, EvalOutcome, EvalRunner, EvalSummary, LocalEvalSuite, summarize};
+pub use evals::{
+    EvalDefinition, EvalOutcome, EvalRunner, EvalSummary, EvalTrigger, LocalEvalSuite, summarize,
+};
 pub use reviewer::{GoalCriteria, LocalReviewer, ReviewOutcome, Reviewer};
 
 pub(crate) fn json_files(root: &Path) -> Result<Vec<std::path::PathBuf>> {

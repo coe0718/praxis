@@ -6,6 +6,10 @@ pub fn render_status_report(report: &StatusReport) -> String {
         format!("instance: {}", report.instance_name),
         format!("backend: {}", report.backend),
         format!("profile: {}", report.profile),
+        format!(
+            "freeze_on_model_regression: {}",
+            report.freeze_on_model_regression
+        ),
         format!("data_dir: {}", report.data_dir),
         format!("phase: {}", report.phase),
         format!("last_outcome: {}", report.last_outcome),
@@ -20,6 +24,7 @@ pub fn render_status_report(report: &StatusReport) -> String {
             report.operational_memory.do_not_repeat, report.operational_memory.known_bugs
         ),
         format!("event_count: {}", report.event_count),
+        format!("canary_records: {}", report.canary_records),
     ];
 
     if let Some(selected_tool) = &report.selected_tool {

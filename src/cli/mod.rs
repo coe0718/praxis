@@ -2,6 +2,7 @@ mod agents;
 pub(crate) mod approvals;
 mod archive;
 mod argus;
+mod canary;
 pub(crate) mod core;
 mod forensics;
 mod heartbeat;
@@ -37,6 +38,7 @@ pub enum Commands {
     Export(archive::ExportArgs),
     Import(archive::ImportArgs),
     Argus(argus::ArgusArgs),
+    Canary(canary::CanaryArgs),
     Learn(learning::LearningArgs),
     Forensics(forensics::ForensicsArgs),
     Heartbeat(heartbeat::HeartbeatArgs),
@@ -110,6 +112,7 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::Export(args) => archive::handle_export(cli.data_dir, args),
         Commands::Import(args) => archive::handle_import(cli.data_dir, args),
         Commands::Argus(args) => argus::handle_argus(cli.data_dir, args),
+        Commands::Canary(args) => canary::handle_canary(cli.data_dir, args),
         Commands::Learn(args) => learning::handle_learning(cli.data_dir, args),
         Commands::Forensics(args) => forensics::handle_forensics(cli.data_dir, args),
         Commands::Heartbeat(args) => heartbeat::handle_heartbeat(cli.data_dir, args),

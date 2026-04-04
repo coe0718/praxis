@@ -37,6 +37,7 @@ Shipped today:
 - Explicit `budgets.toml` limits for ask/run attempt count, token spend, and estimated cost
 - Named model profiles in `profiles.toml` so `quality`, `budget`, and `offline` modes can steer backend behavior and context aggressiveness
 - Opt-in local-first fallback so low-risk `ask` and `act` phases can prefer Ollama before cloud providers
+- Model canary ledger plus `freeze_on_model_regression` gating so remote routes can be frozen until they pass an explicit canary run
 - Runtime heartbeat file plus `praxis heartbeat check` and `scripts/check-heartbeat.sh` for external liveness checks
 - Telegram operator commands and a lightweight SSE/dashboard server
 - Reviewer/eval quality gates during Reflect
@@ -51,7 +52,7 @@ Shipped today:
 Not finished yet:
 
 - Broader tool execution beyond the first controlled data-write path
-- Watchdog heartbeat, rollout canaries, and rollback automation
+- Full rollout canaries tied into watchdog-driven binary swaps and rollback automation
 - Full watchdog/auto-update process management beyond the new heartbeat backstop
 - Richer dashboard UI and additional messaging platforms
 - Automatic scheduled backup snapshots for long-lived state
@@ -123,6 +124,20 @@ base_url = "http://127.0.0.1:11434"
 ```
 
 When router mode is active, Praxis records every provider attempt, token count, and estimated cost in SQLite so `status` and Argus can explain what actually happened.
+
+If you want Praxis to freeze remote model use until a provider/model pair passes an explicit probe, enable:
+
+```toml
+[agent]
+freeze_on_model_regression = true
+```
+
+Then record a canary before normal remote use:
+
+```bash
+cargo run -- --data-dir ./local-data canary run
+cargo run -- --data-dir ./local-data canary status
+```
 
 ## Docker
 

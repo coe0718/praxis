@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 
 use crate::{
     config::AppConfig,
@@ -11,7 +11,9 @@ use super::{
     AgentBackend, BackendOutput, ProviderRequest, StubBackend,
     attempts::failed_attempt,
     claude, ollama, openai,
+    gating::CanaryGate,
     prompts::{request_for_ask, request_for_finalize, request_for_plan},
+    provider_routes::{default_route, route_for, validate_provider},
 };
 
 pub enum ConfiguredBackend {
@@ -25,22 +27,26 @@ pub struct SingleBackend {
     route: ProviderRoute,
     local_route: ProviderRoute,
     local_first_fallback: bool,
+    canary_gate: CanaryGate,
 }
 
 #[derive(Debug, Clone)]
 pub struct RouterBackend {
     routes: Vec<ProviderRoute>,
     local_first_fallback: bool,
+    canary_gate: CanaryGate,
 }
 
 impl ConfiguredBackend {
     pub fn from_runtime(config: &AppConfig, paths: &PraxisPaths) -> Result<Self> {
         let settings = ProviderSettings::load_or_default(&paths.providers_file)?;
+        let canary_gate = CanaryGate::from_runtime(config, paths)?;
         Ok(match config.agent.backend.as_str() {
             "stub" => Self::Stub(StubBackend),
             "router" => Self::Router(RouterBackend {
                 routes: settings.providers,
                 local_first_fallback: config.agent.local_first_fallback,
+                canary_gate,
             }),
             provider => Self::Single(SingleBackend {
                 route: route_for(provider, config, &settings)?,
@@ -48,6 +54,7 @@ impl ConfiguredBackend {
                     .first_for("ollama")
                     .unwrap_or_else(|| default_route("ollama")),
                 local_first_fallback: config.agent.local_first_fallback,
+                canary_gate,
             }),
         })
     }
@@ -86,11 +93,11 @@ impl AgentBackend for ConfiguredBackend {
         match self {
             Self::Stub(inner) => inner.answer_prompt(prompt),
             Self::Single(inner) => execute_routes(
-                &inner.routes_for(&request_for_ask(prompt)),
+                &inner.routable(&request_for_ask(prompt))?,
                 request_for_ask(prompt),
             ),
             Self::Router(inner) => {
-                execute_routes(&inner.routes_for("ask"), request_for_ask(prompt))
+                execute_routes(&inner.routable("ask")?, request_for_ask(prompt))
             }
         }
     }
@@ -99,8 +106,8 @@ impl AgentBackend for ConfiguredBackend {
         let request = request_for_plan(goal, task);
         match self {
             Self::Stub(inner) => inner.plan_action(goal, task),
-            Self::Single(inner) => execute_routes(&inner.routes_for(&request), request),
-            Self::Router(inner) => execute_routes(&inner.routes_for("decide"), request),
+            Self::Single(inner) => execute_routes(&inner.routable(&request)?, request),
+            Self::Router(inner) => execute_routes(&inner.routable("decide")?, request),
         }
     }
 
@@ -113,8 +120,8 @@ impl AgentBackend for ConfiguredBackend {
         let request = request_for_finalize(planned_summary, goal, task);
         match self {
             Self::Stub(inner) => inner.finalize_action(planned_summary, goal, task),
-            Self::Single(inner) => execute_routes(&inner.routes_for(&request), request),
-            Self::Router(inner) => execute_routes(&inner.routes_for("act"), request),
+            Self::Single(inner) => execute_routes(&inner.routable(&request)?, request),
+            Self::Router(inner) => execute_routes(&inner.routable("act")?, request),
         }
     }
 }
@@ -128,6 +135,10 @@ impl SingleBackend {
             return vec![self.local_route.clone(), self.route.clone()];
         }
         vec![self.route.clone()]
+    }
+
+    fn routable(&self, request: &ProviderRequest) -> Result<Vec<ProviderRoute>> {
+        self.canary_gate.filter_routes(self.routes_for(request))
     }
 }
 
@@ -149,6 +160,10 @@ impl RouterBackend {
                 .cloned(),
         );
         local
+    }
+
+    fn routable(&self, phase: &str) -> Result<Vec<ProviderRoute>> {
+        self.canary_gate.filter_routes(self.routes_for(phase))
     }
 }
 
@@ -181,47 +196,4 @@ fn execute_single(route: &ProviderRoute, request: &ProviderRequest) -> Result<Ba
         summary: response.summary,
         attempts: vec![response.attempt],
     })
-}
-
-fn route_for(
-    provider: &str,
-    config: &AppConfig,
-    settings: &ProviderSettings,
-) -> Result<ProviderRoute> {
-    let mut route = settings
-        .first_for(provider)
-        .unwrap_or_else(|| default_route(provider));
-    if config.agent.model_pin.is_some() && provider == config.agent.backend {
-        route.model = config.agent.model_pin.clone().unwrap_or(route.model);
-    }
-    route.validate()?;
-    Ok(route)
-}
-
-fn default_route(provider: &str) -> ProviderRoute {
-    ProviderSettings::default()
-        .first_for(provider)
-        .unwrap_or(ProviderRoute {
-            provider: provider.to_string(),
-            model: "unknown".to_string(),
-            base_url: None,
-            input_cost_per_million_usd: None,
-            output_cost_per_million_usd: None,
-        })
-}
-
-fn validate_provider(route: &ProviderRoute) -> Result<()> {
-    match route.provider.as_str() {
-        "claude" if std::env::var("PRAXIS_CLAUDE_STUB_RESPONSE").is_err() => {
-            let _ = std::env::var("ANTHROPIC_API_KEY")
-                .context("ANTHROPIC_API_KEY is required for the Claude provider")?;
-        }
-        "openai" if std::env::var("PRAXIS_OPENAI_STUB_RESPONSE").is_err() => {
-            let _ = std::env::var("OPENAI_API_KEY")
-                .context("OPENAI_API_KEY is required for the OpenAI provider")?;
-        }
-        "ollama" | "claude" | "openai" => {}
-        other => bail!("unsupported provider {other}"),
-    }
-    Ok(())
 }

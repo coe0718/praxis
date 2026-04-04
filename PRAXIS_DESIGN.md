@@ -1101,10 +1101,10 @@ Move items upward as they ship:
 - **Controlled data-write execution** — approved `praxis-data-write` requests can now execute a real append-only write into allowed Praxis data files instead of always stopping at a stubbed act-phase record.
 - **Agent-core dependency hedge** — Praxis now documents the backend ownership boundary and replacement plan in `docs/agent_runtime.md`, making external runtimes adapters rather than core architecture.
 - **Model profiles** — Praxis now seeds `profiles.toml` and applies named `quality`, `budget`, or `offline` execution profiles at config-load time so backend routing and context ceiling can shift together.
+- **Model transition controls** — Praxis now stores per-provider/model canary results in `model_canary.json`, exposes `praxis canary run/status`, and can freeze remote routes until a passing canary is recorded.
 
 ### Adopt Soon
 
-- **Model transition controls** — add `model_pin`, model canaries, regression gates, and a "freeze on known-good model behavior" option so provider-side model updates do not silently change Praxis personality or reliability.
 - **Boundary maintenance loop** — support `/boundaries` as a recurring conversation, and have the weekly alignment review explicitly ask whether hard limits changed.
 - **Attachment policy** — define explicit reject/chunk/summarize behavior for oversized files and never silently truncate.
 - **Cold-memory decay clarification** — decay cold memories in place by default; only demote when certainty genuinely drops.
