@@ -16,11 +16,15 @@ use crate::{
 
 use self::{
     attempts::{failed_attempt, successful_attempt},
-    prompts::{render_stub_summary, request_for_finalize, request_for_plan},
+    prompts::{
+        render_stub_answer, render_stub_summary, request_for_ask, request_for_finalize,
+        request_for_plan,
+    },
 };
 
 pub trait AgentBackend {
     fn name(&self) -> &'static str;
+    fn answer_prompt(&self, prompt: &str) -> Result<BackendOutput>;
     fn plan_action(&self, goal: Option<&Goal>, task: Option<&str>) -> Result<BackendOutput>;
     fn finalize_action(
         &self,
@@ -102,6 +106,14 @@ impl AgentBackend for ConfiguredBackend {
         }
     }
 
+    fn answer_prompt(&self, prompt: &str) -> Result<BackendOutput> {
+        match self {
+            Self::Stub(inner) => inner.answer_prompt(prompt),
+            Self::Single(route) => execute_single(route, request_for_ask(prompt)),
+            Self::Router(routes) => execute_router(routes, request_for_ask(prompt)),
+        }
+    }
+
     fn plan_action(&self, goal: Option<&Goal>, task: Option<&str>) -> Result<BackendOutput> {
         match self {
             Self::Stub(inner) => inner.plan_action(goal, task),
@@ -131,6 +143,13 @@ impl AgentBackend for ConfiguredBackend {
 impl AgentBackend for StubBackend {
     fn name(&self) -> &'static str {
         "stub"
+    }
+
+    fn answer_prompt(&self, prompt: &str) -> Result<BackendOutput> {
+        Ok(BackendOutput {
+            summary: render_stub_answer(prompt),
+            attempts: vec![successful_attempt("ask", "stub", "stub", 0, 0, 0)],
+        })
     }
 
     fn plan_action(&self, goal: Option<&Goal>, task: Option<&str>) -> Result<BackendOutput> {

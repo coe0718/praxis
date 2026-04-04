@@ -1072,6 +1072,7 @@ Move items upward as they ship:
 - **Portable state export/import** — `praxis export state` and `praxis import` now produce and restore a manifest-versioned state bundle containing the SQLite database, runtime state, config, tools, learning inputs, and core markdown identity files, while re-homing imported config paths to the new data directory.
 - **Schema migration policy** — exported state bundles now carry an explicit bundle format version plus the SQLite schema version so portability and restore compatibility are tracked rather than implicit.
 - **Audit exports** — `praxis export audit` now writes a human-readable report of recent sessions, approvals, provider usage, memory writes, and recent event logs.
+- **Command semantics** — `praxis ask ...` and Telegram `/ask` are now lightweight and stateless, while `praxis run --once` and Telegram `/run` execute real session work with durable state updates.
 - **Codebase anatomy index** — file descriptions, token estimates, and timestamps are stored so Orient can reason about files before reopening them.
 - **Do-not-repeat register** — operational mistakes are persisted and can be loaded before similar future work.
 - **Known bug log** — searchable bug/fix memory now exists for instance-specific operational learning.
@@ -1091,7 +1092,6 @@ Move items upward as they ship:
 - **Agent-core dependency hedge** — `yoagent` or any external agent-runtime dependency must sit behind a Praxis-owned abstraction with docs explaining its responsibilities, replacement plan, and exit strategy if the crate is abandoned.
 - **Model transition controls** — add `model_pin`, model canaries, regression gates, and a "freeze on known-good model behavior" option so provider-side model updates do not silently change Praxis personality or reliability.
 - **Boundary maintenance loop** — support `/boundaries` as a recurring conversation, and have the weekly alignment review explicitly ask whether hard limits changed.
-- **Command semantics** — keep `/ask` synchronous and low-latency, `/run` asynchronous and session-based, and document that distinction everywhere the commands appear.
 - **Attachment policy** — define explicit reject/chunk/summarize behavior for oversized files and never silently truncate.
 - **Cold-memory decay clarification** — decay cold memories in place by default; only demote when certainty genuinely drops.
 - **File-mutation circuit breaker** — trip a guard if a session attempts to modify too much of the workspace, identity surface, or too many protected files at once.

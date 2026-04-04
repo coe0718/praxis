@@ -3,7 +3,7 @@ use std::fs;
 use anyhow::{Result, bail};
 
 use crate::{
-    cli::{ApprovalActionArgs, QueueArgs, RunArgs, approvals, core},
+    cli::{ApprovalActionArgs, AskArgs, QueueArgs, RunArgs, approvals, core},
     paths::PraxisPaths,
 };
 
@@ -54,11 +54,17 @@ pub fn parse_telegram_command(text: &str) -> TelegramCommand {
 
 pub fn handle_telegram_command(data_dir: std::path::PathBuf, text: &str) -> Result<String> {
     match parse_telegram_command(text) {
-        TelegramCommand::Ask(task) | TelegramCommand::Run(task) => core::handle_run(
+        TelegramCommand::Ask(prompt) => core::handle_ask(
+            Some(data_dir),
+            AskArgs {
+                prompt: vec![prompt],
+            },
+        ),
+        TelegramCommand::Run(task) => core::handle_run(
             Some(data_dir),
             RunArgs {
                 once: true,
-                force: false,
+                force: true,
                 task: Some(task),
             },
         ),
@@ -130,7 +136,7 @@ fn render_boundaries(data_dir: std::path::PathBuf) -> Result<String> {
 }
 
 fn help_text() -> &'static str {
-    "supported: /ask /run /status /queue /approve /reject /goal /brief /health /boundaries"
+    "supported: /ask /run /status /queue /approve /reject /goal /brief /health /boundaries\n/ask is low-latency and stateless. /run executes a real Praxis session and updates durable state."
 }
 
 #[cfg(test)]

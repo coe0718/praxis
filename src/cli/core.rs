@@ -3,8 +3,8 @@ use std::{fmt::Write as _, path::PathBuf};
 use anyhow::{Context, Result, bail};
 
 use crate::{
-    backend::ConfiguredBackend,
-    cli::{InitArgs, RunArgs},
+    backend::{AgentBackend, ConfiguredBackend},
+    cli::{AskArgs, InitArgs, RunArgs},
     config::AppConfig,
     events::FileEventSink,
     identity::{IdentityPolicy, LocalIdentityPolicy, MarkdownGoalParser},
@@ -109,6 +109,25 @@ pub(crate) fn handle_run(data_dir_override: Option<PathBuf>, args: RunArgs) -> R
     )?;
     write!(output, "summary: {}", summary.action_summary)?;
     Ok(output)
+}
+
+pub(crate) fn handle_ask(data_dir_override: Option<PathBuf>, args: AskArgs) -> Result<String> {
+    let prompt = args.prompt.join(" ").trim().to_string();
+    if prompt.is_empty() {
+        bail!("ask prompt must not be empty");
+    }
+
+    let (config, paths) = load_initialized_config(data_dir_override)?;
+    let backend = ConfiguredBackend::from_runtime(&config, &paths)?;
+    let output = backend.answer_prompt(&prompt)?;
+
+    let mut rendered = String::new();
+    writeln!(rendered, "mode: ask")?;
+    writeln!(rendered, "backend: {}", backend.name())?;
+    writeln!(rendered, "stateful: false")?;
+    writeln!(rendered, "prompt: {prompt}")?;
+    write!(rendered, "answer: {}", output.summary)?;
+    Ok(rendered)
 }
 
 pub(crate) fn handle_status(data_dir_override: Option<PathBuf>) -> Result<String> {

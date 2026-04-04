@@ -27,6 +27,7 @@ pub struct Cli {
 #[derive(Debug, Subcommand)]
 pub enum Commands {
     Init(InitArgs),
+    Ask(AskArgs),
     Run(RunArgs),
     Status,
     Doctor,
@@ -68,6 +69,12 @@ pub struct RunArgs {
 }
 
 #[derive(Debug, Args)]
+pub struct AskArgs {
+    #[arg(required = true)]
+    pub prompt: Vec<String>,
+}
+
+#[derive(Debug, Args)]
 pub struct QueueArgs {
     #[arg(long)]
     pub all: bool,
@@ -91,6 +98,7 @@ pub fn run() -> Result<()> {
 fn execute(cli: Cli) -> Result<String> {
     match cli.command {
         Commands::Init(args) => core::handle_init(cli.data_dir, args),
+        Commands::Ask(args) => core::handle_ask(cli.data_dir, args),
         Commands::Run(args) => core::handle_run(cli.data_dir, args),
         Commands::Status => core::handle_status(cli.data_dir),
         Commands::Doctor => core::handle_doctor(cli.data_dir),

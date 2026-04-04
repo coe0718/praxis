@@ -19,6 +19,7 @@ Praxis is in active development, but it is already a working local operator runt
 
 Shipped today:
 
+- Lightweight `praxis ask ...` prompts that do not create or mutate session state
 - Resumable `orient -> decide -> act -> reflect -> sleep` session loop
 - Linux/macOS path handling plus Docker-first data-dir support
 - Markdown identity and goal files with dependency-aware goal selection
@@ -138,11 +139,14 @@ The compose file binds `./docker-data` to `/var/lib/praxis`, so state persists a
 
 ### Daily Runtime
 
+- `praxis ask ...`
 - `praxis run --once`
 - `praxis status`
 - `praxis doctor`
 - `praxis forensics latest`
 - `praxis argus --limit 10`
+
+`praxis ask ...` is synchronous and stateless. `praxis run --once` is a real session run that updates durable Praxis state.
 
 ### Approvals and Tools
 
@@ -202,6 +206,11 @@ cargo run -- --data-dir ./local-data telegram doctor
 cargo run -- --data-dir ./local-data telegram poll-once
 cargo run -- --data-dir ./local-data telegram run --cycles 0
 ```
+
+Messaging semantics match the CLI split:
+
+- `/ask <prompt>` is low-latency and does not create a Praxis session.
+- `/run <task>` executes a real stateful session and bypasses quiet-hours deferral because the operator explicitly requested it.
 
 Run the local dashboard/SSE server:
 

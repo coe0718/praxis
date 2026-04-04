@@ -2,6 +2,15 @@ use crate::identity::Goal;
 
 use super::ProviderRequest;
 
+pub(super) fn request_for_ask(prompt: &str) -> ProviderRequest {
+    ProviderRequest {
+        phase: "ask",
+        system: "You are Praxis, a careful personal AI agent. Answer the operator directly and briefly. Do not claim that long-lived state, background work, or external actions changed unless the prompt explicitly says they already did.",
+        input: format!("Operator question or one-shot request:\n{prompt}"),
+        max_output_tokens: 220,
+    }
+}
+
 pub(super) fn request_for_plan(goal: Option<&Goal>, task: Option<&str>) -> ProviderRequest {
     ProviderRequest {
         phase: "decide",
@@ -40,6 +49,10 @@ pub(super) fn render_stub_summary(goal: Option<&Goal>, task: Option<&str>) -> St
         "Stub backend performed idle maintenance because no task or open goal was available."
             .to_string()
     }
+}
+
+pub(super) fn render_stub_answer(prompt: &str) -> String {
+    format!("Stub backend answered without creating a session: {prompt}")
 }
 
 fn render_target(goal: Option<&Goal>, task: Option<&str>) -> String {
