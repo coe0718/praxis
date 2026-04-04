@@ -1,10 +1,13 @@
 mod anatomy;
 mod approvals;
+mod learning;
 mod memory;
+mod opportunities;
 mod ops;
 mod providers;
 mod quality;
 mod schema;
+mod schema_data;
 mod sessions;
 
 #[cfg(test)]

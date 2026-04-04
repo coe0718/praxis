@@ -33,6 +33,8 @@ pub struct PraxisPaths {
     pub day_count_file: PathBuf,
     pub events_file: PathBuf,
     pub telegram_state_file: PathBuf,
+    pub learning_dir: PathBuf,
+    pub learning_sources_dir: PathBuf,
     pub evals_dir: PathBuf,
     pub goals_dir: PathBuf,
     pub goals_criteria_dir: PathBuf,
@@ -98,6 +100,8 @@ impl PraxisPaths {
         let goals_criteria_dir = goals_dir.join("criteria");
         let evals_dir = data_dir.join("evals");
         let tools_dir = data_dir.join("tools");
+        let learning_dir = data_dir.join("learning");
+        let learning_sources_dir = learning_dir.join("sources");
 
         Self {
             config_file: data_dir.join("praxis.toml"),
@@ -116,6 +120,8 @@ impl PraxisPaths {
             day_count_file: data_dir.join("DAY_COUNT"),
             events_file: data_dir.join("events.jsonl"),
             telegram_state_file: data_dir.join("telegram_state.json"),
+            learning_dir,
+            learning_sources_dir,
             evals_dir,
             goals_dir,
             goals_criteria_dir,

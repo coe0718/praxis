@@ -59,6 +59,8 @@ fn init_is_idempotent_and_creates_foundation_files() {
 
     assert!(data_dir.join("goals/criteria").exists());
     assert!(data_dir.join("evals").exists());
+    assert!(data_dir.join("learning/sources").exists());
+    assert!(data_dir.join("learning/sources/operator-notes.md").exists());
     assert!(data_dir.join("tools").exists());
 }
 

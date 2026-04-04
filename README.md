@@ -29,7 +29,9 @@ Implemented so far:
 - SSE/dashboard server with summary and recent-event views
 - Deterministic reviewer and operator-eval quality gates during Reflect
 - SQLite-backed phase snapshots plus CLI forensics replay
-- Argus performance analysis for recent session quality trends and recurring work patterns
+- Argus performance analysis for recent session quality trends, drift, and recurring work
+- First-pass learning runtime for local source ingestion and opportunity mining
+- Throttled opportunity queue for repeated work and drift-recovery proposals
 - Session-level provider attempt, token, and estimated cost tracking
 - Token-ledger summaries and hotspot reporting in `status` and `argus`
 - Deterministic offline tests plus Docker-first packaging
@@ -38,7 +40,7 @@ Not implemented yet:
 
 - Real tool execution beyond the current safe stub path
 - Memory consolidation, reinforcement, and decay workflows
-- Drift detection and longer-horizon calibration reports
+- Longer-horizon calibration reports and richer learning synthesis
 - Watchdog heartbeat, canary sessions, and rollback automation
 - Richer dashboard/UI and more messaging surfaces
 
@@ -88,6 +90,8 @@ Core lifecycle:
 - `praxis status`
 - `praxis doctor`
 - `praxis argus --limit 10`
+- `praxis learn run`
+- `praxis learn list`
 - `praxis forensics latest`
 
 Approvals and tool queue:
@@ -155,10 +159,17 @@ Praxis now records phase-boundary snapshots in SQLite during a session so you ca
 cargo run -- --data-dir ./local-data forensics latest
 ```
 
-Argus is a lightweight performance director that analyzes recent session failures, recurring work, and token hotspots to produce concrete improvement directives:
+Argus is a lightweight performance director that analyzes recent session failures, drift, recurring work, and token hotspots to produce concrete improvement directives:
 
 ```bash
 cargo run -- --data-dir ./local-data argus --limit 10
+```
+
+Praxis also ships a first-pass learning runtime that ingests local sources from `learning/sources/`, appends fresh syntheses to `LEARNINGS.md`, and mines a throttled opportunity queue from repeated work and drift signals:
+
+```bash
+cargo run -- --data-dir ./local-data learn run
+cargo run -- --data-dir ./local-data learn list
 ```
 
 ## Provider routing

@@ -55,6 +55,41 @@ pub(super) fn recent_sessions(connection: &Connection, limit: usize) -> Result<V
         .context("failed to load recent sessions for Argus")
 }
 
+pub(super) fn token_hotspots(
+    connection: &Connection,
+    limit: usize,
+) -> Result<Vec<(String, String, i64)>> {
+    let mut statement = connection
+        .prepare(
+            "
+            SELECT phase, provider, SUM(input_tokens + output_tokens) AS tokens_used
+            FROM token_ledger
+            WHERE session_id IN (
+                SELECT id
+                FROM sessions
+                ORDER BY id DESC
+                LIMIT ?1
+            )
+            GROUP BY phase, provider
+            ORDER BY tokens_used DESC
+            LIMIT 3
+            ",
+        )
+        .context("failed to prepare Argus token hotspot query")?;
+    let rows = statement
+        .query_map(params![limit as i64], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, i64>(2)?,
+            ))
+        })
+        .context("failed to execute Argus token hotspot query")?;
+
+    rows.collect::<std::result::Result<Vec<_>, _>>()
+        .context("failed to load token hotspots for Argus")
+}
+
 pub(super) fn cluster_failures(sessions: &[SessionRow]) -> Vec<(String, usize)> {
     let mut clusters = BTreeMap::new();
     for session in sessions {

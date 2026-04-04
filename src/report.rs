@@ -1,9 +1,13 @@
+mod render;
+
 use anyhow::Result;
 use serde::Serialize;
 
 use crate::{
+    argus::analyze,
     config::AppConfig,
     events::{Event, read_events_since},
+    learning::StoredLearningRun,
     paths::PraxisPaths,
     state::{SessionPhase, SessionState},
     storage::{
@@ -12,6 +16,8 @@ use crate::{
     },
     tools::{FileToolRegistry, ToolRegistry},
 };
+
+pub use render::render_status_report;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct StatusReport {
@@ -23,6 +29,7 @@ pub struct StatusReport {
     pub repeated_reads_avoided: u32,
     pub anatomy_entries: i64,
     pub pending_approvals: usize,
+    pub pending_opportunities: i64,
     pub registered_tools: usize,
     pub operational_memory: OperationalMemoryReport,
     pub selected_tool: Option<String>,
@@ -32,6 +39,8 @@ pub struct StatusReport {
     pub last_provider_usage: Option<LastProviderUsageReport>,
     pub last_token_summary: Option<LastTokenSummaryReport>,
     pub last_token_hotspot: Option<LastTokenHotspotReport>,
+    pub last_learning_run: Option<StoredLearningRun>,
+    pub drift_status: String,
     pub event_count: usize,
     pub last_event: Option<Event>,
 }
@@ -86,6 +95,7 @@ pub fn build_status_report(config: &AppConfig, paths: &PraxisPaths) -> Result<St
     let last_session = store.last_session()?;
     let anatomy_entries = store.anatomy_entry_count()?;
     let pending_approvals = store.list_approvals(Some(ApprovalStatus::Pending))?.len();
+    let pending_opportunities = store.pending_opportunity_count()?;
     let registered_tools = FileToolRegistry.list(paths)?.len();
     let operational_memory = store.operational_memory_counts()?;
     let last_review = store.last_review()?;
@@ -93,6 +103,12 @@ pub fn build_status_report(config: &AppConfig, paths: &PraxisPaths) -> Result<St
     let last_provider_usage = store.latest_provider_usage()?;
     let last_token_summary = store.latest_token_summary()?;
     let last_token_hotspot = store.latest_phase_token_usage(1)?.into_iter().next();
+    let last_learning_run = store.latest_learning_run()?;
+    let drift_status = analyze(&paths.database_file, 10)?
+        .drift
+        .status
+        .as_str()
+        .to_string();
     let (events, _) = read_events_since(&paths.events_file, 0)?;
 
     Ok(StatusReport {
@@ -113,6 +129,7 @@ pub fn build_status_report(config: &AppConfig, paths: &PraxisPaths) -> Result<St
             .unwrap_or_default(),
         anatomy_entries,
         pending_approvals,
+        pending_opportunities,
         registered_tools,
         operational_memory: OperationalMemoryReport {
             do_not_repeat: operational_memory.do_not_repeat,
@@ -148,87 +165,9 @@ pub fn build_status_report(config: &AppConfig, paths: &PraxisPaths) -> Result<St
             tokens_used: usage.tokens_used,
             estimated_cost_micros: usage.estimated_cost_micros,
         }),
+        last_learning_run,
+        drift_status,
         event_count: events.len(),
         last_event: events.last().cloned(),
     })
-}
-
-pub fn render_status_report(report: &StatusReport) -> String {
-    let mut lines = vec![
-        "status: ready".to_string(),
-        format!("instance: {}", report.instance_name),
-        format!("backend: {}", report.backend),
-        format!("data_dir: {}", report.data_dir),
-        format!("phase: {}", report.phase),
-        format!("last_outcome: {}", report.last_outcome),
-        format!("repeated_reads_avoided: {}", report.repeated_reads_avoided),
-        format!("anatomy_entries: {}", report.anatomy_entries),
-        format!("pending_approvals: {}", report.pending_approvals),
-        format!("registered_tools: {}", report.registered_tools),
-        format!(
-            "operational_memory: dnr={} bugs={}",
-            report.operational_memory.do_not_repeat, report.operational_memory.known_bugs
-        ),
-        format!("event_count: {}", report.event_count),
-    ];
-
-    if let Some(selected_tool) = &report.selected_tool {
-        lines.push(format!("selected_tool: {selected_tool}"));
-    }
-
-    if let Some(last_event) = &report.last_event {
-        lines.push(format!("last_event: {}", last_event.kind));
-    }
-
-    if let Some(session) = &report.last_session {
-        lines.push(format!(
-            "last_session: #{} {}",
-            session.session_num, session.outcome
-        ));
-        lines.push(format!("last_session_ended_at: {}", session.ended_at));
-    } else {
-        lines.push("last_session: none".to_string());
-    }
-
-    if let Some(review_status) = &report.last_review_status {
-        lines.push(format!("last_review: {review_status}"));
-    }
-
-    if let Some(eval) = &report.last_eval {
-        lines.push(format!(
-            "last_eval: passed={} failed={} skipped={} trust_failures={}",
-            eval.passed, eval.failed, eval.skipped, eval.trust_failures
-        ));
-    }
-
-    if let Some(usage) = &report.last_provider_usage {
-        lines.push(format!(
-            "last_provider: {} attempts={} failures={} tokens={} est_cost_usd={:.6}",
-            usage.last_provider,
-            usage.attempt_count,
-            usage.failure_count,
-            usage.tokens_used,
-            usage.estimated_cost_micros as f64 / 1_000_000.0
-        ));
-    }
-
-    if let Some(summary) = &report.last_token_summary {
-        lines.push(format!(
-            "last_tokens: total={} est_cost_usd={:.6}",
-            summary.tokens_used,
-            summary.estimated_cost_micros as f64 / 1_000_000.0
-        ));
-    }
-
-    if let Some(hotspot) = &report.last_token_hotspot {
-        lines.push(format!(
-            "token_hotspot: {}/{} tokens={} est_cost_usd={:.6}",
-            hotspot.phase,
-            hotspot.provider,
-            hotspot.tokens_used,
-            hotspot.estimated_cost_micros as f64 / 1_000_000.0
-        ));
-    }
-
-    lines.join("\n")
 }

@@ -1046,7 +1046,7 @@ Status values are intentionally rough:
 | 7 | In progress | Messaging layer | `src/messaging/` |
 | 8 | Implemented | Quality system | `src/quality/`, `goals/criteria/` |
 | 9 | In progress | Analytics + observability + forensics | `src/analytics/`, `src/forensics/`, `src/tui/`, `docs/` |
-| 10 | Planned | Trust + opportunity + learning runtime | `src/quality/`, `src/analytics/`, `src/memory/`, `src/learning/` |
+| 10 | In progress | Trust + opportunity + learning runtime | `src/quality/`, `src/analytics/`, `src/memory/`, `src/learning/` |
 | 11 | Planned | Watchdog + auto-update | `src/watchdog/`, `scripts/install.sh` |
 
 This table is intentionally coupled to the repository structure. If the module layout changes, the build order should be updated in the same pull request.
@@ -1074,6 +1074,9 @@ Move items upward as they ship:
 - **Per-phase token ledger** — token and estimated cost usage is stored by phase and provider in SQLite.
 - **Cross-session failure clustering** — Argus groups repeated failure outcomes instead of treating bad sessions as isolated.
 - **Cross-session pattern mining** — Argus now spots recurring goals or tasks that keep resurfacing across sessions and days.
+- **Drift detection** — a first-pass rolling baseline now marks recent quality as stable, regressed, improving, or insufficient-data.
+- **Opportunity miner throttle** — opportunity creation is now deduplicated and capped per day/week so the queue stays bounded.
+- **Active learning runtime** — `praxis learn run` now ingests local learning sources, appends syntheses to `LEARNINGS.md`, and records learning runs.
 
 ### Adopt Soon
 
@@ -1081,8 +1084,6 @@ Move items upward as they ship:
 - **Schema migration policy** — every exported artifact and SQLite schema needs an explicit version and migration path.
 - **Agent-core dependency hedge** — `yoagent` or any external agent-runtime dependency must sit behind a Praxis-owned abstraction with docs explaining its responsibilities, replacement plan, and exit strategy if the crate is abandoned.
 - **Model transition controls** — add `model_pin`, model canaries, regression gates, and a "freeze on known-good model behavior" option so provider-side model updates do not silently change Praxis personality or reliability.
-- **Drift detection** — compare current reviewer pass rate, eval scores, operator corrections, and boundary violations against rolling baselines to catch silent degradation.
-- **Opportunity miner throttle** — rate-limit proposal generation, enforce priority ordering, and cap how many new opportunities can be surfaced per day or week.
 - **Boundary maintenance loop** — support `/boundaries` as a recurring conversation, and have the weekly alignment review explicitly ask whether hard limits changed.
 - **Command semantics** — keep `/ask` synchronous and low-latency, `/run` asynchronous and session-based, and document that distinction everywhere the commands appear.
 - **Attachment policy** — define explicit reject/chunk/summarize behavior for oversized files and never silently truncate.
@@ -1091,7 +1092,6 @@ Move items upward as they ship:
 - **File-mutation circuit breaker** — trip a guard if a session attempts to modify too much of the workspace, identity surface, or too many protected files at once.
 - **Backup and restore** — optional automatic daily snapshots handled by Praxis or the watchdog.
 - **Capability benchmarking** — add recurring capability tests and operator-specific replay/eval sessions to measure usefulness over time.
-- **Active learning runtime** — a scheduled subsystem that ingests approved external sources, synthesizes them, and grows the instance between primary sessions.
 - **Speculative execution** — compare multiple rehearsed branches before committing to the safest or highest-yield act plan.
 - **Wave execution** — group dependency-aware sub-agent work into parallel waves instead of spawning parallelism ad hoc.
 - **Context-rot prevention** — make "fit work into clean context windows" a structural rule, not just a good habit.

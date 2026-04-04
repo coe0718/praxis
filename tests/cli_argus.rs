@@ -49,6 +49,7 @@ fn argus_surfaces_recent_quality_directives() {
         .assert()
         .success()
         .stdout(predicate::str::contains("review_failures: 1"))
+        .stdout(predicate::str::contains("drift_status:"))
         .stdout(predicate::str::contains("repeated_reads_avoided: 0"))
         .stdout(predicate::str::contains("failure_clusters:"))
         .stdout(predicate::str::contains("token_hotspots:"))
@@ -100,6 +101,7 @@ fn argus_surfaces_repeated_work_across_days() {
         .arg("argus")
         .assert()
         .success()
+        .stdout(predicate::str::contains("drift_status:"))
         .stdout(predicate::str::contains("repeated_work:"))
         .stdout(predicate::str::contains(
             "task: triage recurring inbox sessions=2 days=2",

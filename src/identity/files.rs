@@ -11,6 +11,12 @@ use crate::{config::AppConfig, paths::PraxisPaths, storage::StoredSession};
 
 use super::IdentityPolicy;
 
+mod foundation;
+#[cfg(test)]
+mod tests;
+
+use foundation::foundation_documents;
+
 #[derive(Debug, Default, Clone, Copy)]
 pub struct LocalIdentityPolicy;
 
@@ -97,107 +103,6 @@ impl IdentityPolicy for LocalIdentityPolicy {
     }
 }
 
-fn foundation_documents(
-    paths: &PraxisPaths,
-    config: &AppConfig,
-    now: DateTime<Utc>,
-) -> Vec<(std::path::PathBuf, String)> {
-    vec![
-        (
-            paths.identity_file.clone(),
-            format!(
-                "# Identity\n\n- Name: {}\n- Timezone: {}\n- Role: A local Praxis instance in foundation mode.\n",
-                config.instance.name, config.instance.timezone
-            ),
-        ),
-        (
-            paths.goals_file.clone(),
-            "# Goals\n\n- [ ] G-001: Complete the first Praxis foundation run\n".to_string(),
-        ),
-        (
-            paths.roadmap_file.clone(),
-            "# Roadmap\n\n- Foundation milestone in progress.\n".to_string(),
-        ),
-        (
-            paths.journal_file.clone(),
-            format!(
-                "# Journal\n\n## Day 0\n- Initialized Praxis foundation on {}.\n",
-                now.to_rfc3339()
-            ),
-        ),
-        (
-            paths.metrics_file.clone(),
-            "# Metrics\n\n| Session | Outcome | Goal | Task | Ended At |\n| --- | --- | --- | --- | --- |\n"
-                .to_string(),
-        ),
-        (
-            paths.patterns_file.clone(),
-            "# Patterns\n\n- No patterns captured yet.\n".to_string(),
-        ),
-        (
-            paths.learnings_file.clone(),
-            "# Learnings\n\n- No learnings captured yet.\n".to_string(),
-        ),
-        (
-            paths.capabilities_file.clone(),
-            "# Capabilities\n\n- CLI foundation\n- SQLite session storage\n- Resumable loop state\n"
-                .to_string(),
-        ),
-        (
-            paths.proposals_file.clone(),
-            "# Proposals\n\n- No pending proposals.\n".to_string(),
-        ),
-        (paths.day_count_file.clone(), "0\n".to_string()),
-        (
-            paths.goals_criteria_dir.join("G-001.json"),
-            r#"{
-  "goal_id": "G-001",
-  "done_when": [
-    "Core Praxis foundation files exist",
-    "The local SQLite database exists",
-    "Default tool manifests are present"
-  ],
-  "verify_with": "shell",
-  "commands": [
-    "test -f IDENTITY.md",
-    "test -f praxis.db",
-    "test -f tools/praxis-data-write.toml"
-  ]
-}
-"#
-            .to_string(),
-        ),
-        (
-            paths.evals_dir.join("foundation-smoke.json"),
-            r#"{
-  "id": "foundation-smoke",
-  "name": "Foundation runtime files stay healthy",
-  "when": "always",
-  "severity": "functional",
-  "scenario": "After a session, Praxis should still have the minimum local foundation files it needs.",
-  "expected_behavior": [
-    "Identity and metrics files are present",
-    "The SQLite database remains available"
-  ],
-  "forbidden_behavior": [
-    "Core foundation files disappear during a session"
-  ],
-  "relevant_memories": [
-    "foundation milestone"
-  ],
-  "verify_with": "shell",
-  "commands": [
-    "test -f IDENTITY.md",
-    "test -f METRICS.md",
-    "test -f praxis.db"
-  ]
-}
-"#
-            .to_string(),
-        ),
-    ]
-}
-
 fn appendable_file(path: &Path) -> Result<fs::File> {
     OpenOptions::new()
         .append(true)
@@ -222,25 +127,4 @@ fn write_if_missing(path: &Path, contents: String) -> Result<()> {
 
 fn sanitize_markdown_cell(value: &str) -> String {
     value.replace('|', "/")
-}
-
-#[cfg(test)]
-mod tests {
-    use chrono::TimeZone;
-    use tempfile::tempdir;
-
-    use super::LocalIdentityPolicy;
-    use crate::{config::AppConfig, identity::IdentityPolicy, paths::PraxisPaths};
-
-    #[test]
-    fn validates_identity_files() {
-        let temp = tempdir().unwrap();
-        let paths = PraxisPaths::for_data_dir(temp.path().join("praxis"));
-        let config = AppConfig::default_for_data_dir(paths.data_dir.clone());
-        let policy = LocalIdentityPolicy;
-        let now = chrono::Utc.with_ymd_and_hms(2026, 3, 31, 12, 0, 0).unwrap();
-
-        policy.ensure_foundation(&paths, &config, now).unwrap();
-        policy.validate(&paths).unwrap();
-    }
 }
