@@ -63,7 +63,7 @@ fn runtime_runs_single_session() {
 
     assert_eq!(summary.phase, SessionPhase::Sleep);
     assert_eq!(summary.outcome, "goal_selected");
-    assert!(store.recent_hot_memories(5).unwrap().len() >= 1);
+    assert!(!store.recent_hot_memories(5).unwrap().is_empty());
 
     let state = SessionState::load(&paths.state_file).unwrap().unwrap();
     assert!(

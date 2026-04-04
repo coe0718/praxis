@@ -1,5 +1,17 @@
 use super::{ArgusReport, DriftReport, DriftStatus, RepeatedWorkPattern};
 
+pub(super) struct DirectiveInputs<'a> {
+    pub session_count: usize,
+    pub review_failures: i64,
+    pub eval_failures: i64,
+    pub loop_guard_blocks: i64,
+    pub waiting_sessions: usize,
+    pub repeated_reads_avoided: i64,
+    pub drift: &'a DriftReport,
+    pub repeated_work: &'a [RepeatedWorkPattern],
+    pub token_hotspots: &'a [(String, String, i64)],
+}
+
 pub fn render(report: &ArgusReport) -> String {
     let mut lines = vec![
         "argus: ready".to_string(),
@@ -58,49 +70,40 @@ pub fn render(report: &ArgusReport) -> String {
     lines.join("\n")
 }
 
-pub(super) fn directives(
-    session_count: usize,
-    review_failures: i64,
-    eval_failures: i64,
-    loop_guard_blocks: i64,
-    waiting_sessions: usize,
-    repeated_reads_avoided: i64,
-    drift: &DriftReport,
-    repeated_work: &[RepeatedWorkPattern],
-    token_hotspots: &[(String, String, i64)],
-) -> Vec<String> {
+pub(super) fn directives(inputs: DirectiveInputs<'_>) -> Vec<String> {
     let mut directives = Vec::new();
-    if drift.status == DriftStatus::Regressed {
+    if inputs.drift.status == DriftStatus::Regressed {
         directives.push(
             "Recent quality is drifting downward; pause ambitious changes and repair the recurring failure path first."
                 .to_string(),
         );
     }
-    if review_failures > 0 {
+    if inputs.review_failures > 0 {
         directives.push(
             "Tighten completion discipline: rehearse or self-check work before Reflect hands it to the reviewer."
                 .to_string(),
         );
     }
-    if eval_failures > 0 {
+    if inputs.eval_failures > 0 {
         directives.push(
             "Protect operator-specific behavior: inspect recent eval regressions before changing runtime habits or prompts."
                 .to_string(),
         );
     }
-    if loop_guard_blocks > 0 {
+    if inputs.loop_guard_blocks > 0 {
         directives.push(
             "Reduce retry thrash: diversify tool plans earlier instead of repeating identical invocations."
                 .to_string(),
         );
     }
-    if waiting_sessions > 0 {
+    if inputs.waiting_sessions > 0 {
         directives.push(
             "Clarify blocked goals: promote prerequisites or satisfy wake conditions so sessions do not idle behind dependencies."
                 .to_string(),
         );
     }
-    if repeated_work
+    if inputs
+        .repeated_work
         .iter()
         .any(|pattern| pattern.distinct_days >= 2)
     {
@@ -109,12 +112,12 @@ pub(super) fn directives(
                 .to_string(),
         );
     }
-    if let Some((phase, _, _)) = token_hotspots.first() {
+    if let Some((phase, _, _)) = inputs.token_hotspots.first() {
         directives.push(format!(
             "Trim the {phase} phase first when chasing token savings; it is the hottest recent context path."
         ));
     }
-    if repeated_reads_avoided > 0 {
+    if inputs.repeated_reads_avoided > 0 {
         directives.push(
             "Expand anatomy coverage around frequently revisited files so more rereads can be replaced with summaries."
                 .to_string(),
@@ -122,7 +125,8 @@ pub(super) fn directives(
     }
     if directives.is_empty() {
         directives.push(format!(
-            "Recent sessions look stable across the last {session_count} runs. Keep the current operating pattern and watch for drift."
+            "Recent sessions look stable across the last {} runs. Keep the current operating pattern and watch for drift.",
+            inputs.session_count
         ));
     }
     directives

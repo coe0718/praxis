@@ -63,7 +63,7 @@ pub fn choose_goal(goals: &[Goal], data_dir: &Path, now: DateTime<Utc>) -> Resul
     )))
 }
 
-fn dependency_counts<'a>(goals: &'a [Goal]) -> std::collections::HashMap<&'a str, usize> {
+fn dependency_counts(goals: &[Goal]) -> std::collections::HashMap<&str, usize> {
     let mut counts = std::collections::HashMap::new();
     for goal in goals {
         for dependency in &goal.blocked_by {

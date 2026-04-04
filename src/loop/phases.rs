@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 
 use crate::{
-    context::LocalContextLoader,
+    context::{ContextLoadRequest, LocalContextLoader},
     memory::MemoryStore,
     state::SessionState,
     storage::{
@@ -46,13 +46,15 @@ where
         let tool_summary = self.tools.summary(self.paths)?;
         let requested_task = state.requested_task.clone();
         let context = LocalContextLoader.load(
-            self.config,
-            self.paths,
             self.store,
-            state,
-            &tool_summary,
-            requested_task.as_deref(),
-            &open_goals,
+            ContextLoadRequest {
+                config: self.config,
+                paths: self.paths,
+                state,
+                tool_summary: &tool_summary,
+                requested_task: requested_task.as_deref(),
+                open_goals: &open_goals,
+            },
         )?;
 
         state.orientation_summary = Some(format!(

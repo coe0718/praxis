@@ -55,17 +55,17 @@ pub fn analyze(database_file: &Path, limit: usize) -> Result<ArgusReport> {
     let repeated_work = repeated_work_patterns(&sessions);
     let failure_clusters = cluster_failures(&sessions);
     let token_hotspots = token_hotspots(&connection, limit.max(1))?;
-    let directives = render::directives(
+    let directives = render::directives(render::DirectiveInputs {
         session_count,
         review_failures,
         eval_failures,
         loop_guard_blocks,
         waiting_sessions,
         repeated_reads_avoided,
-        &drift,
-        &repeated_work,
-        &token_hotspots,
-    );
+        drift: &drift,
+        repeated_work: &repeated_work,
+        token_hotspots: &token_hotspots,
+    });
 
     Ok(ArgusReport {
         session_count,

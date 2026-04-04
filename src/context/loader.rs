@@ -14,17 +14,29 @@ use super::{BudgetedContext, ContextBudgeter, ContextSourceInput, TrackedContext
 #[derive(Debug, Default, Clone, Copy)]
 pub struct LocalContextLoader;
 
+pub(crate) struct ContextLoadRequest<'a> {
+    pub config: &'a AppConfig,
+    pub paths: &'a PraxisPaths,
+    pub state: &'a mut SessionState,
+    pub tool_summary: &'a str,
+    pub requested_task: Option<&'a str>,
+    pub open_goals: &'a [Goal],
+}
+
 impl LocalContextLoader {
     pub fn load<S: MemoryStore + OperationalMemoryStore + AnatomyStore>(
         &self,
-        config: &AppConfig,
-        paths: &PraxisPaths,
         store: &S,
-        state: &mut SessionState,
-        tool_summary: &str,
-        requested_task: Option<&str>,
-        open_goals: &[Goal],
+        request: ContextLoadRequest<'_>,
     ) -> Result<BudgetedContext> {
+        let ContextLoadRequest {
+            config,
+            paths,
+            state,
+            tool_summary,
+            requested_task,
+            open_goals,
+        } = request;
         let memory = MemoryLoader.load(store, requested_task, open_goals)?;
         let operational = OperationalMemoryLoader.load(store, requested_task, open_goals)?;
         let reader = TrackedContextReader;
@@ -92,7 +104,7 @@ mod tests {
         storage::{SessionStore, SqliteSessionStore},
     };
 
-    use super::LocalContextLoader;
+    use super::{ContextLoadRequest, LocalContextLoader};
 
     #[test]
     fn loads_budgeted_context_with_memory_sources() {
@@ -125,20 +137,23 @@ mod tests {
 
         let context = LocalContextLoader
             .load(
-                &config,
-                &paths,
                 &store,
-                &mut state,
-                "- internal-maintenance [internal] level=1 approval=false rehearsal=false",
-                Some("improve local memory search"),
-                &[Goal {
-                    id: "G-001".to_string(),
-                    title: "Ship memory foundation".to_string(),
-                    completed: false,
-                    line_number: 1,
-                    blocked_by: Vec::new(),
-                    wake_when: None,
-                }],
+                ContextLoadRequest {
+                    config: &config,
+                    paths: &paths,
+                    state: &mut state,
+                    tool_summary:
+                        "- internal-maintenance [internal] level=1 approval=false rehearsal=false",
+                    requested_task: Some("improve local memory search"),
+                    open_goals: &[Goal {
+                        id: "G-001".to_string(),
+                        title: "Ship memory foundation".to_string(),
+                        completed: false,
+                        line_number: 1,
+                        blocked_by: Vec::new(),
+                        wake_when: None,
+                    }],
+                },
             )
             .unwrap();
 
@@ -166,10 +181,30 @@ mod tests {
         );
 
         let first = LocalContextLoader
-            .load(&config, &paths, &store, &mut state, "tools", None, &[])
+            .load(
+                &store,
+                ContextLoadRequest {
+                    config: &config,
+                    paths: &paths,
+                    state: &mut state,
+                    tool_summary: "tools",
+                    requested_task: None,
+                    open_goals: &[],
+                },
+            )
             .unwrap();
         let second = LocalContextLoader
-            .load(&config, &paths, &store, &mut state, "tools", None, &[])
+            .load(
+                &store,
+                ContextLoadRequest {
+                    config: &config,
+                    paths: &paths,
+                    state: &mut state,
+                    tool_summary: "tools",
+                    requested_task: None,
+                    open_goals: &[],
+                },
+            )
             .unwrap();
 
         assert!(first.render().contains("## identity"));
