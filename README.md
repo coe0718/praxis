@@ -27,7 +27,7 @@ Shipped today:
 - Context budgeting, anatomy indexing, repeated-read avoidance, and token/cost ledgers
 - Anchor-preserving summarization for oversized context sources
 - Hot/cold memory search plus operational memory for do-not-repeat notes and known bugs
-- Tool registry, approval queue, path policy enforcement, and loop-guard protection
+- Tool registry, approval queue, path policy enforcement, and loop guards for identical or repeating multi-step tool patterns
 - First real tool execution path for approved append-only writes inside allowed Praxis data files
 - Provider routing with `stub`, Claude, OpenAI, Ollama, and router-mode failover
 - Telegram operator commands and a lightweight SSE/dashboard server

@@ -160,16 +160,27 @@ where
 
         match LoopGuard.record(state, &invocation_key, DEFAULT_LOOP_GUARD_LIMIT) {
             GuardDecision::Allow => {}
-            GuardDecision::Blocked { consecutive_count } => {
-                self.emit(
-                    "agent:loop_guard_triggered",
-                    &format!("{} x{}", manifest.name, consecutive_count),
-                )?;
+            GuardDecision::Blocked {
+                consecutive_count,
+                pattern_len,
+            } => {
+                let detail = if pattern_len > 1 {
+                    format!("{pattern_len}-step pattern x{consecutive_count}")
+                } else {
+                    format!("{} x{}", manifest.name, consecutive_count)
+                };
+                self.emit("agent:loop_guard_triggered", &detail)?;
                 state.last_outcome = Some("blocked_loop_guard".to_string());
-                state.action_summary = Some(format!(
-                    "Loop guard blocked tool {} after {} consecutive identical requests.",
-                    manifest.name, consecutive_count
-                ));
+                state.action_summary = Some(if pattern_len > 1 {
+                    format!(
+                        "Loop guard blocked a repeating {pattern_len}-step tool pattern after {consecutive_count} consecutive cycles."
+                    )
+                } else {
+                    format!(
+                        "Loop guard blocked tool {} after {} consecutive identical requests.",
+                        manifest.name, consecutive_count
+                    )
+                });
                 state.updated_at = self.clock.now_utc();
                 return Ok(());
             }
@@ -188,7 +199,7 @@ where
     }
 }
 
-fn invocation_key(
+pub(super) fn invocation_key(
     manifest: &crate::tools::ToolManifest,
     request: &crate::storage::StoredApprovalRequest,
 ) -> String {
@@ -199,45 +210,4 @@ fn invocation_key(
         request.write_paths.join(","),
         request.payload_json.as_deref().unwrap_or("")
     )
-}
-
-#[cfg(test)]
-mod tests {
-    use super::invocation_key;
-    use crate::{
-        storage::{ApprovalStatus, StoredApprovalRequest},
-        tools::{ToolKind, ToolManifest},
-    };
-
-    #[test]
-    fn payload_changes_tool_invocation_key() {
-        let manifest = ToolManifest {
-            name: "praxis-data-write".to_string(),
-            description: "append notes".to_string(),
-            kind: ToolKind::Shell,
-            required_level: 2,
-            requires_approval: true,
-            rehearsal_required: true,
-            allowed_paths: vec!["JOURNAL.md".to_string()],
-        };
-        let first = StoredApprovalRequest {
-            id: 1,
-            tool_name: manifest.name.clone(),
-            summary: "Update JOURNAL.md".to_string(),
-            requested_by: "operator".to_string(),
-            write_paths: vec!["JOURNAL.md".to_string()],
-            payload_json: Some("{\"append_text\":\"first\"}".to_string()),
-            status: ApprovalStatus::Approved,
-            status_note: None,
-            created_at: String::new(),
-            updated_at: String::new(),
-        };
-        let mut second = first.clone();
-        second.payload_json = Some("{\"append_text\":\"second\"}".to_string());
-
-        assert_ne!(
-            invocation_key(&manifest, &first),
-            invocation_key(&manifest, &second)
-        );
-    }
 }

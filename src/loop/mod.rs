@@ -6,7 +6,11 @@ mod runtime;
 mod session;
 
 #[cfg(test)]
+mod phases_tests;
+#[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tool_guard_tests;
 
 use crate::state::SessionPhase;
 
