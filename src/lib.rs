@@ -14,6 +14,7 @@ pub mod r#loop;
 pub mod memory;
 pub mod messaging;
 pub mod paths;
+pub mod postmortem;
 pub mod providers;
 pub mod quality;
 pub mod report;

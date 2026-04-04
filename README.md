@@ -33,6 +33,7 @@ Shipped today:
 - Provider routing with `stub`, Claude, OpenAI, Ollama, and router-mode failover
 - Telegram operator commands and a lightweight SSE/dashboard server
 - Reviewer/eval quality gates during Reflect
+- Automatic markdown postmortems for reviewer failures, eval regressions, and similar bad outcomes
 - Argus analysis for drift, repeated work, failures, and token hotspots
 - Learning runtime that mines opportunities and syncs them into `PROPOSALS.md`
 - Opportunity acceptance that promotes mined work into durable goals in `GOALS.md`

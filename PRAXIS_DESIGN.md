@@ -1088,6 +1088,7 @@ Move items upward as they ship:
 - **Hierarchical summarization fallback** — oversized context sources now compress into anchor-preserving summaries that try to keep headings, goal IDs, dates, and boundary-style lines instead of bluntly truncating everything.
 - **Cross-tool loop detection** — the loop guard now blocks repeating multi-step invocation patterns such as alternating tool thrash, not just identical single-tool repeats.
 - **Tool auto-documentation** — `CAPABILITIES.md` now stays synced with installed tool manifests plus approval/execution history, including recent examples, rejection notes, and simple reliability counts.
+- **Postmortem generator** — Reflect now appends structured `POSTMORTEMS.md` entries for reviewer failures, eval regressions, and similar bad session outcomes.
 - **Proposal inbox sync** — the opportunity queue now mirrors into `PROPOSALS.md`, and operators can accept or dismiss proposals without the markdown view drifting out of sync.
 - **Opportunity-to-goal promotion** — accepting a mined opportunity can now create or reuse a real goal in `GOALS.md`, link the proposal to that goal, and feed the work back into the main loop.
 - **Controlled data-write execution** — approved `praxis-data-write` requests can now execute a real append-only write into allowed Praxis data files instead of always stopping at a stubbed act-phase record.
@@ -1112,7 +1113,6 @@ Move items upward as they ship:
 - **Hierarchical goals** — support parent/child goals and dependency-aware progression once the richer lifecycle is stable.
 - **End-to-end replay testing** — add recorded transcript and session replay coverage so Praxis can catch stateful regressions that unit and CLI tests miss.
 - **Energy budget / rate-limit budget** — turn provider quota, token usage, and operator attention into explicit resources that sessions consume and must budget against.
-- **Postmortem generator** — automatically write structured postmortems after reviewer failures, eval regressions, or other high-signal bad outcomes.
 - **Local-first model fallback** — make Ollama or other local providers a first-class fallback policy for low-risk phases such as reflection and summarization.
 - **Adaptive context allocation** — tune context budgets based on which sources correlate with successful outcomes for this specific operator.
 

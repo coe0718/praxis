@@ -4,6 +4,7 @@ use crate::{
     forensics::attach_session_id,
     identity::Goal,
     memory::{MemoryStore, NewDoNotRepeat, NewHotMemory, NewKnownBug},
+    postmortem::append_postmortem,
     quality::{EvalRunner, LocalEvalSuite, LocalReviewer, Reviewer, summarize},
     state::SessionState,
     storage::{
@@ -111,6 +112,15 @@ where
 
         stored.outcome = final_outcome.clone();
         stored.action_summary = final_summary.clone();
+        append_postmortem(
+            self.paths,
+            &stored,
+            &final_outcome,
+            &review.summary,
+            &review.findings,
+            eval_summary,
+            &eval_results,
+        )?;
         self.capture_session_memory(&stored, &final_outcome)?;
         self.capture_operational_memory(
             stored.id,
