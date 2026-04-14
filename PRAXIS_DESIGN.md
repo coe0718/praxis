@@ -1285,14 +1285,14 @@ Move items upward as they ship:
 
 ### Adopt Soon
 
-- **Capability benchmarking** — add recurring capability tests and operator-specific replay/eval sessions to measure usefulness over time.
+- `Completed` **Capability benchmarking** — add recurring capability tests and operator-specific replay/eval sessions to measure usefulness over time.
 - `Completed` **Thin provider adapter layer** — keep providers on a Praxis-owned `reqwest` trait with OpenAI-compatible plus Anthropic-native adapters, adapter-local auth handling, runtime failover, and rule-based routing.
 - `Completed` **SOUL / IDENTITY split** — add an immutable `SOUL.md` anchor alongside an evolving `IDENTITY.md`, backed by a structured operator model instead of relying only on `PATTERNS.md`.
 - `Completed` **Progressive skill loading and synthesis** — load skill metadata first, pull full docs on demand, and let Reflect draft reusable skills after complex successful work.
-- **Interactive and automatic compaction** — support explicit `/compact` plus threshold-triggered in-session compression as separate mechanisms.
+- `Completed` **Interactive and automatic compaction** — support explicit `/compact` plus threshold-triggered in-session compression as separate mechanisms.
 - `Completed` **Formal evaluate loop and quality gates** — make generator/evaluator review loops and deterministic pre-delivery checks first-class runtime primitives.
-- **Heartbeat / message-bus separation** — keep liveness and proactive wake logic distinct from transport/event distribution.
-- **Typing indicators and activation modes** — improve messaging UX in shared channels without forcing a single global listen policy.
+- `Completed` **Heartbeat / message-bus separation** — keep liveness and proactive wake logic distinct from transport/event distribution.
+- `Completed` **Typing indicators and activation modes** — improve messaging UX in shared channels without forcing a single global listen policy.
 - `Completed` **Prompt caching and env-first onboarding** — reduce cost on long sessions and make container or CI installs self-configure when credentials already exist.
 - **Speculative execution** — compare multiple rehearsed branches before committing to the safest or highest-yield act plan.
 - **Wave execution** — group dependency-aware sub-agent work into parallel waves instead of spawning parallelism ad hoc.

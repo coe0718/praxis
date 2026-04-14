@@ -51,6 +51,8 @@ pub enum Commands {
     Serve(serve::ServeArgs),
     Tools(tools::ToolsArgs),
     Wake(WakeArgs),
+    Bench(BenchArgs),
+    Compact(CompactArgs),
 }
 
 #[derive(Debug, Args)]
@@ -121,6 +123,20 @@ pub struct WakeArgs {
     pub urgent: bool,
 }
 
+#[derive(Debug, Args)]
+pub struct BenchArgs {
+    /// Show previous results from the log instead of running benchmarks.
+    #[arg(long)]
+    pub log: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct CompactArgs {
+    /// Goal currently in progress (included in the compaction record).
+    #[arg(long)]
+    pub goal: Option<String>,
+}
+
 pub fn run() -> Result<()> {
     let cli = Cli::parse();
     let output = execute(cli)?;
@@ -159,7 +175,76 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::Serve(args) => serve::handle_serve(cli.data_dir, args),
         Commands::Tools(args) => tools::handle_tools(cli.data_dir, args),
         Commands::Wake(args) => handle_wake(cli.data_dir, args),
+        Commands::Bench(args) => handle_bench(cli.data_dir, args),
+        Commands::Compact(args) => handle_compact(cli.data_dir, args),
     }
+}
+
+fn handle_bench(data_dir_override: Option<PathBuf>, args: BenchArgs) -> Result<String> {
+    use crate::{
+        bench::{BenchmarkSuite, summarize_results},
+        paths::{PraxisPaths, default_data_dir},
+    };
+
+    let data_dir = data_dir_override.unwrap_or(default_data_dir()?);
+    let paths = PraxisPaths::for_data_dir(data_dir);
+
+    if args.log {
+        let log = BenchmarkSuite::load_log(&paths)?;
+        if log.is_empty() {
+            return Ok("No benchmark results recorded yet.".to_string());
+        }
+        let mut lines = Vec::new();
+        for result in &log {
+            lines.push(format!(
+                "[{}] {} — {} ({})",
+                result.ran_at.format("%Y-%m-%d %H:%M"),
+                result.case_id,
+                result.status_label(),
+                result.summary,
+            ));
+        }
+        return Ok(lines.join("\n"));
+    }
+
+    let count = BenchmarkSuite.validate(&paths)?;
+    if count == 0 {
+        return Ok(format!(
+            "No benchmark cases found in {}",
+            paths.benchmarks_dir.display()
+        ));
+    }
+
+    let results = BenchmarkSuite.run(&paths)?;
+    let summary = summarize_results(&results);
+    let mut lines = vec![summary];
+    for result in &results {
+        lines.push(format!("  {} — {}", result.case_id, result.summary));
+    }
+    Ok(lines.join("\n"))
+}
+
+fn handle_compact(data_dir_override: Option<PathBuf>, args: CompactArgs) -> Result<String> {
+    use crate::{
+        context::request_compact,
+        context::CompactionRequest,
+        paths::{PraxisPaths, default_data_dir},
+        time::SystemClock,
+        time::Clock,
+    };
+
+    let data_dir = data_dir_override.unwrap_or(default_data_dir()?);
+    let paths = PraxisPaths::for_data_dir(data_dir);
+    let clock = SystemClock::from_env()?;
+    let now = clock.now_utc();
+
+    let req = CompactionRequest::operator(args.goal.clone(), now);
+    request_compact(&paths.data_dir, &req)?;
+
+    Ok(format!(
+        "compaction requested\ntrigger: operator\ngoal: {}",
+        args.goal.as_deref().unwrap_or("-")
+    ))
 }
 
 fn handle_wake(data_dir_override: Option<PathBuf>, args: WakeArgs) -> Result<String> {

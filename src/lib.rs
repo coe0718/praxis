@@ -1,4 +1,6 @@
 pub mod anatomy;
+pub mod bench;
+pub mod bus;
 pub mod archive;
 pub mod argus;
 pub mod attachments;

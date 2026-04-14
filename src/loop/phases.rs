@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 
 use crate::{
-    context::{ContextLoadRequest, LocalContextLoader},
+    context::{ContextLoadRequest, LocalContextLoader, compact_if_needed, consume_compact, handoff},
     memory::MemoryStore,
     state::SessionState,
     storage::{
@@ -37,6 +37,19 @@ where
     T: ToolRegistry,
 {
     pub(super) fn orient(&self, state: &mut SessionState) -> Result<()> {
+        // Consume any pending compaction request and open a clean context window.
+        if let Some(req) = consume_compact(&self.paths.data_dir)? {
+            let trigger = if req.trigger == crate::context::CompactionTrigger::Operator {
+                "operator"
+            } else {
+                "auto"
+            };
+            self.emit(
+                "agent:context_compacted",
+                &format!("Context compacted ({trigger}). Opening clean context window."),
+            )?;
+        }
+
         self.identity.validate(self.paths)?;
         self.tools.validate(self.paths)?;
         let goals = self.goal_parser.load_goals(&self.paths.goals_file)?;
@@ -62,10 +75,30 @@ where
             .iter()
             .map(|s| s.source.clone())
             .collect();
+
+        // Context-rot prevention: write a handoff note when pressure exceeds 50%.
+        let pressure = context.pressure_pct();
+        handoff::write_if_needed(
+            &self.paths.data_dir,
+            pressure,
+            state.selected_goal_id.as_deref(),
+            state.action_summary.as_deref(),
+            self.clock.now_utc(),
+        )?;
+
+        // Automatic compaction: schedule a fresh context window if pressure >= 80%.
+        compact_if_needed(
+            &self.paths.data_dir,
+            pressure,
+            state.selected_goal_id.as_deref(),
+            self.clock.now_utc(),
+        )?;
+
         state.orientation_summary = Some(format!(
-            "Loaded {} open goals. {} Repeated reads avoided: {}.",
+            "Loaded {} open goals. {} Context pressure: {:.0}%. Repeated reads avoided: {}.",
             open_goals.len(),
             context.summary(),
+            pressure * 100.0,
             state.repeated_reads_avoided,
         ));
         state.updated_at = self.clock.now_utc();

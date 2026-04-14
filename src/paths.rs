@@ -57,6 +57,14 @@ pub struct PraxisPaths {
     pub skills_dir: PathBuf,
     /// Draft skills awaiting operator review before activation.
     pub skills_drafts_dir: PathBuf,
+    /// Capability benchmark cases — JSON files in `benchmarks/`.
+    pub benchmarks_dir: PathBuf,
+    /// Append-only log of benchmark run results (`benchmark_log.jsonl`).
+    pub benchmark_log_file: PathBuf,
+    /// Central message bus — inbound events from all adapters (`bus.jsonl`).
+    pub bus_file: PathBuf,
+    /// Per-conversation activation modes (`activation.json`).
+    pub activation_file: PathBuf,
 }
 
 pub fn detect_platform() -> Platform {
@@ -120,6 +128,7 @@ impl PraxisPaths {
         let tools_dir = data_dir.join("tools");
         let skills_dir = data_dir.join("skills");
         let skills_drafts_dir = skills_dir.join("drafts");
+        let benchmarks_dir = data_dir.join("benchmarks");
         let learning_dir = data_dir.join("learning");
         let learning_sources_dir = learning_dir.join("sources");
         let backups_dir = data_dir.join("backups");
@@ -159,6 +168,10 @@ impl PraxisPaths {
             tools_dir,
             skills_dir,
             skills_drafts_dir,
+            benchmark_log_file: data_dir.join("benchmark_log.jsonl"),
+            bus_file: data_dir.join("bus.jsonl"),
+            activation_file: data_dir.join("activation.json"),
+            benchmarks_dir,
             data_dir,
         }
     }
