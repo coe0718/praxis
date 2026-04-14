@@ -32,3 +32,5 @@ pub mod time;
 pub mod tools;
 pub mod usage;
 pub mod wakeup;
+pub mod speculative;
+pub mod wave;
