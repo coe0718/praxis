@@ -23,7 +23,13 @@ pub struct PraxisPaths {
     pub budgets_file: PathBuf,
     pub database_file: PathBuf,
     pub state_file: PathBuf,
+    /// Immutable core identity anchor — operator-only, never agent-writable.
+    pub soul_file: PathBuf,
+    /// Evolving working identity written at foundation and updated by the agent.
     pub identity_file: PathBuf,
+    /// Structured dialectic operator model (working hypotheses, confirmed traits,
+    /// tensions, counter-evidence) — freely writable by the agent.
+    pub operator_model_file: PathBuf,
     pub goals_file: PathBuf,
     pub roadmap_file: PathBuf,
     pub journal_file: PathBuf,
@@ -119,7 +125,9 @@ impl PraxisPaths {
             budgets_file: data_dir.join("budgets.toml"),
             database_file: resolve_path(&data_dir, &database_path),
             state_file: resolve_path(&data_dir, &state_file),
+            soul_file: data_dir.join("SOUL.md"),
             identity_file: data_dir.join("IDENTITY.md"),
+            operator_model_file: data_dir.join("operator_model.json"),
             goals_file: data_dir.join("GOALS.md"),
             roadmap_file: data_dir.join("ROADMAP.md"),
             journal_file: data_dir.join("JOURNAL.md"),
@@ -149,6 +157,7 @@ impl PraxisPaths {
 
     pub fn identity_files(&self) -> Vec<PathBuf> {
         vec![
+            self.soul_file.clone(),
             self.identity_file.clone(),
             self.goals_file.clone(),
             self.roadmap_file.clone(),

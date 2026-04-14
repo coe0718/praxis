@@ -134,7 +134,10 @@ pub(crate) fn normalize_relative(raw: &str) -> Result<PathBuf> {
 }
 
 fn is_locked_path(path: &Path) -> bool {
-    matches!(path.to_string_lossy().as_ref(), "praxis.toml" | ".env") || path.starts_with("tools")
+    matches!(
+        path.to_string_lossy().as_ref(),
+        "SOUL.md" | "praxis.toml" | ".env"
+    ) || path.starts_with("tools")
 }
 
 fn is_protected_path(path: &Path) -> bool {

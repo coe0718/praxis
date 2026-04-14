@@ -1,4 +1,7 @@
+use std::{fs, path::Path};
+
 use anyhow::Result;
+use serde::Deserialize;
 
 use crate::{
     config::AppConfig,
@@ -45,9 +48,14 @@ impl LocalContextLoader {
         let reader = TrackedContextReader;
         let inputs = vec![
             source(
+                "soul",
+                reader.read(store, state, &paths.soul_file, "soul")?,
+            ),
+            source(
                 "identity",
                 reader.read(store, state, &paths.identity_file, "identity")?,
             ),
+            source("operator_model", load_operator_model(&paths.operator_model_file)),
             source(
                 "agents",
                 reader.read(store, state, &paths.agents_file, "agents")?,
@@ -89,6 +97,65 @@ fn render_goals(goals: &[Goal]) -> String {
         .map(|goal| format!("- {}: {}", goal.id, goal.title))
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+/// Load and render the dialectic operator model from `operator_model.json`.
+/// Returns an empty string if the file is absent or cannot be parsed, so the
+/// loader degrades gracefully on instances that pre-date the SOUL/IDENTITY split.
+fn load_operator_model(path: &Path) -> String {
+    #[derive(Deserialize)]
+    struct OperatorModel {
+        #[serde(default)]
+        working_hypotheses: Vec<String>,
+        #[serde(default)]
+        confirmed_traits: Vec<String>,
+        #[serde(default)]
+        tensions: Vec<String>,
+        #[serde(default)]
+        counter_evidence: Vec<String>,
+    }
+
+    let Ok(raw) = fs::read_to_string(path) else {
+        return String::new();
+    };
+    let Ok(model) = serde_json::from_str::<OperatorModel>(&raw) else {
+        return String::new();
+    };
+
+    if model.working_hypotheses.is_empty()
+        && model.confirmed_traits.is_empty()
+        && model.tensions.is_empty()
+        && model.counter_evidence.is_empty()
+    {
+        return String::new();
+    }
+
+    let mut out = String::from("## Operator Model\n");
+    if !model.confirmed_traits.is_empty() {
+        out.push_str("\n### Confirmed Traits\n");
+        for t in &model.confirmed_traits {
+            out.push_str(&format!("- {t}\n"));
+        }
+    }
+    if !model.working_hypotheses.is_empty() {
+        out.push_str("\n### Working Hypotheses\n");
+        for h in &model.working_hypotheses {
+            out.push_str(&format!("- {h}\n"));
+        }
+    }
+    if !model.tensions.is_empty() {
+        out.push_str("\n### Tensions\n");
+        for t in &model.tensions {
+            out.push_str(&format!("- {t}\n"));
+        }
+    }
+    if !model.counter_evidence.is_empty() {
+        out.push_str("\n### Counter-Evidence\n");
+        for c in &model.counter_evidence {
+            out.push_str(&format!("- {c}\n"));
+        }
+    }
+    out
 }
 
 fn tail_lines(content: &str, limit: usize) -> String {

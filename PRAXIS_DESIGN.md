@@ -1275,6 +1275,7 @@ Move items upward as they ship:
 - **Attachment policy** — Praxis now supports `praxis ask --file ...` with explicit `reject`, `chunk`, or `summarize` handling for oversized UTF-8 text attachments, and it never silently truncates what it injects.
 - **Cold-memory decay clarification** — stale cold memories now decay in place through the runtime maintenance pass instead of being automatically demoted back to hot memory.
 - **Automatic backup snapshots** — Praxis can now create opt-in daily snapshot bundles in `backups/` during normal runs and prune old snapshots according to retention settings in `praxis.toml`.
+- **SOUL / IDENTITY split** — `SOUL.md` is written at foundation as the immutable identity anchor (locked, never agent-writable). `IDENTITY.md` is the evolving working identity. `operator_model.json` holds the active dialectic model (working hypotheses, confirmed traits, tensions, counter-evidence) and is freely writable. Both SOUL.md and operator_model are loaded in Orient as `soul` and `operator_model` context sources. SOUL.md is enforced as locked in the file-mutation policy.
 - **Thin provider adapter layer** — `ProviderProtocol` enum routes each provider through the correct wire format: Anthropic-native, OpenAI-compatible Chat Completions, or Ollama. Any custom provider name with a `base_url` is dispatched through the OpenAI-compat adapter automatically. Adapter-local auth resolves `<UPPER>_API_KEY` then falls back to `OPENAI_API_KEY`.
 - **Route classes and rule-based routing** — `ProviderRoute` now carries an optional `class` (`fast`, `reliable`, `local`). The router selects by class when dispatching: Fast for Orient/ask, Reliable for Decide/Act. Unclassed routes match any class as a fallback.
 - **Prompt caching** — Anthropic adapter sends `cache_control: ephemeral` on the system prompt when `agent.prompt_caching = true`, enabling cache-read discounts on repeated Orient/Ask calls.
@@ -1284,7 +1285,7 @@ Move items upward as they ship:
 
 - **Capability benchmarking** — add recurring capability tests and operator-specific replay/eval sessions to measure usefulness over time.
 - `Completed` **Thin provider adapter layer** — keep providers on a Praxis-owned `reqwest` trait with OpenAI-compatible plus Anthropic-native adapters, adapter-local auth handling, runtime failover, and rule-based routing.
-- **SOUL / IDENTITY split** — add an immutable `SOUL.md` anchor alongside an evolving `IDENTITY.md`, backed by a structured operator model instead of relying only on `PATTERNS.md`.
+- `Completed` **SOUL / IDENTITY split** — add an immutable `SOUL.md` anchor alongside an evolving `IDENTITY.md`, backed by a structured operator model instead of relying only on `PATTERNS.md`.
 - **Progressive skill loading and synthesis** — load skill metadata first, pull full docs on demand, and let Reflect draft reusable skills after complex successful work.
 - **Interactive and automatic compaction** — support explicit `/compact` plus threshold-triggered in-session compression as separate mechanisms.
 - **Formal evaluate loop and quality gates** — make generator/evaluator review loops and deterministic pre-delivery checks first-class runtime primitives.
