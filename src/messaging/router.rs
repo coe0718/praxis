@@ -1,10 +1,11 @@
 use std::fs;
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 
 use crate::{
     boundaries::{BoundaryReviewState, add_boundary, list_boundaries, review_prompt},
     cli::{ApprovalActionArgs, AskArgs, QueueArgs, RunArgs, approvals, core},
+    messaging::{ActivationMode, ActivationStore},
     paths::PraxisPaths,
     time::{Clock, SystemClock},
 };
@@ -22,6 +23,8 @@ pub enum TelegramCommand {
     Health,
     Boundaries,
     BoundariesAdd(String),
+    /// Set the activation mode for the current conversation.
+    Activation(String),
     Help,
 }
 
@@ -45,6 +48,8 @@ pub fn parse_telegram_command(text: &str) -> TelegramCommand {
         TelegramCommand::Goal(rest.trim().to_string())
     } else if let Some(rest) = trimmed.strip_prefix("/boundaries add ") {
         TelegramCommand::BoundariesAdd(rest.trim().to_string())
+    } else if let Some(rest) = trimmed.strip_prefix("/activation ") {
+        TelegramCommand::Activation(rest.trim().to_string())
     } else {
         match trimmed {
             "/status" => TelegramCommand::Status,
@@ -52,12 +57,21 @@ pub fn parse_telegram_command(text: &str) -> TelegramCommand {
             "/brief" => TelegramCommand::Brief,
             "/health" => TelegramCommand::Health,
             "/boundaries" => TelegramCommand::Boundaries,
+            "/activation" => TelegramCommand::Activation(String::new()),
             _ => TelegramCommand::Help,
         }
     }
 }
 
-pub fn handle_telegram_command(data_dir: std::path::PathBuf, text: &str) -> Result<String> {
+/// Handle a command received from a Telegram message.
+///
+/// `chat_id` is the Telegram chat ID of the conversation — required so that
+/// activation mode changes can be scoped to the correct conversation.
+pub fn handle_telegram_command(
+    data_dir: std::path::PathBuf,
+    chat_id: i64,
+    text: &str,
+) -> Result<String> {
     match parse_telegram_command(text) {
         TelegramCommand::Ask(prompt) => core::handle_ask(
             Some(data_dir),
@@ -76,7 +90,9 @@ pub fn handle_telegram_command(data_dir: std::path::PathBuf, text: &str) -> Resu
             },
         ),
         TelegramCommand::Status => core::handle_status(Some(data_dir)),
-        TelegramCommand::Queue => approvals::handle_queue(Some(data_dir), QueueArgs { all: false }),
+        TelegramCommand::Queue => {
+            approvals::handle_queue(Some(data_dir), QueueArgs { all: false })
+        }
         TelegramCommand::Approve(id) => approvals::handle_approval_action(
             Some(data_dir),
             ApprovalActionArgs { id, note: None },
@@ -92,6 +108,9 @@ pub fn handle_telegram_command(data_dir: std::path::PathBuf, text: &str) -> Resu
         TelegramCommand::Health => core::handle_doctor(Some(data_dir)),
         TelegramCommand::Boundaries => render_boundaries(data_dir),
         TelegramCommand::BoundariesAdd(rule) => append_boundary(data_dir, &rule),
+        TelegramCommand::Activation(mode_str) => {
+            handle_activation(data_dir, chat_id, &mode_str)
+        }
         TelegramCommand::Help => Ok(help_text().to_string()),
     }
 }
@@ -150,8 +169,49 @@ fn append_boundary(data_dir: std::path::PathBuf, rule: &str) -> Result<String> {
     Ok(format!("boundary: added\nrule: {rule}"))
 }
 
+fn handle_activation(
+    data_dir: std::path::PathBuf,
+    chat_id: i64,
+    mode_str: &str,
+) -> Result<String> {
+    let paths = PraxisPaths::for_data_dir(data_dir);
+    let mut store = ActivationStore::load(&paths.activation_file)?;
+
+    if mode_str.is_empty() {
+        let current = store.get(&chat_id.to_string());
+        return Ok(format!("activation: {current}"));
+    }
+
+    let mode = parse_activation_mode(mode_str)
+        .with_context(|| format!("unknown activation mode: {mode_str}"))?;
+    store.set(chat_id.to_string(), mode);
+    store.save(&paths.activation_file)?;
+    Ok(format!("activation: set to {mode}"))
+}
+
+fn parse_activation_mode(s: &str) -> Result<ActivationMode> {
+    match s {
+        "mention_only" | "mention" => Ok(ActivationMode::MentionOnly),
+        "thread_only" | "thread" => Ok(ActivationMode::ThreadOnly),
+        "always_listening" | "always" => Ok(ActivationMode::AlwaysListening),
+        _ => bail!("valid modes: mention_only, thread_only, always_listening"),
+    }
+}
+
 fn help_text() -> &'static str {
-    "supported: /ask /run /status /queue /approve /reject /goal /brief /health /boundaries /boundaries add\n/ask is low-latency and stateless. /run executes a real Praxis session and updates durable state."
+    "supported commands:\n\
+     /ask <prompt> — quick stateless question\n\
+     /run <task> — full Praxis session\n\
+     /status — session and goal status\n\
+     /queue — list pending tool approvals\n\
+     /approve <id> — approve a queued tool request\n\
+     /reject <id> — reject a queued tool request\n\
+     /goal <description> — add a new goal\n\
+     /brief — last 8 journal lines\n\
+     /health — system health check\n\
+     /boundaries — list active boundaries\n\
+     /boundaries add <rule> — add a boundary\n\
+     /activation [mention_only|thread_only|always_listening] — get or set activation mode"
 }
 
 #[cfg(test)]
@@ -178,5 +238,17 @@ mod tests {
         );
         assert_eq!(parse_telegram_command("/queue"), TelegramCommand::Queue);
         assert_eq!(parse_telegram_command("/unknown"), TelegramCommand::Help);
+    }
+
+    #[test]
+    fn parses_activation_commands() {
+        assert_eq!(
+            parse_telegram_command("/activation always_listening"),
+            TelegramCommand::Activation("always_listening".to_string())
+        );
+        assert_eq!(
+            parse_telegram_command("/activation"),
+            TelegramCommand::Activation(String::new())
+        );
     }
 }

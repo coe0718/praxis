@@ -4,6 +4,11 @@ use anyhow::{Context, Result, bail};
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 
+use crate::{
+    bus::{BusEvent, MessageBus},
+    messaging::{ActivationStore, TypingIndicator},
+};
+
 #[derive(Debug, Clone)]
 pub struct TelegramBot {
     client: Client,
@@ -14,7 +19,14 @@ pub struct TelegramBot {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TelegramMessage {
     pub chat_id: i64,
+    pub sender_id: i64,
     pub text: String,
+    /// True if the message was a direct reply to another message.
+    pub is_reply: bool,
+    /// True if the message contains a @mention entity directed at the bot.
+    pub is_mention: bool,
+    /// True if the chat is a private (1:1) conversation.
+    pub is_private: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -27,11 +39,29 @@ pub struct TelegramUpdate {
 pub struct TelegramInboundMessage {
     pub chat: TelegramChat,
     pub text: Option<String>,
+    pub from: Option<TelegramUser>,
+    /// Presence indicates a threaded reply; content is not inspected.
+    pub reply_to_message: Option<serde_json::Value>,
+    pub entities: Option<Vec<TelegramMessageEntity>>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct TelegramChat {
     pub id: i64,
+    /// "private", "group", "supergroup", or "channel".
+    #[serde(default)]
+    pub r#type: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct TelegramUser {
+    pub id: i64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct TelegramMessageEntity {
+    /// Entity type, e.g. "mention", "bot_command", "text_mention".
+    pub r#type: String,
 }
 
 impl TelegramBot {
@@ -56,7 +86,14 @@ impl TelegramBot {
         parse_allowed_chat_ids().map(|_| ())
     }
 
-    pub fn poll_once(&self, state_path: &Path) -> Result<Vec<TelegramMessage>> {
+    /// Poll for new messages, gate them through the activation store, and
+    /// publish accepted messages onto the message bus.
+    pub fn poll_once(
+        &self,
+        state_path: &Path,
+        bus: &dyn MessageBus,
+        activation: &ActivationStore,
+    ) -> Result<Vec<TelegramMessage>> {
         let offset = load_offset(state_path).unwrap_or(0);
         let updates = self.fetch_updates(offset + 1)?;
         let next_offset = updates
@@ -67,7 +104,7 @@ impl TelegramBot {
         if next_offset > offset {
             save_offset(state_path, next_offset)?;
         }
-        Ok(filter_messages(&self.allowed_chat_ids, &updates))
+        filter_messages(&self.allowed_chat_ids, &updates, bus, activation)
     }
 
     pub fn send_message(&self, chat_id: i64, text: &str) -> Result<()> {
@@ -78,6 +115,19 @@ impl TelegramBot {
             .context("failed to send Telegram message")?
             .error_for_status()
             .context("Telegram sendMessage returned an error")?;
+        Ok(())
+    }
+
+    /// Emit a "typing…" presence indicator in the given chat.
+    /// Telegram cancels it automatically after 5 seconds or on message send.
+    pub fn send_typing(&self, chat_id: i64) -> Result<()> {
+        self.client
+            .post(api_url(&self.token, "sendChatAction"))
+            .json(&serde_json::json!({ "chat_id": chat_id, "action": "typing" }))
+            .send()
+            .context("failed to send Telegram chat action")?
+            .error_for_status()
+            .context("Telegram sendChatAction returned an error")?;
         Ok(())
     }
 
@@ -95,6 +145,20 @@ impl TelegramBot {
             .json::<TelegramEnvelope>()
             .context("failed to parse Telegram updates")?;
         Ok(envelope.result)
+    }
+}
+
+impl TypingIndicator for TelegramBot {
+    fn begin(&self, conversation_id: &str) -> anyhow::Result<()> {
+        if let Ok(chat_id) = conversation_id.parse::<i64>() {
+            self.send_typing(chat_id)?;
+        }
+        Ok(())
+    }
+
+    fn end(&self, _conversation_id: &str) -> anyhow::Result<()> {
+        // Telegram cancels typing automatically on message delivery.
+        Ok(())
     }
 }
 
@@ -135,25 +199,74 @@ fn save_offset(path: &Path, last_update_id: i64) -> Result<()> {
             .with_context(|| format!("failed to create {}", parent.display()))?;
     }
     let state = TelegramState { last_update_id };
-    let raw = serde_json::to_string_pretty(&state).context("failed to serialize Telegram state")?;
+    let raw =
+        serde_json::to_string_pretty(&state).context("failed to serialize Telegram state")?;
     fs::write(path, raw).with_context(|| format!("failed to write {}", path.display()))
 }
 
-fn filter_messages(allowed_chat_ids: &[i64], updates: &[TelegramUpdate]) -> Vec<TelegramMessage> {
-    updates
-        .iter()
-        .filter_map(|update| update.message.as_ref())
-        .filter_map(|message| {
-            let text = message.text.as_deref()?.trim();
-            if text.is_empty() || !allowed_chat_ids.contains(&message.chat.id) {
-                return None;
-            }
-            Some(TelegramMessage {
-                chat_id: message.chat.id,
-                text: text.to_string(),
-            })
-        })
-        .collect()
+fn has_mention_entity(entities: &Option<Vec<TelegramMessageEntity>>) -> bool {
+    entities.as_deref().map_or(false, |ents| {
+        ents.iter()
+            .any(|e| e.r#type == "mention" || e.r#type == "text_mention")
+    })
+}
+
+/// Filter raw updates down to accepted messages, applying the activation gate
+/// for group chats and publishing each accepted message onto the bus.
+fn filter_messages(
+    allowed_chat_ids: &[i64],
+    updates: &[TelegramUpdate],
+    bus: &dyn MessageBus,
+    activation: &ActivationStore,
+) -> Result<Vec<TelegramMessage>> {
+    let mut accepted = Vec::new();
+
+    for update in updates {
+        let Some(message) = update.message.as_ref() else {
+            continue;
+        };
+        let Some(text) = message.text.as_deref() else {
+            continue;
+        };
+        let text = text.trim();
+        if text.is_empty() {
+            continue;
+        }
+        if !allowed_chat_ids.contains(&message.chat.id) {
+            continue;
+        }
+
+        let is_private = message.chat.r#type == "private" || message.chat.r#type.is_empty();
+        let is_mention = has_mention_entity(&message.entities);
+        let is_reply = message.reply_to_message.is_some();
+        let conversation_id = message.chat.id.to_string();
+        let sender_id = message.from.as_ref().map(|u| u.id).unwrap_or(0);
+
+        // Private chats always pass through; groups obey the activation mode.
+        if !is_private && !activation.should_respond(&conversation_id, is_mention, is_reply) {
+            continue;
+        }
+
+        let event = BusEvent::new(
+            "message",
+            "telegram",
+            &conversation_id,
+            sender_id.to_string(),
+            text,
+        );
+        bus.publish(&event)?;
+
+        accepted.push(TelegramMessage {
+            chat_id: message.chat.id,
+            sender_id,
+            text: text.to_string(),
+            is_reply,
+            is_mention,
+            is_private,
+        });
+    }
+
+    Ok(accepted)
 }
 
 #[derive(Debug, Deserialize)]

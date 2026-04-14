@@ -67,13 +67,13 @@ fn telegram_ask_is_lightweight_but_run_updates_state() {
         .success();
 
     let ask_reply =
-        praxis::messaging::handle_telegram_command(data_dir.clone(), "/ask summarize the mode")
+        praxis::messaging::handle_telegram_command(data_dir.clone(), 42, "/ask summarize the mode")
             .unwrap();
     assert!(ask_reply.contains("mode: ask"));
     assert_eq!(session_count(&data_dir), 0);
 
     let run_reply =
-        praxis::messaging::handle_telegram_command(data_dir.clone(), "/run stateful telegram task")
+        praxis::messaging::handle_telegram_command(data_dir.clone(), 42, "/run stateful telegram task")
             .unwrap();
     assert!(run_reply.contains("task: stateful telegram task"));
     assert_eq!(session_count(&data_dir), 1);

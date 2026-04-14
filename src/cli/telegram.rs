@@ -3,7 +3,10 @@ use std::{path::PathBuf, thread, time::Duration};
 use anyhow::Result;
 use clap::{Args, Subcommand};
 
-use crate::messaging::{TelegramBot, handle_telegram_command};
+use crate::{
+    bus::FileBus,
+    messaging::{ActivationStore, TelegramBot, TypingIndicator, handle_telegram_command},
+};
 
 use super::core::load_initialized_config;
 
@@ -85,11 +88,23 @@ fn run_poll_loop(data_dir_override: Option<PathBuf>, args: TelegramRunArgs) -> R
 }
 
 fn process_messages(bot: &TelegramBot, paths: &crate::paths::PraxisPaths) -> Result<usize> {
-    let messages = bot.poll_once(&paths.telegram_state_file)?;
+    let bus = FileBus::new(&paths.bus_file);
+    let activation = ActivationStore::load(&paths.activation_file)?;
+
+    let messages = bot.poll_once(&paths.telegram_state_file, &bus, &activation)?;
+
     for message in &messages {
-        let reply = handle_telegram_command(paths.data_dir.clone(), &message.text)
-            .unwrap_or_else(|error| format!("telegram command error: {error}"));
+        // Emit typing indicator while processing the command.
+        let conversation_id = message.chat_id.to_string();
+        let _ = bot.begin(&conversation_id); // best-effort — don't abort on failure
+
+        let reply =
+            handle_telegram_command(paths.data_dir.clone(), message.chat_id, &message.text)
+                .unwrap_or_else(|error| format!("telegram command error: {error}"));
+
+        let _ = bot.end(&conversation_id);
         bot.send_message(message.chat_id, &reply)?;
     }
+
     Ok(messages.len())
 }
