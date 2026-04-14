@@ -51,11 +51,27 @@ where
         let now = self.clock.now_utc();
         self.validate_options(&options)?;
 
-        if self.should_defer_for_quiet_hours(now, options.force)? {
-            return self.defer_session(now, options.task);
+        // Consume any pending wake intent before the quiet-hours gate.
+        // An urgent intent bypasses quiet hours; a normal intent respects them
+        // but injects its task into the session.
+        let (wake_bypasses_quiet, wake_task) =
+            match crate::wakeup::consume_intent(&self.paths.data_dir)? {
+                Some(intent) => {
+                    let summary = crate::wakeup::format_summary(&intent);
+                    self.emit("agent:wake_intent_consumed", &summary)?;
+                    (intent.is_urgent(), intent.task)
+                }
+                None => (false, None),
+            };
+
+        let effective_task = options.task.or(wake_task);
+        let force = options.force || wake_bypasses_quiet;
+
+        if self.should_defer_for_quiet_hours(now, force)? {
+            return self.defer_session(now, effective_task);
         }
 
-        let mut state = self.load_or_create_state(now, options.task)?;
+        let mut state = self.load_or_create_state(now, effective_task)?;
         let resumed = state.resume_count > 0;
         write_heartbeat(
             &self.paths.heartbeat_file,

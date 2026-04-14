@@ -29,3 +29,4 @@ pub mod storage;
 pub mod time;
 pub mod tools;
 pub mod usage;
+pub mod wakeup;

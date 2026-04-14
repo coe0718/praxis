@@ -1296,9 +1296,9 @@ Move items upward as they ship:
 - `Completed` **Prompt caching and env-first onboarding** — reduce cost on long sessions and make container or CI installs self-configure when credentials already exist.
 - **Speculative execution** — compare multiple rehearsed branches before committing to the safest or highest-yield act plan.
 - **Wave execution** — group dependency-aware sub-agent work into parallel waves instead of spawning parallelism ad hoc.
-- **Context-rot prevention** — make "fit work into clean context windows" a structural rule, not just a good habit.
-- **Wake-on-intent** — support approved interrupt-style wakes alongside scheduled sessions.
-- **Reviewer cost guardrails** — keep reviewer context and token ceilings explicit so mandatory review stays affordable.
+- `Completed` **Context-rot prevention** — make "fit work into clean context windows" a structural rule, not just a good habit.
+- `Completed` **Wake-on-intent** — support approved interrupt-style wakes alongside scheduled sessions.
+- `Completed` **Reviewer cost guardrails** — keep reviewer context and token ceilings explicit so mandatory review stays affordable.
 
 ### Future / Optional
 

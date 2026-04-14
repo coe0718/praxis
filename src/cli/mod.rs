@@ -50,6 +50,7 @@ pub enum Commands {
     Telegram(telegram::TelegramArgs),
     Serve(serve::ServeArgs),
     Tools(tools::ToolsArgs),
+    Wake(WakeArgs),
 }
 
 #[derive(Debug, Args)]
@@ -102,6 +103,24 @@ pub struct ApprovalActionArgs {
     pub note: Option<String>,
 }
 
+#[derive(Debug, Args)]
+pub struct WakeArgs {
+    /// Human-readable reason for the wake request.
+    pub reason: Vec<String>,
+
+    /// Optional task to inject into the upcoming session.
+    #[arg(long)]
+    pub task: Option<String>,
+
+    /// Source identifier (defaults to "cli").
+    #[arg(long, default_value = "cli")]
+    pub source: String,
+
+    /// Mark the intent as urgent, bypassing quiet-hours.
+    #[arg(long)]
+    pub urgent: bool,
+}
+
 pub fn run() -> Result<()> {
     let cli = Cli::parse();
     let output = execute(cli)?;
@@ -139,5 +158,38 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::Telegram(args) => telegram::handle_telegram(cli.data_dir, args),
         Commands::Serve(args) => serve::handle_serve(cli.data_dir, args),
         Commands::Tools(args) => tools::handle_tools(cli.data_dir, args),
+        Commands::Wake(args) => handle_wake(cli.data_dir, args),
     }
+}
+
+fn handle_wake(data_dir_override: Option<PathBuf>, args: WakeArgs) -> Result<String> {
+    use crate::{
+        paths::{PraxisPaths, default_data_dir},
+        wakeup::{WakeIntent, request_wake},
+    };
+
+    let data_dir = data_dir_override.unwrap_or(default_data_dir()?);
+    let paths = PraxisPaths::for_data_dir(data_dir);
+
+    let reason = args.reason.join(" ");
+    if reason.trim().is_empty() {
+        anyhow::bail!("reason is required");
+    }
+
+    let mut intent = WakeIntent::new(reason.trim(), &args.source);
+    if let Some(task) = args.task {
+        intent = intent.with_task(task);
+    }
+    if args.urgent {
+        intent = intent.urgent();
+    }
+
+    request_wake(&paths.data_dir, &intent)?;
+
+    Ok(format!(
+        "wake intent written\nsource: {}\npriority: {}\nreason: {}",
+        intent.source,
+        if intent.is_urgent() { "urgent" } else { "normal" },
+        intent.reason,
+    ))
 }
