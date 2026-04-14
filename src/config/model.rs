@@ -59,6 +59,11 @@ pub struct AgentConfig {
     pub local_first_fallback: bool,
     #[serde(default)]
     pub freeze_on_model_regression: bool,
+    /// Enable Anthropic prompt caching on the system prompt.
+    /// Reduces cost and latency on repeated Orient / Ask calls with large
+    /// context windows.  Only applied when talking to the Claude provider.
+    #[serde(default)]
+    pub prompt_caching: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -122,6 +127,7 @@ impl AppConfig {
                 model_pin: None,
                 local_first_fallback: false,
                 freeze_on_model_regression: false,
+                prompt_caching: false,
             },
             context: ContextConfig::default(),
         }

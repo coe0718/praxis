@@ -10,10 +10,16 @@ use super::{ProviderRequest, ProviderResponse, successful_attempt};
 
 const ANTHROPIC_URL: &str = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION: &str = "2023-06-01";
+const ANTHROPIC_BETA_CACHE: &str = "prompt-caching-2024-07-31";
+
+/// Minimum input tokens before we bother enabling prompt caching.
+/// Below this threshold the caching overhead is not worth it.
+const CACHE_MIN_TOKENS: u32 = 1024;
 
 pub(super) fn execute(
     route: &ProviderRoute,
     request: &ProviderRequest,
+    prompt_caching: bool,
 ) -> Result<ProviderResponse> {
     if let Some(response) = stubbed(route, request.phase)? {
         return Ok(response);
@@ -22,17 +28,41 @@ pub(super) fn execute(
     let api_key = std::env::var("ANTHROPIC_API_KEY")
         .context("ANTHROPIC_API_KEY is required for the Claude provider")?;
     let client = Client::builder()
-        .timeout(Duration::from_secs(45))
+        .timeout(Duration::from_secs(120))
         .build()
         .context("failed to build Claude HTTP client")?;
-    let response = client
+
+    // Enable prompt caching when the operator has opted in and the request is
+    // large enough to benefit.  The `cache_control` block on the system prompt
+    // causes Anthropic to cache everything up to and including that turn, so
+    // repeated Orient / Ask calls with the same system text pay only for the
+    // delta.
+    let use_cache = prompt_caching && request.max_output_tokens >= CACHE_MIN_TOKENS;
+
+    let system = if use_cache {
+        ClaudeSystem::Blocks(vec![ClaudeSystemBlock {
+            kind: "text",
+            text: request.system,
+            cache_control: Some(CacheControl { kind: "ephemeral" }),
+        }])
+    } else {
+        ClaudeSystem::Plain(request.system)
+    };
+
+    let mut req_builder = client
         .post(ANTHROPIC_URL)
         .header("anthropic-version", ANTHROPIC_VERSION)
-        .header("x-api-key", api_key)
+        .header("x-api-key", &api_key);
+
+    if use_cache {
+        req_builder = req_builder.header("anthropic-beta", ANTHROPIC_BETA_CACHE);
+    }
+
+    let response = req_builder
         .json(&ClaudeRequest {
             model: route.model.clone(),
             max_tokens: request.max_output_tokens,
-            system: request.system,
+            system,
             messages: vec![ClaudeMessage {
                 role: "user".to_string(),
                 content: request.input.clone(),
@@ -59,15 +89,16 @@ pub(super) fn execute(
         })
         .filter(|text| !text.is_empty())
         .context("Claude provider returned no text content")?;
+
     let input_tokens = parsed
         .usage
         .as_ref()
-        .map(|usage| usage.input_tokens)
+        .map(|u| u.input_tokens + u.cache_read_input_tokens.unwrap_or(0))
         .unwrap_or(0);
     let output_tokens = parsed
         .usage
         .as_ref()
-        .map(|usage| usage.output_tokens)
+        .map(|u| u.output_tokens)
         .unwrap_or(0);
 
     Ok(ProviderResponse {
@@ -95,12 +126,40 @@ fn stubbed(route: &ProviderRoute, phase: &str) -> Result<Option<ProviderResponse
         }))
 }
 
+// ---------------------------------------------------------------------------
+// Request / response types
+// ---------------------------------------------------------------------------
+
 #[derive(Debug, Serialize)]
 struct ClaudeRequest {
     model: String,
     max_tokens: u32,
-    system: &'static str,
+    system: ClaudeSystem,
     messages: Vec<ClaudeMessage>,
+}
+
+/// System prompt: either a plain string or a list of typed blocks (required for
+/// prompt caching).
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+enum ClaudeSystem {
+    Plain(&'static str),
+    Blocks(Vec<ClaudeSystemBlock>),
+}
+
+#[derive(Debug, Serialize)]
+struct ClaudeSystemBlock {
+    #[serde(rename = "type")]
+    kind: &'static str,
+    text: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cache_control: Option<CacheControl>,
+}
+
+#[derive(Debug, Serialize)]
+struct CacheControl {
+    #[serde(rename = "type")]
+    kind: &'static str,
 }
 
 #[derive(Debug, Serialize)]
@@ -119,6 +178,10 @@ struct ClaudeResponse {
 struct ClaudeUsage {
     input_tokens: i64,
     output_tokens: i64,
+    /// Tokens read from the prompt cache (counts toward billed input tokens at
+    /// the discounted cache-read rate).
+    #[serde(default)]
+    cache_read_input_tokens: Option<i64>,
 }
 
 #[derive(Debug, Deserialize)]

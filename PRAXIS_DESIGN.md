@@ -41,6 +41,14 @@ Praxis synthesizes the best ideas from several projects:
 - **tinyagi** (TinyAGI) — contributed: SSE event streaming architecture, TUI dashboard concept.
 - **openfang** (RightNow-AI) — contributed: loop guard / circuit breaker pattern, signed tool manifests.
 - **claude-code-agents** (undeadlist) — contributed: parallel sub-agent audit patterns.
+- **Hermes Agent** — contributed: autonomous skill synthesis in Reflect, progressive skill disclosure, structured operator modeling, and attention to skill portability standards.
+- **ZeroClaw** — contributed: thin `reqwest`-first provider adapters, compile-time feature gating, adapter-local auth handling, and an API-key-first public framework stance.
+- **OpenClaw** — contributed: `SOUL.md` core identity split, agent-driven skill discovery/install, typing indicators, group activation modes, interactive compaction, first-class model failover, and channel-scoped sandbox thinking.
+- **NanoBot** — contributed: treating heartbeat as separate from cron scheduling, plus a central message bus for loose coupling.
+- **AstrBot** — contributed: workflow-provider thinking, automatic in-session context compression, clear "Agent Sandbox" framing, and marketplace/spec discipline.
+- **PicoClaw** — contributed: runtime steering, hook system design, sub-agent status queries, config sensitivity separation, rule-based model routing, and the idea of a dedicated headless TUI launcher.
+- **NanoClaw** (qwibitai) — contributed: credential vault proxy patterns and per-context-group memory/filesystem isolation.
+- **GoClaw** (nextlevelbuilder) — contributed: formal evaluate loops, delegation vs handoff distinction, quality gates, prompt caching, credential scrubbing, lane-based scheduling, and env-first onboarding.
 
 ---
 
@@ -52,7 +60,9 @@ Work, personal, and staging instances are valid use cases, but they are modeled 
 
 **Provider choice is explicit.** Praxis should be able to route across Claude, OpenAI, and local Ollama depending on operator preference, availability, budget, and privacy constraints. The point is not allegiance to one vendor. The point is keeping the agent alive and trustworthy when one provider changes, rate-limits, or disappears.
 
-**Single binary.** `curl` the install script, answer a few questions, and you have a running agent. No Node, no Python, no dependency hell.
+Providers are broader than raw model vendors. A Praxis provider may be a direct model API, an OpenAI-compatible surface, a local runner, or an external workflow/orchestration platform when the operator already has one in place.
+
+**Single binary.** `curl` the install script, answer a few questions, and you have a running agent. No Node, no Python, no dependency hell. Heavy or niche integrations should be behind compile-time feature flags so the default binary stays lean.
 
 **Privacy by default.** Every external surface is off or localhost-only until you explicitly opt in.
 
@@ -80,6 +90,35 @@ Single binary distribution. Docker support via `docker-compose.yml`. Runs on Lin
 
 ---
 
+## Provider Runtime
+
+Praxis should treat provider access as a runtime contract it owns, not as an SDK choice delegated to third-party libraries. The adapter layer should stay thin, explicit, and inspectable.
+
+The default shape:
+
+- one Praxis-owned `Provider` trait implemented over `reqwest`
+- one OpenAI-compatible adapter covering the large ecosystem of compatible endpoints
+- one native Anthropic adapter for Anthropic-specific features
+- optional local or workflow adapters only when the protocol truly differs
+
+This keeps the core small while still supporting a wide provider surface without binding Praxis to a single vendor SDK.
+
+Each adapter owns its own auth complexity. HMAC signing, JWT minting, custom headers, retry semantics, and provider-specific quirks live inside the adapter that needs them, not inside a global shared auth layer.
+
+Failover and routing should be first-class runtime behavior, not just static config. Praxis should support:
+
+- named execution profiles
+- rule-based routing for cheap/fast vs deep/reliable work
+- automatic failover between preferred and fallback providers
+- prompt caching on repeated prefixes where upstreams support it
+- cost- and rate-aware selection, ideally backed by a GCRA-style limiter
+
+For a public framework, Praxis should prefer API keys and service credentials over consumer subscription OAuth flows. Subscription OAuth is too policy-fragile to be a core install dependency for something meant to survive provider churn and terms-of-service changes.
+
+Install and container flows should also support env-first onboarding: if standard provider env vars are already present, Praxis should self-configure the relevant routes without forcing an interactive credential setup first.
+
+---
+
 ## The Agent Loop
 
 Every Praxis session runs through five phases in order. No phase assumes Git, no phase assumes a developer context. The loop is abstract — what happens in each phase depends on the instance's configuration and tools.
@@ -91,7 +130,7 @@ wake → orient → decide → act → reflect → sleep
 Each phase is independently resumable. If Praxis crashes mid-session, it reads a lightweight session state file to pick up from the last completed phase rather than starting over.
 
 ### Orient
-Load context according to the budget system. Read identity, active goals, recent memory, predictions, and PATTERNS.md. Query the analytics table for relevant performance patterns. Consult the codebase anatomy index before opening files so the agent can decide whether a summary is enough or whether a targeted read is justified. Load high-priority operational memory as well: the do-not-repeat register and any known bug-log entries relevant to the current task or goal. Receive any pending messages from messaging platforms. If the instance runs on local hardware, capture a lightweight hardware snapshot as well: CPU load, memory pressure, disk free space, and temperature when available. Know what today looks like before deciding anything.
+Load context according to the budget system. Read `SOUL.md`, `IDENTITY.md`, active goals, recent memory, predictions, the structured operator model, and `PATTERNS.md`. Query the analytics table for relevant performance patterns. Consult the codebase anatomy index before opening files so the agent can decide whether a summary is enough or whether a targeted read is justified. Load high-priority operational memory as well: the do-not-repeat register and any known bug-log entries relevant to the current task or goal. Receive any pending messages from messaging platforms. If the instance runs on local hardware, capture a lightweight hardware snapshot as well: CPU load, memory pressure, disk free space, and temperature when available. Know what today looks like before deciding anything.
 
 ### Decide
 Choose what to work on. Source priority:
@@ -114,6 +153,8 @@ For risky operations, Act can enter **sandboxed rehearsal mode** first. Praxis c
 
 For complex goals with multiple plausible approaches, Act may also use **speculative execution**: rehearse two or more lightweight branches, compare them against success criteria and trust constraints, and only then commit to the branch most likely to succeed. This is especially useful for dev-focused instances where the cheapest safe move is often "try two narrow approaches in rehearsal, not one large irreversible one."
 
+Long Act phases should remain steerable. At safe checkpoints between tool calls, an operator or supervising system can inject a steering message into the running loop without killing the session. Steering is distinct from ordinary queued messages: it redirects the current run in flight while still preserving receipts, approvals, and auditability.
+
 Within a session, file reads are tracked too. If the same file is requested again without a changed timestamp, narrower symbol target, or new justification, Praxis should warn, reuse the existing excerpt, or fall back to the anatomy summary instead of silently re-reading the whole file.
 
 ### Reflect
@@ -124,6 +165,8 @@ After Act completes, Reflect runs **before** marking a goal done:
 4. If criteria fail → return goal to active with reviewer's findings attached
 
 Memory capture runs at session end (not per-turn). One extraction pass over the full session transcript. Files updated: GOALS.md, JOURNAL.md, METRICS.md, PATTERNS.md. Analytics rows written to SQLite, including a per-phase token ledger when provider-backed models were used. Reflect is also where Praxis decides whether a session produced a new do-not-repeat item, a reusable bug-log entry, or a postmortem-worthy failure pattern.
+
+After a sufficiently complex successful task, Reflect may also synthesize a reusable `SKILL.md` draft automatically. This is reserved for workflows that were multi-step, reusable, and likely to recur. Auto-synthesized skills should enter the same proposal/review path as other durable capability changes rather than silently activating themselves.
 
 Reviewer context is explicitly capped. A reviewer gets the goal description, success criteria, relevant diffs, tool outputs, the decision receipt, and only the smallest transcript slice needed to verify behavior. It should not receive the full session transcript by default. Hard ceiling: the smaller of 15% of the primary session context budget or 8k tokens.
 
@@ -158,7 +201,11 @@ Memory is what makes an instance feel like it knows you. It is the most importan
 
 **Preference graph.** General memory is not enough. Praxis keeps a structured graph of durable operator facts: preferences, routines, constraints, dislikes, and standing instructions. Each node stores confidence, provenance, confirmation history, and whether it is a soft preference or a hard boundary.
 
+**Dialectic operator model.** `PATTERNS.md` remains the human-readable conclusion log, but Praxis should also keep a more active structured operator model across sessions: working hypotheses, confirmed traits, tensions, and counter-evidence. The point is not to psychoanalyze the operator. The point is to give the loop an explicit model it can test, refine, and use when deciding how to help.
+
 **Negative / boundary memory.** "Don't message late", "Never spend money without approval", "Do not touch these files", and "Don't suggest this again" are first-class memories, not just notes buried in a journal. Boundary memories load ahead of ordinary hot/cold recall and can veto plans before Act begins.
+
+**Context-group isolation.** When Praxis operates across multiple group chats, channels, or conversation contexts, each context should get its own short-horizon working-memory lane and optional filesystem sandbox. Shared long-term identity may bridge across them, but working recall should default to isolation instead of bleed-through.
 
 **Annual synthesis.** Once per year, Praxis performs a deep consolidation pass that writes a `YEAR_IN_REVIEW.md` or `BIOGRAPHY.md` style narrative from durable memories, goals, milestones, and patterns. The purpose is not sentimentality; it is preserving long-horizon continuity that should outlive short TTL windows.
 
@@ -262,6 +309,18 @@ The learning runtime:
 
 This makes memory active instead of purely reactive. Praxis should be able to get smarter during sleep windows without pretending that unsupervised crawling is the same thing as operator-approved action.
 
+### Hands
+
+A **Hand** is a packaged autonomous capability: a manifest such as `HAND.toml`, a multi-phase prompt or expert workflow, a `SKILL.md` knowledge document, guardrails, and lifecycle metadata. Hands are how repeated opportunities graduate into durable proactive behaviors.
+
+Examples:
+
+- an opportunity miner that scans for repeated friction on a schedule
+- a learning hand that ingests approved sources every morning
+- a maintenance hand that performs bounded cleanup or verification work without being explicitly prompted
+
+Hands should be schedulable, installable, reviewable, and removable like other signed capabilities. They give Praxis a named format for autonomy that is stronger than "some cron job exists" but narrower than "the whole agent does everything all the time."
+
 ---
 
 ## Context Budget System
@@ -285,6 +344,8 @@ budget = [
 ```
 
 Each source fills in priority order. Sources exceeding their allocation get summarized via a single Haiku call. Lower-priority sources are dropped entirely — never truncated mid-sentence. The agent is told explicitly what was excluded. The system tracks actual usage over time and auto-tunes allocations.
+
+Skills should use **progressive disclosure**. Orient loads a compact skill catalog first — name, description, tags, token estimate, and provenance — and only pulls full `SKILL.md` content on demand when a chosen plan actually needs that skill. This keeps the skill surface discoverable without paying the full token cost up front.
 
 Included and excluded context are written into the session's decision receipt so the operator can audit whether a bad choice happened because the wrong context was loaded or because the reasoning itself was wrong.
 
@@ -339,6 +400,14 @@ For long multi-phase goals where context approaches 50% of the model's window, P
   "do_not_forget": ["tests must cover all three modes: interactive, --prompt, piped"]
 }
 ```
+
+### Interactive and automatic compaction
+
+Manual compaction and automatic compression solve different problems and Praxis should support both.
+
+Manual `/compact` tells Praxis to write a fresh handoff note and reopen a clean context window for the current task. This is an operator-driven reset.
+
+Automatic context compression runs without operator input when in-session context crosses a configured threshold. Praxis summarizes the least-recent or lowest-priority in-flight material into anchor-preserving notes so the session can continue without a hard reset. This is distinct from the 50% handoff-note rule for multi-phase work.
 
 ---
 
@@ -420,6 +489,22 @@ invoke_after = ["code-review"]
 
 The skill resolver handles sequencing automatically. The agent invokes a skill by name; the resolver chains the full sequence without the agent having to orchestrate it manually.
 
+### Agent-driven skill discovery
+Praxis should support ClawHub-style agent-driven skill discovery and install. The agent can browse a signed registry, evaluate compatibility, and then propose or install a skill package without manual file-copy work.
+
+The registry format should be published, not merely internal. Praxis should stay compatible with emerging community skill portability conventions such as `agentskills.io` where that does not weaken provenance, approval, or sandbox guarantees.
+
+### Hook system
+The runtime should expose event-driven hook points at every major stage: LLM call, tool execution, message delivery, approval request, and result ingestion.
+
+Three hook classes matter:
+
+- **Observers** watch passively and emit metrics, traces, or side-channel state.
+- **Interceptors** can modify, reroute, or block a step before it continues.
+- **Approval hooks** gate sensitive execution with deterministic policy checks.
+
+Hooks complement security levels rather than replacing them. They are the right place for policies such as output scrubbing, extra validation, or channel-specific restrictions.
+
 ---
 
 ## Quality Assurance
@@ -451,6 +536,16 @@ This lets Praxis skip unready work without forgetting it, and lets the scheduler
 The agent that performs a task never reviews its own work. This is a hard policy, not a configuration option.
 
 When the primary agent marks a goal complete, Reflect automatically spawns a reviewer sub-agent with a fresh minimal context window, no knowledge of what the primary intended, and the goal's success criteria JSON. If the reviewer finds failures, the goal returns to active with specific findings attached.
+
+### Evaluate loop
+Some tasks need more than a one-shot review. For high-stakes generation or design work, Praxis should support a formal generator/evaluator loop:
+
+1. a generator produces output against explicit pass criteria
+2. an evaluator reviews it against those criteria
+3. failures return with feedback
+4. the loop stops after a configurable max round count or a clean pass
+
+This is a named orchestration primitive, not just "spawn a reviewer again."
 
 ### Success criteria JSON
 Every goal can have a companion criteria file at `goals/criteria/{goal-id}.json`:
@@ -494,6 +589,18 @@ Each eval stores:
 
 Major self-modification passes and capability changes rerun this suite automatically. If Praxis gets generally "smarter" but worse for its actual operator, the eval suite should catch it.
 
+### Quality gates
+Praxis should also support lightweight deterministic quality gates before outputs or tool results become operator-visible.
+
+A gate can:
+
+- pass immediately
+- redact sensitive content
+- block delivery
+- request a retry with structured feedback
+
+This is the right place for credential scrubbing, formatting constraints, boundary enforcement, and other cheap validations that should happen even when a full evaluate loop would be overkill.
+
 ---
 
 ## Multi-Agent / Sub-Agent Support
@@ -516,6 +623,12 @@ Sub-agents default to Haiku. Promoted to Sonnet when reasoning is required.
 
 Every sub-agent class has a budget envelope. Research and brief agents get task-scoped slices. Reviewer agents are the tightest: they read the goal, criteria, diff, receipts, and verifier outputs first, and only escalate to broader context if verification cannot proceed otherwise.
 
+Delegation and handoff are separate operations. In delegation, the primary agent stays in control and the sub-agent returns a result. In handoff, another agent takes over the session with a routing override and becomes the active responder until control is explicitly returned.
+
+Running sub-agents should expose `spawn_status` so the operator or primary agent can query state mid-flight instead of waiting blindly for completion.
+
+Longer term, delegation links should support directionality and concurrency caps rather than assuming one flat pool of interchangeable workers.
+
 ---
 
 ## Messaging
@@ -528,6 +641,7 @@ Four platforms, identical feature surface:
 | Voice messages | ✅ | ✅ | ✅ | ✅ |
 | Images | ✅ | ✅ | ✅ | ✅ |
 | File attachments | ✅ | ✅ | ✅ | ✅ |
+| Typing indicators | ✅ | ✅ | ✅ | ✅ |
 | Push notifications | ✅ | ✅ | ✅ | ✅ |
 | Morning brief | ✅ | ✅ | ✅ | ✅ |
 | Official support | ✅ | ✅ | ✅ | ⚠ opt-in |
@@ -550,6 +664,10 @@ Four platforms, identical feature surface:
 
 **Voice messages** — transcribed before being sent to Claude. Requires a Whisper-compatible endpoint (optional).
 
+While a session is actively working, messaging adapters should emit typing or presence indicators where the platform supports them. The goal is to show liveness without turning the agent into a status-spam bot.
+
+Shared channels and group contexts need per-session activation modes such as mention-only, thread-only, or always-listening. Activation mode belongs to the conversation context, not a single global toggle.
+
 ### Sender pairing code security
 When an unknown sender messages the agent:
 1. Send them a one-time 6-digit pairing code
@@ -557,6 +675,11 @@ When an unknown sender messages the agent:
 3. Ignore all further input from that sender until the operator runs `/approve-sender <code>` from a trusted device
 
 Prevents prompt injection from external parties entirely. Approved senders stored in `praxis.db`. Revocable via `/revoke-sender <id>`.
+
+### Central message bus
+Messaging adapters should publish normalized inbound and outbound events onto a central message bus. The agent loop, approval queue, dashboard, typing indicators, and hook system subscribe to that bus rather than calling each integration directly.
+
+Heartbeat remains the proactive wake mechanism. The message bus is the transport spine. Keeping those concerns separate makes the runtime easier to reason about and extend.
 
 ---
 
@@ -572,6 +695,8 @@ timezone = "America/Chicago"
 
 Sessions during quiet hours are deferred. Messages queued and delivered at session start. Morning brief fires at the first session after quiet hours end.
 
+Heartbeat is not the same thing as cron. Cron expresses scheduled work. Heartbeat is the lightweight proactive-wake and liveness subsystem that can notice stale sessions, pending triggers, or urgent inbox state between scheduled runs.
+
 ### Wake-on-intent
 Scheduled cadence is the baseline, not the only wake path. Praxis can also wake immediately on approved high-priority triggers such as:
 - a trusted operator message marked urgent
@@ -579,6 +704,9 @@ Scheduled cadence is the baseline, not the only wake path. Praxis can also wake 
 - a goal `wake_when` condition being satisfied
 
 Wake-on-intent must still respect hard boundaries and quiet-hours policy unless the operator explicitly grants emergency override behavior.
+
+### Lane-based scheduler
+Praxis should enforce separate concurrency lanes for interactive/operator sessions, sub-agents, background learning, and cron-driven maintenance. A burst of background work must never starve direct operator interaction.
 
 ---
 
@@ -590,6 +718,11 @@ Wake-on-intent must still respect hard boundaries and quiet-hours policy unless 
 - **Level 4 (Full)** — unrestricted system access, explicit operator consent required
 
 Default is Level 2. Levels 3 and 4 require explicit opt-in during install.
+
+### Channel-scoped sandboxes
+Not every surface should get the same execution rights. A primary local shell or explicitly trusted main surface may map to the full host policy, while non-main chat channels should default to narrower tool sets and stronger isolation such as Docker or WASM-backed sandboxes.
+
+This should be a named first-class operator concept: **Agent Sandbox**. Operators should be able to point to it directly, not merely infer that some isolation exists somewhere in the stack.
 
 ### Dynamic trust budget
 Static security level is only the ceiling. Praxis also maintains a **dynamic trust budget** that expands or contracts within that ceiling based on recent outcomes for similar actions.
@@ -606,6 +739,13 @@ Trust is earned per capability class, not globally. Being good at writing docs s
 
 ## Identity Policy
 
+Praxis should split identity into two layers:
+
+- `SOUL.md` — the stable core identity and non-negotiable self-concept
+- `IDENTITY.md` — the evolving working identity, current habits, and interpreted preferences
+
+`SOUL.md` anchors the instance when `IDENTITY.md` learns, adapts, or drifts. The agent reads both every session, but `SOUL.md` is the harder constraint.
+
 **Freely writable by agent:**
 `GOALS.md`, `JOURNAL.md`, `METRICS.md`, `LEARNINGS.md`, `PATTERNS.md`, `predictions.json`, `praxis.db`, `CAPABILITIES.md`, `DAY_COUNT`, `goals/criteria/*.json`
 
@@ -615,7 +755,7 @@ Trust is earned per capability class, not globally. Being good at writing docs s
 Agent proposes changes. Operator receives a diff via messaging: *"Your agent wants to update IDENTITY.md. Reply /approve or /reject within 24 hours. No response = approved."*
 
 **Locked (operator only):**
-`praxis.toml`, `.env`, tool definitions, security config
+`SOUL.md`, `praxis.toml`, `.env`, tool definitions, security config
 
 Agent cannot modify these. If it wants a new tool or different security level, it writes a proposal to `PROPOSALS.md`.
 
@@ -691,7 +831,7 @@ This is one of the main mechanisms by which Praxis moves from helpful assistant 
 Live dashboard at a configurable URL. Goals, predictions, journal, metrics, session stream, memory context panel, observations browser. Built and maintained by the agent itself. Defaults to localhost-only with auth token.
 
 ### TUI dashboard
-`praxis tui` — terminal-native live view using `ratatui`. Shows current phase, active goal, recent tool calls, queue, heartbeat, token usage. For headless installs, RPi setups, and SSH sessions.
+`praxis tui` — terminal-native live view using `ratatui`. Shows current phase, active goal, recent tool calls, queue, heartbeat, token usage. For headless installs, RPi setups, and SSH sessions. Praxis may also ship a separate launcher-style TUI binary for homelab environments where a dedicated artifact is more ergonomic than a mode flag.
 
 ### SSE event streaming
 Praxis exposes a standardized Server-Sent Events endpoint at `/events`:
@@ -857,6 +997,13 @@ public_issues = false
 
 Auth tokens generated at install using `rand` + `base64`, stored in `.env`, rotatable via `/rotate-token`.
 
+### Secret handling
+Praxis should separate non-sensitive config from sensitive material. Committable instance config can live in `praxis.toml`; secrets and other sensitive overrides should live in `.env` or a dedicated security file such as `.security.yml`.
+
+For higher-security installs, Praxis may use a credential vault proxy so agents never hold raw provider keys in prompt context or long-lived memory. Outbound requests pass through a proxy that injects credentials at request time and can enforce per-agent policies or rate limits.
+
+Regardless of storage backend, secrets should be zeroized in memory as soon as practical, and tool or provider outputs should be scrubbed for accidental credentials before they are written into session history.
+
 ---
 
 ## Install Experience
@@ -867,17 +1014,18 @@ curl -sSf https://install.praxis.dev | bash
 
 The install script:
 1. Checks dependencies (Rust toolchain, Docker optional)
-2. Prompts for Claude OAuth token and GitHub token
-3. Opens a Claude-powered interview in the terminal (Haiku — fast, cheap, runs once)
-4. Claude asks 6-8 natural conversational questions covering: who you are, what hardware you're running, what you spend too much time on, which messaging platform(s), timezone, security level preference, dashboard visibility, voice transcription
+2. Prompts for provider API keys and GitHub token, or auto-detects them from environment variables when available
+3. Opens a fast model-powered interview in the terminal (cheap, runs once)
+4. The interview asks 6-8 natural conversational questions covering: who you are, what hardware you're running, what you spend too much time on, which messaging platform(s), timezone, security level preference, dashboard visibility, voice transcription
    It also asks for hard boundaries and "never do this" rules during setup so Praxis starts with at least a minimal boundary memory.
-5. Claude synthesizes the conversation and writes initial files as a JSON blob
-6. Script writes `IDENTITY.md`, `GOALS.md`, `ROADMAP.md`, `JOURNAL.md` (day 0 entry), `praxis.toml`
+5. The model synthesizes the conversation and writes initial files as a JSON blob
+6. Script writes `SOUL.md`, `IDENTITY.md`, `GOALS.md`, `ROADMAP.md`, `JOURNAL.md` (day 0 entry), `praxis.toml`
 7. Clones the framework repo, runs `cargo build`, sets up cron via watchdog, fires first session
 
 The installer should also support:
 - `--dry-run` to show exactly which files, services, cron jobs, Docker assets, and credentials it will touch
 - a zero-config home-server mode that chooses sane defaults for Raspberry Pi or Docker-first installs and prints how to change them later
+- env-first onboarding that skips interactive provider setup when canonical environment variables are already present
 
 ---
 
@@ -959,6 +1107,7 @@ praxis/
 ├── Cargo.toml
 ├── Dockerfile
 ├── docker-compose.yml
+├── SOUL.md
 ├── IDENTITY.md
 ├── GOALS.md
 ├── ROADMAP.md
@@ -983,8 +1132,15 @@ edition = "2021"
 description = "A self-evolving personal AI agent framework"
 license = "MIT"
 
+[features]
+default = []
+skill-creation = []
+matrix = []
+lark = []
+nostr = []
+local-multimodal = []
+
 [dependencies]
-yoagent = "0.7"
 tokio = { version = "1", features = ["full"] }
 axum = "0.8"
 tower-http = { version = "0.6", features = ["fs", "cors"] }
@@ -1008,6 +1164,7 @@ ratatui = "0.28"
 crossterm = "0.28"
 ed25519-dalek = { version = "2", features = ["rand_core"] }
 tokio-stream = { version = "0.1", features = ["sync"] }
+zeroize = { version = "1", features = ["zeroize_derive"] }
 
 [dev-dependencies]
 tempfile = "3"
@@ -1067,6 +1224,18 @@ Move items upward as they ship:
 - `Adopt Soon` means it should land in a near-term implementation wave.
 - `Future / Optional` means it is intentionally deferred.
 
+### Fresh Comparative Notes (April 2026)
+
+- **Hermes Agent** — autonomous skill synthesis in Reflect; progressive skill disclosure; a dialectic operator model more active than `PATTERNS.md`; and `agentskills.io` portability worth watching.
+- **ZeroClaw** — pure `reqwest` provider trait; one OpenAI-compatible adapter plus one Anthropic-native adapter; skill creation behind a Cargo feature; adapter-local HMAC/JWT handling; API-key-first public framework stance; and compile-time channel gating.
+- **OpenClaw** — `SOUL.md`; agent-driven skill discovery/install; typing indicators; per-session activation modes for group contexts; `/compact`; first-class model failover; and per-channel sandboxing.
+- **NanoBot** — heartbeat as a distinct concern from cron, plus a central message bus that channels publish into and the loop subscribes to.
+- **AstrBot** — workflow-orchestrator providers; automatic mid-session context compression; "Agent Sandbox" as a named surface; and the value of a real published marketplace/plugin spec.
+- **PicoClaw** — steering; hook system with observers, interceptors, and approval hooks; `spawn_status`; sensitive-config separation; rule-based model routing; and a dedicated launcher TUI artifact.
+- **NanoClaw** — credential vault proxying and per-context-group memory/filesystem isolation.
+- **OpenFang** — `Hand` capability packages; WASM dual-metered sandboxing; secret zeroization; and GCRA rate limiting.
+- **GoClaw** — evaluate loop; explicit delegation links and handoff; quality gates; prompt caching; credential scrubbing; lane-based scheduling; and env-var auto-onboarding.
+
 ### Completed
 
 - **Portable state export/import** — `praxis export state` and `praxis import` now produce and restore a manifest-versioned state bundle containing the SQLite database, runtime state, config, tools, learning inputs, and core markdown identity files, while re-homing imported config paths to the new data directory.
@@ -1106,10 +1275,22 @@ Move items upward as they ship:
 - **Attachment policy** — Praxis now supports `praxis ask --file ...` with explicit `reject`, `chunk`, or `summarize` handling for oversized UTF-8 text attachments, and it never silently truncates what it injects.
 - **Cold-memory decay clarification** — stale cold memories now decay in place through the runtime maintenance pass instead of being automatically demoted back to hot memory.
 - **Automatic backup snapshots** — Praxis can now create opt-in daily snapshot bundles in `backups/` during normal runs and prune old snapshots according to retention settings in `praxis.toml`.
+- **Thin provider adapter layer** — `ProviderProtocol` enum routes each provider through the correct wire format: Anthropic-native, OpenAI-compatible Chat Completions, or Ollama. Any custom provider name with a `base_url` is dispatched through the OpenAI-compat adapter automatically. Adapter-local auth resolves `<UPPER>_API_KEY` then falls back to `OPENAI_API_KEY`.
+- **Route classes and rule-based routing** — `ProviderRoute` now carries an optional `class` (`fast`, `reliable`, `local`). The router selects by class when dispatching: Fast for Orient/ask, Reliable for Decide/Act. Unclassed routes match any class as a fallback.
+- **Prompt caching** — Anthropic adapter sends `cache_control: ephemeral` on the system prompt when `agent.prompt_caching = true`, enabling cache-read discounts on repeated Orient/Ask calls.
+- **Env-first onboarding** — `ProviderSettings::load_or_default` now auto-adds claude/openai/ollama routes when `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `OLLAMA_HOST` are set and no matching route is configured.
 
 ### Adopt Soon
 
 - **Capability benchmarking** — add recurring capability tests and operator-specific replay/eval sessions to measure usefulness over time.
+- `Completed` **Thin provider adapter layer** — keep providers on a Praxis-owned `reqwest` trait with OpenAI-compatible plus Anthropic-native adapters, adapter-local auth handling, runtime failover, and rule-based routing.
+- **SOUL / IDENTITY split** — add an immutable `SOUL.md` anchor alongside an evolving `IDENTITY.md`, backed by a structured operator model instead of relying only on `PATTERNS.md`.
+- **Progressive skill loading and synthesis** — load skill metadata first, pull full docs on demand, and let Reflect draft reusable skills after complex successful work.
+- **Interactive and automatic compaction** — support explicit `/compact` plus threshold-triggered in-session compression as separate mechanisms.
+- **Formal evaluate loop and quality gates** — make generator/evaluator review loops and deterministic pre-delivery checks first-class runtime primitives.
+- **Heartbeat / message-bus separation** — keep liveness and proactive wake logic distinct from transport/event distribution.
+- **Typing indicators and activation modes** — improve messaging UX in shared channels without forcing a single global listen policy.
+- `Completed` **Prompt caching and env-first onboarding** — reduce cost on long sessions and make container or CI installs self-configure when credentials already exist.
 - **Speculative execution** — compare multiple rehearsed branches before committing to the safest or highest-yield act plan.
 - **Wave execution** — group dependency-aware sub-agent work into parallel waves instead of spawning parallelism ad hoc.
 - **Context-rot prevention** — make "fit work into clean context windows" a structural rule, not just a good habit.
@@ -1121,28 +1302,37 @@ Move items upward as they ship:
 - **Relational or graph memory layer** — add typed links between memories such as `caused_by`, `related_to`, `contradicts`, and `user_preference` without necessarily requiring a heavy graph database.
 - **Hybrid semantic retrieval** — optionally layer vectors or semantic search on top of FTS5 once the keyword + preference graph approach proves insufficient.
 - **Memory typing** — extend memory with episodic, semantic, and procedural classes, each with different decay and reinforcement rules.
+- **Published marketplace / portability standard** — align skill and tool packaging with a real public ecosystem spec, potentially including `agentskills.io` compatibility where it fits Praxis security needs.
 - **Operator reinforcement commands** — allow `/reinforce <memory_id>` or message reactions to strengthen memories directly.
 - **Conflict workbench** — create `MEMORY_CONFLICTS.md` or an equivalent workflow to surface conflicting memories with evidence and proposed resolution.
 - **Persistent context cache** — store a compressed working set from recent sessions for faster warm starts on constrained hardware.
 - **Automatic anatomy refresh daemon** — beyond on-demand updates, optionally re-index changed files during idle windows.
 - **Community tool registry improvements** — include compatibility metadata, usage examples, and read-only community discovery.
+- **Workflow-provider integrations** — add first-class adapters for external orchestrators when operators want Praxis to sit above an existing automation stack.
 - **Local multimodal processing** — optional on-device transcription, captioning, or light image understanding for privacy-preserving installs.
 - **System anomaly correlation** — track CPU, memory, disk, and load anomalies against reviewer failures and bad outcomes.
+- **Per-context-group isolation** — isolate short-horizon memory and filesystem state by conversation or channel rather than sharing one blended working set.
+- **Credential vault proxy** — keep raw provider secrets outside the agent runtime entirely and inject them at request time with policy enforcement.
+- **Config sensitivity split** — separate insensitive instance config from sensitive overrides in a dedicated security file such as `.security.yml`.
+- **Delegation links** — add explicit outbound/inbound/bidirectional agent links with concurrency caps and allow/deny lists.
 - **Granular cooldown policies** — different approval windows per file or identity surface, potentially escalating some files to always-explicit approval.
+- **Per-channel sandboxing** — let the main operator surface run with fuller host access while non-main channels default to narrower isolated sandboxes.
+- **Hand manifests** — formalize installable/schedulable autonomous capability bundles beyond loose skills and cron jobs.
 - **Meta-evolution workflow** — let Praxis propose changes to the framework itself via `SELF_EVOLUTION.md`, with heavy approval gating.
 - **Irreplaceability score** — track anticipation, follow-through, reliability, and operator dependence as a private metric, not as a vanity metric.
 - **Adaptive scheduling** — let wake times and non-urgent session timing learn from actual operator behavior and quiet-hour patterns.
-- **Cargo feature modularity** — keep the single binary lean while allowing optional compile-time extras like voice, vector memory, or advanced graph features.
+- **Cargo feature modularity** — keep the single binary lean while allowing optional compile-time extras like skill creation, Matrix/Lark/Nostr channels, voice, vector memory, or advanced graph features.
 - **Auto-maintained docs** — let Praxis keep public docs and examples current as capabilities mature.
 - **Lite mode** — reduce sub-agent usage, tighten budgets, and simplify behavior for Raspberry Pi or low-power installs.
 - **Anonymous learning exchange** — possibly allow instances to publish sanitized, non-personal learnings to a shared registry later, but only with strong privacy guarantees.
-- **WASM tool runtime** — support ultra-sandboxed community tools without granting broad local execution.
+- **WASM tool runtime** — support ultra-sandboxed community tools without granting broad local execution, ideally with explicit metering and a watchdog against runaway code.
 - **OpenTelemetry / Prometheus export** — richer external observability once local analytics and SSE are stable.
 - **Local multimodal and local model bundles** — optional heavy extras for privacy-first or travel/offline deployments.
 - **Synthetic example generation** — turn high-value learnings into reusable structured examples for future prompt shaping or evaluation.
 - **Social runtime** — optional scheduled outward-facing posting or status sharing on behalf of the operator.
 - **VS Code ops surface** — lightweight editor integration for status, current goal, and safe run triggers.
 - **PRD/story-mode dev runtime** — an optional developer-focused operating mode that works from explicit story state and stop signals.
+- **Dedicated TUI launcher** — package a separate headless/SSH-first TUI artifact instead of only exposing terminal UI as a subcommand.
 
 ---
 

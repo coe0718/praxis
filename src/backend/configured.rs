@@ -4,7 +4,7 @@ use crate::{
     config::AppConfig,
     identity::Goal,
     paths::PraxisPaths,
-    providers::{ProviderRoute, ProviderSettings},
+    providers::{ProviderProtocol, ProviderRoute, ProviderSettings, RouteClass},
 };
 
 use super::{
@@ -27,6 +27,7 @@ pub struct SingleBackend {
     route: ProviderRoute,
     local_route: ProviderRoute,
     local_first_fallback: bool,
+    prompt_caching: bool,
     canary_gate: CanaryGate,
 }
 
@@ -34,6 +35,7 @@ pub struct SingleBackend {
 pub struct RouterBackend {
     routes: Vec<ProviderRoute>,
     local_first_fallback: bool,
+    prompt_caching: bool,
     canary_gate: CanaryGate,
 }
 
@@ -46,6 +48,7 @@ impl ConfiguredBackend {
             "router" => Self::Router(RouterBackend {
                 routes: settings.providers,
                 local_first_fallback: config.agent.local_first_fallback,
+                prompt_caching: config.agent.prompt_caching,
                 canary_gate,
             }),
             provider => Self::Single(SingleBackend {
@@ -54,6 +57,7 @@ impl ConfiguredBackend {
                     .first_for("ollama")
                     .unwrap_or_else(|| default_route("ollama")),
                 local_first_fallback: config.agent.local_first_fallback,
+                prompt_caching: config.agent.prompt_caching,
                 canary_gate,
             }),
         })
@@ -95,10 +99,13 @@ impl AgentBackend for ConfiguredBackend {
             Self::Single(inner) => execute_routes(
                 &inner.routable(&request_for_ask(prompt))?,
                 request_for_ask(prompt),
+                inner.prompt_caching,
             ),
-            Self::Router(inner) => {
-                execute_routes(&inner.routable("ask")?, request_for_ask(prompt))
-            }
+            Self::Router(inner) => execute_routes(
+                &inner.routable_for_class(Some(&RouteClass::Fast), "ask")?,
+                request_for_ask(prompt),
+                inner.prompt_caching,
+            ),
         }
     }
 
@@ -106,8 +113,14 @@ impl AgentBackend for ConfiguredBackend {
         let request = request_for_plan(goal, task);
         match self {
             Self::Stub(inner) => inner.plan_action(goal, task),
-            Self::Single(inner) => execute_routes(&inner.routable(&request)?, request),
-            Self::Router(inner) => execute_routes(&inner.routable("decide")?, request),
+            Self::Single(inner) => {
+                execute_routes(&inner.routable(&request)?, request, inner.prompt_caching)
+            }
+            Self::Router(inner) => execute_routes(
+                &inner.routable_for_class(Some(&RouteClass::Reliable), "decide")?,
+                request,
+                inner.prompt_caching,
+            ),
         }
     }
 
@@ -120,8 +133,14 @@ impl AgentBackend for ConfiguredBackend {
         let request = request_for_finalize(planned_summary, goal, task);
         match self {
             Self::Stub(inner) => inner.finalize_action(planned_summary, goal, task),
-            Self::Single(inner) => execute_routes(&inner.routable(&request)?, request),
-            Self::Router(inner) => execute_routes(&inner.routable("act")?, request),
+            Self::Single(inner) => {
+                execute_routes(&inner.routable(&request)?, request, inner.prompt_caching)
+            }
+            Self::Router(inner) => execute_routes(
+                &inner.routable_for_class(Some(&RouteClass::Reliable), "act")?,
+                request,
+                inner.prompt_caching,
+            ),
         }
     }
 }
@@ -143,34 +162,58 @@ impl SingleBackend {
 }
 
 impl RouterBackend {
-    fn routes_for(&self, phase: &str) -> Vec<ProviderRoute> {
-        if !self.local_first_fallback || !matches!(phase, "ask" | "act") {
-            return self.routes.clone();
+    /// Return an ordered route list for the given class preference and phase.
+    /// Class selection:
+    ///   1. Routes matching the requested class
+    ///   2. Routes with no class assigned (unclassed = any)
+    ///   3. All remaining routes as last-resort fallbacks
+    ///
+    /// Within each bucket, local-first ordering is applied when the flag is set.
+    fn routes_for_class(&self, class: Option<&RouteClass>, phase: &str) -> Vec<ProviderRoute> {
+        let mut matched: Vec<ProviderRoute> = Vec::new();
+        let mut unclassed: Vec<ProviderRoute> = Vec::new();
+        let mut rest: Vec<ProviderRoute> = Vec::new();
+
+        for route in &self.routes {
+            match (&route.class, class) {
+                (Some(rc), Some(rc2)) if rc == rc2 => matched.push(route.clone()),
+                (None, _) => unclassed.push(route.clone()),
+                _ => rest.push(route.clone()),
+            }
         }
-        let mut local = self
-            .routes
-            .iter()
-            .filter(|route| route.provider == "ollama")
-            .cloned()
-            .collect::<Vec<_>>();
-        local.extend(
-            self.routes
-                .iter()
-                .filter(|route| route.provider != "ollama")
-                .cloned(),
-        );
-        local
+
+        let mut ordered = matched;
+        ordered.extend(unclassed);
+        ordered.extend(rest);
+
+        if self.local_first_fallback && matches!(phase, "ask" | "act") {
+            let (local, remote): (Vec<_>, Vec<_>) =
+                ordered.into_iter().partition(|r| r.provider == "ollama");
+            ordered = local;
+            ordered.extend(remote);
+        }
+
+        ordered
     }
 
-    fn routable(&self, phase: &str) -> Result<Vec<ProviderRoute>> {
-        self.canary_gate.filter_routes(self.routes_for(phase))
+    fn routable_for_class(
+        &self,
+        class: Option<&RouteClass>,
+        phase: &str,
+    ) -> Result<Vec<ProviderRoute>> {
+        self.canary_gate
+            .filter_routes(self.routes_for_class(class, phase))
     }
 }
 
-fn execute_routes(routes: &[ProviderRoute], request: ProviderRequest) -> Result<BackendOutput> {
+fn execute_routes(
+    routes: &[ProviderRoute],
+    request: ProviderRequest,
+    prompt_caching: bool,
+) -> Result<BackendOutput> {
     let mut attempts = Vec::new();
     for route in routes {
-        match execute_single(route, &request) {
+        match execute_single(route, &request, prompt_caching) {
             Ok(mut output) => {
                 attempts.append(&mut output.attempts);
                 return Ok(BackendOutput {
@@ -184,13 +227,16 @@ fn execute_routes(routes: &[ProviderRoute], request: ProviderRequest) -> Result<
     bail!("all configured providers failed during {}", request.phase)
 }
 
-fn execute_single(route: &ProviderRoute, request: &ProviderRequest) -> Result<BackendOutput> {
+fn execute_single(
+    route: &ProviderRoute,
+    request: &ProviderRequest,
+    prompt_caching: bool,
+) -> Result<BackendOutput> {
     validate_provider(route)?;
-    let response = match route.provider.as_str() {
-        "claude" => claude::execute(route, request),
-        "openai" => openai::execute(route, request),
-        "ollama" => ollama::execute(route, request),
-        other => bail!("unsupported provider {other}"),
+    let response = match route.resolved_protocol() {
+        ProviderProtocol::Anthropic => claude::execute(route, request, prompt_caching),
+        ProviderProtocol::Ollama => ollama::execute(route, request),
+        ProviderProtocol::OpenAiCompat => openai::execute(route, request),
     }?;
     Ok(BackendOutput {
         summary: response.summary,
