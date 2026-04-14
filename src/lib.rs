@@ -23,6 +23,7 @@ pub mod profiles;
 pub mod providers;
 pub mod quality;
 pub mod report;
+pub mod skills;
 pub mod state;
 pub mod storage;
 pub mod time;

@@ -53,6 +53,10 @@ pub struct PraxisPaths {
     pub goals_dir: PathBuf,
     pub goals_criteria_dir: PathBuf,
     pub tools_dir: PathBuf,
+    /// Installed skills — each `*.md` file is a `SKILL.md` document.
+    pub skills_dir: PathBuf,
+    /// Draft skills awaiting operator review before activation.
+    pub skills_drafts_dir: PathBuf,
 }
 
 pub fn detect_platform() -> Platform {
@@ -114,6 +118,8 @@ impl PraxisPaths {
         let goals_criteria_dir = goals_dir.join("criteria");
         let evals_dir = data_dir.join("evals");
         let tools_dir = data_dir.join("tools");
+        let skills_dir = data_dir.join("skills");
+        let skills_drafts_dir = skills_dir.join("drafts");
         let learning_dir = data_dir.join("learning");
         let learning_sources_dir = learning_dir.join("sources");
         let backups_dir = data_dir.join("backups");
@@ -151,6 +157,8 @@ impl PraxisPaths {
             goals_dir,
             goals_criteria_dir,
             tools_dir,
+            skills_dir,
+            skills_drafts_dir,
             data_dir,
         }
     }

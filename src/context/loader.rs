@@ -8,6 +8,7 @@ use crate::{
     identity::Goal,
     memory::{MemoryLoader, MemoryStore, OperationalMemoryLoader},
     paths::PraxisPaths,
+    skills,
     state::SessionState,
     storage::{AnatomyStore, OperationalMemoryStore},
 };
@@ -76,12 +77,21 @@ impl LocalContextLoader {
                     12,
                 ),
             ),
-            source("tools", tool_summary.to_string()),
+            source("tools", render_tools(tool_summary, &paths.skills_dir)),
             source("task", requested_task.unwrap_or_default().to_string()),
         ];
 
         Ok(ContextBudgeter.allocate(&config, inputs))
     }
+}
+
+/// Combine the tool manifest summary with the compact skill catalog.
+fn render_tools(tool_summary: &str, skills_dir: &Path) -> String {
+    let catalog = skills::render_catalog(skills_dir);
+    if catalog.is_empty() {
+        return tool_summary.to_string();
+    }
+    format!("{tool_summary}\n\n{catalog}")
 }
 
 fn source(name: &str, content: String) -> ContextSourceInput {

@@ -6,6 +6,7 @@ use crate::{
     memory::{MemoryStore, NewDoNotRepeat, NewHotMemory, NewKnownBug},
     postmortem::append_postmortem,
     quality::{EvalRunner, LocalEvalSuite, LocalReviewer, Reviewer, summarize},
+    skills::{SkillSynthesizer, synthesis::SkillSynthesisInput},
     state::SessionState,
     storage::{
         AnatomyStore, ApprovalStore, EvalRunRecord, OperationalMemoryStore, ProviderUsageStore,
@@ -136,6 +137,7 @@ where
             &state.context_sources,
             &final_outcome,
         )?;
+        self.maybe_synthesize_skill(state, &final_outcome, &stored.action_summary, ended_at)?;
         self.identity.append_journal(self.paths, &stored)?;
         self.identity.append_metrics(self.paths, &stored)?;
         self.emit_review_events(review.status, eval_summary.failed)?;
@@ -212,6 +214,24 @@ where
             tags: vec![severity.to_string(), "quality".to_string()],
             source_session_id: Some(session_id),
         })?;
+        Ok(())
+    }
+
+    fn maybe_synthesize_skill(
+        &self,
+        state: &SessionState,
+        outcome: &str,
+        action_summary: &str,
+        ended_at: chrono::DateTime<chrono::Utc>,
+    ) -> Result<()> {
+        let input = SkillSynthesisInput {
+            outcome,
+            goal_title: state.selected_goal_title.as_deref(),
+            tool_call_count: state.tool_invocation_hashes.len(),
+            action_summary,
+            session_ended_at: ended_at,
+        };
+        SkillSynthesizer.maybe_draft(&self.paths.skills_drafts_dir, &input)?;
         Ok(())
     }
 
