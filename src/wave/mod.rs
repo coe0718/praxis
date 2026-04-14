@@ -143,7 +143,10 @@ impl WaveGraph {
             for id in &wave_ids {
                 if let Some(deps_on) = dependents.get(id) {
                     for &dep_id in deps_on {
-                        let deg = in_degree.get_mut(dep_id).unwrap();
+                        // Safety: dep_id was validated as a known node above.
+                        let deg = in_degree
+                            .get_mut(dep_id)
+                            .ok_or_else(|| anyhow::anyhow!("internal: missing in-degree entry for node {dep_id}"))?;
                         *deg -= 1;
                         if *deg == 0 {
                             next.push(dep_id);
