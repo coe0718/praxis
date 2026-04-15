@@ -1334,6 +1334,13 @@ Move items upward as they ship:
 - **Local multimodal and local model bundles** — optional heavy extras for privacy-first or travel/offline deployments.
 - **Synthetic example generation** — turn high-value learnings into reusable structured examples for future prompt shaping or evaluation.
 - **Social runtime** — optional scheduled outward-facing posting or status sharing on behalf of the operator.
+- **Property-based and fuzz testing** — apply proptest to core data structures (memory, context budget, goal parsing) and fuzz security-critical components like tool manifest parsing and approval queues.
+- **Database connection pooling** — evaluate r2d2 or similar for concurrent access patterns if Praxis ever runs multiple threads or async tasks against SQLite simultaneously.
+- **Hot-path performance profiling** — profile clone-heavy paths (context loading, provider request building) under realistic session loads and cache or reduce copies where it matters.
+- **Public API documentation** — add doc examples to the major public traits (AgentBackend, MemoryStore, ToolRegistry) so the library surface is self-documenting.
+- **Plugin / extension architecture** — make backends, stores, and adapters more pluggable via stable trait objects so third-party extensions can be compiled separately.
+- **Multi-node / distributed mode** — design a coordination layer for running multiple Praxis instances against shared goals, with conflict resolution and work partitioning.
+- **Security fuzzing** — fuzz the tool manifest parser, approval queue, and boundary enforcement for robustness against malformed or adversarial input.
 - **VS Code ops surface** — lightweight editor integration for status, current goal, and safe run triggers.
 - **PRD/story-mode dev runtime** — an optional developer-focused operating mode that works from explicit story state and stop signals.
 - **Dedicated TUI launcher** — package a separate headless/SSH-first TUI artifact instead of only exposing terminal UI as a subcommand.
