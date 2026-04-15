@@ -28,6 +28,7 @@ impl Default for ProfileSettings {
                 profile("quality", None, None, None),
                 profile("budget", Some("router"), Some(true), Some(0.65)),
                 profile("offline", Some("ollama"), Some(true), Some(0.55)),
+                profile("deterministic", Some("stub"), Some(false), Some(0.30)),
             ],
         }
     }

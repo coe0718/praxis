@@ -78,7 +78,12 @@ pub(crate) fn handle_init(data_dir_override: Option<PathBuf>, args: InitArgs) ->
 }
 
 pub(crate) fn handle_run(data_dir_override: Option<PathBuf>, args: RunArgs) -> Result<String> {
-    let (config, paths) = load_initialized_config(data_dir_override)?;
+    let (mut config, paths) = load_initialized_config(data_dir_override)?;
+    if let Some(profile_name) = &args.profile {
+        config.agent.profile = profile_name.clone();
+        let profiles = ProfileSettings::load_or_default(&paths.profiles_file)?;
+        config = profiles.apply(&config)?;
+    }
     let identity = LocalIdentityPolicy;
     let tools = FileToolRegistry;
     let backend = ConfiguredBackend::from_runtime(&config, &paths)?;

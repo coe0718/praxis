@@ -17,6 +17,7 @@ pub mod heartbeat;
 pub mod identity;
 pub mod learning;
 pub mod r#loop;
+pub mod mcp;
 pub mod memory;
 pub mod messaging;
 pub mod oauth;

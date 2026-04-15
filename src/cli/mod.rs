@@ -5,13 +5,18 @@ mod argus;
 mod boundaries;
 mod canary;
 pub(crate) mod core;
+mod discord;
 mod forensics;
+mod git;
 mod heartbeat;
 mod learning;
 mod oauth;
 mod serve;
+mod slack;
 mod telegram;
 mod tools;
+mod vscode;
+mod watchdog;
 
 use std::path::PathBuf;
 
@@ -55,6 +60,11 @@ pub enum Commands {
     Bench(BenchArgs),
     Compact(CompactArgs),
     OAuth(oauth::OAuthArgs),
+    Git(git::GitArgs),
+    Watchdog(watchdog::WatchdogArgs),
+    Discord(discord::DiscordArgs),
+    Slack(slack::SlackArgs),
+    Vscode(vscode::VscodeArgs),
 }
 
 #[derive(Debug, Args)]
@@ -79,6 +89,10 @@ pub struct RunArgs {
 
     #[arg(long)]
     pub task: Option<String>,
+
+    /// Override the execution profile (quality, budget, offline, deterministic).
+    #[arg(long)]
+    pub profile: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -181,6 +195,11 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::Bench(args) => handle_bench(cli.data_dir, args),
         Commands::Compact(args) => handle_compact(cli.data_dir, args),
         Commands::OAuth(args) => oauth::handle_oauth(cli.data_dir, args),
+        Commands::Git(args) => git::handle_git(cli.data_dir, args),
+        Commands::Watchdog(args) => watchdog::handle_watchdog(cli.data_dir, args),
+        Commands::Discord(args) => discord::handle_discord(cli.data_dir, args),
+        Commands::Slack(args) => slack::handle_slack(cli.data_dir, args),
+        Commands::Vscode(args) => vscode::handle_vscode(cli.data_dir, args),
     }
 }
 

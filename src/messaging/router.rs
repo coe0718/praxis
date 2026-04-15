@@ -113,6 +113,7 @@ pub fn handle_telegram_command(
                 once: true,
                 force: true,
                 task: Some(task),
+                profile: None,
             },
         ),
         TelegramCommand::Status => core::handle_status(Some(data_dir)),

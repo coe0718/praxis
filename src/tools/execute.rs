@@ -8,7 +8,7 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 
-use crate::{paths::PraxisPaths, storage::StoredApprovalRequest};
+use crate::{oauth::OAuthTokenStore, paths::PraxisPaths, storage::StoredApprovalRequest};
 
 use super::{ToolKind, ToolManifest, policy::normalize_relative, request::parse_payload};
 
@@ -36,7 +36,7 @@ pub fn execute_request(
                     .as_deref()
                     .is_some_and(|p| !p.trim().is_empty()) =>
             {
-                run_shell(manifest, request)
+                run_shell(paths, manifest, request)
             }
             _ => Ok(fallback_result(
                 manifest,
@@ -48,6 +48,7 @@ pub fn execute_request(
 }
 
 fn run_shell(
+    paths: &PraxisPaths,
     manifest: &ToolManifest,
     request: &StoredApprovalRequest,
 ) -> Result<ToolExecutionResult> {
@@ -95,6 +96,17 @@ fn run_shell(
     }
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
+
+    // Inject OAuth tokens as env vars so shell tools can call authenticated APIs.
+    let oauth_store = OAuthTokenStore::new(&paths.data_dir);
+    if let Ok(tokens) = oauth_store.load() {
+        for (provider, token) in &tokens {
+            if !token.is_expired() {
+                let key = format!("PRAXIS_OAUTH_{}_TOKEN", provider.to_uppercase());
+                cmd.env(key, &token.access_token);
+            }
+        }
+    }
 
     let mut child = cmd
         .spawn()
