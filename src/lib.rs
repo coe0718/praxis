@@ -1,5 +1,6 @@
 pub mod anatomy;
 pub mod anomaly;
+pub mod daemon;
 pub mod archive;
 pub mod brief;
 pub mod argus;

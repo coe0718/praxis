@@ -1,5 +1,6 @@
 mod agents;
 pub(crate) mod approvals;
+mod daemon;
 mod archive;
 mod argus;
 mod boundaries;
@@ -78,6 +79,7 @@ pub enum Commands {
     #[cfg(feature = "tui")]
     Tui(tui::TuiArgs),
     Brief(brief::BriefArgs),
+    Daemon(daemon::DaemonArgs),
     Delegation(delegation::DelegationArgs),
     Hands(hands::HandsArgs),
     Vault(vault::VaultArgs),
@@ -221,6 +223,7 @@ fn execute(cli: Cli) -> Result<String> {
         #[cfg(feature = "tui")]
         Commands::Tui(args) => tui::handle_tui(cli.data_dir, args),
         Commands::Brief(args) => brief::handle_brief(cli.data_dir, args),
+        Commands::Daemon(args) => daemon::handle_daemon(cli.data_dir, args),
         Commands::Delegation(args) => delegation::handle_delegation(cli.data_dir, args),
         Commands::Hands(args) => hands::handle_hands(cli.data_dir, args),
         Commands::Vault(args) => vault::handle_vault(cli.data_dir, args),

@@ -89,6 +89,8 @@ pub struct PraxisPaths {
     pub score_file: PathBuf,
     /// Credential vault — name→secret mapping resolved at request time (`vault.toml`).
     pub vault_file: PathBuf,
+    /// Daemon PID file — written when the daemon starts, removed on clean exit.
+    pub daemon_pid_file: PathBuf,
 }
 
 pub fn detect_platform() -> Platform {
@@ -208,6 +210,7 @@ impl PraxisPaths {
             hands_dir,
             score_file: data_dir.join("score.jsonl"),
             vault_file: data_dir.join("vault.toml"),
+            daemon_pid_file: data_dir.join("daemon.pid"),
             benchmarks_dir,
             data_dir,
         }
