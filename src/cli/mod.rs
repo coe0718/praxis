@@ -6,10 +6,12 @@ mod boundaries;
 mod brief;
 mod canary;
 pub(crate) mod core;
+mod delegation;
 #[cfg(feature = "discord")]
 mod discord;
 mod forensics;
 mod git;
+mod hands;
 mod heartbeat;
 mod learning;
 mod oauth;
@@ -20,6 +22,7 @@ mod telegram;
 mod tools;
 #[cfg(feature = "tui")]
 mod tui;
+mod vault;
 mod vscode;
 mod watchdog;
 
@@ -75,6 +78,9 @@ pub enum Commands {
     #[cfg(feature = "tui")]
     Tui(tui::TuiArgs),
     Brief(brief::BriefArgs),
+    Delegation(delegation::DelegationArgs),
+    Hands(hands::HandsArgs),
+    Vault(vault::VaultArgs),
 }
 
 #[derive(Debug, Args)]
@@ -215,6 +221,9 @@ fn execute(cli: Cli) -> Result<String> {
         #[cfg(feature = "tui")]
         Commands::Tui(args) => tui::handle_tui(cli.data_dir, args),
         Commands::Brief(args) => brief::handle_brief(cli.data_dir, args),
+        Commands::Delegation(args) => delegation::handle_delegation(cli.data_dir, args),
+        Commands::Hands(args) => hands::handle_hands(cli.data_dir, args),
+        Commands::Vault(args) => vault::handle_vault(cli.data_dir, args),
     }
 }
 

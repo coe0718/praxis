@@ -1319,23 +1319,26 @@ Move items upward as they ship:
 
 - **Hybrid semantic retrieval** — optionally layer vectors or semantic search on top of FTS5 once the keyword + preference graph approach proves insufficient.
 - **Published marketplace / portability standard** — align skill and tool packaging with a real public ecosystem spec, potentially including `agentskills.io` compatibility where it fits Praxis security needs.
-- **Automatic anatomy refresh daemon** — beyond on-demand updates, optionally re-index changed files during idle windows.
 - **Community tool registry improvements** — include compatibility metadata, usage examples, and read-only community discovery.
 - **Workflow-provider integrations** — add first-class adapters for external orchestrators when operators want Praxis to sit above an existing automation stack.
 - **Local multimodal processing** — optional on-device transcription, captioning, or light image understanding for privacy-preserving installs.
-- **System anomaly correlation** — track CPU, memory, disk, and load anomalies against reviewer failures and bad outcomes.
-- **Credential vault proxy** — keep raw provider secrets outside the agent runtime entirely and inject them at request time with policy enforcement.
-- **Delegation links** — add explicit outbound/inbound/bidirectional agent links with concurrency caps and allow/deny lists.
 - **Per-channel sandboxing** — let the main operator surface run with fuller host access while non-main channels default to narrower isolated sandboxes.
-- **Hand manifests** — formalize installable/schedulable autonomous capability bundles beyond loose skills and cron jobs.
 - **Meta-evolution workflow** — let Praxis propose changes to the framework itself via `SELF_EVOLUTION.md`, with heavy approval gating.
-- **Irreplaceability score** — track anticipation, follow-through, reliability, and operator dependence as a private metric, not as a vanity metric.
 - **Auto-maintained docs** — let Praxis keep public docs and examples current as capabilities mature.
 - **Lite mode** — reduce sub-agent usage, tighten budgets, and simplify behavior for Raspberry Pi or low-power installs.
 - **Anonymous learning exchange** — possibly allow instances to publish sanitized, non-personal learnings to a shared registry later, but only with strong privacy guarantees.
 - **WASM tool runtime** — support ultra-sandboxed community tools without granting broad local execution, ideally with explicit metering and a watchdog against runaway code.
 - **Local multimodal and local model bundles** — optional heavy extras for privacy-first or travel/offline deployments.
-- **Synthetic example generation** — turn high-value learnings into reusable structured examples for future prompt shaping or evaluation.
+
+### Completed (Wave 4)
+
+- **Automatic anatomy refresh** — `anatomy::refresh_stale_anatomy()` scans identity and tool files, compares disk `last_modified_at` against the stored value in the `anatomy_index` SQLite table, and re-indexes only entries that have changed; runs during idle/maintenance windows without blocking active sessions.
+- **System anomaly correlation** — `anomaly::SystemSnapshot` captures load average, process RSS, and data-dir size at Reflect time and when sessions produce bad outcomes; snapshots are appended to `system_anomalies.jsonl` (capped at 200 entries); Linux-only platform helpers read `/proc/loadavg` and `/proc/self/status`.
+- **Delegation links** — `delegation::DelegationStore` (persisted to `delegation_links.json`) manages outbound/inbound/bidirectional inter-agent links with concurrency caps and glob-based allow/deny task lists; `praxis delegation add/remove/enable/disable/list` CLI.
+- **Hand manifests** — `hands::HandManifest` declares a named role bundle (required/optional tools, skill names to load, schedule quiet-hour overrides, metadata) as a TOML file in `hands/`; `HandStore` scans and parses all installed hands; `praxis hands list/show/remove` CLI; `hands::install_hand` and `remove_hand` helpers.
+- **Synthetic example generation** — `examples::SyntheticExample` records `(context, action, outcome)` triples at Reflect time for successful sessions; `record_example` appends to `evals/examples.jsonl` (capped at 500 entries); `build_context` and `is_useful_outcome` helpers gate generation to signal-bearing sessions.
+- **Irreplaceability score** — `score::SessionScore` computes a four-dimension composite (anticipation 20%, follow-through 40%, reliability 25%, operator independence 15%) per session from raw `SessionScoreInput` counts; `record_score` appends to `score.jsonl` (capped at 365 entries); `rolling_composite` exposes a rolling average.
+- **Credential vault proxy** — `vault::Vault` (persisted to `vault.toml`) maps named aliases to env-var references or literal fallback values; `resolve()` and `resolve_optional()` replace direct `env::var` calls throughout the OAuth/provider layer; `audit_literals` warns when raw values are stored; `praxis vault list/set-env/set-literal/remove/resolve/audit` CLI.
 
 ### Completed (Wave 3)
 

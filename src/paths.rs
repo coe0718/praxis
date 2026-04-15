@@ -79,6 +79,16 @@ pub struct PraxisPaths {
     pub context_groups_file: PathBuf,
     /// Operator interaction histogram for adaptive scheduling (`operator_schedule.json`).
     pub operator_schedule_file: PathBuf,
+    /// System resource anomaly log (`system_anomalies.jsonl`).
+    pub system_anomalies_file: PathBuf,
+    /// Configured inter-agent delegation links (`delegation_links.json`).
+    pub delegation_links_file: PathBuf,
+    /// Installed hand manifests — each `*.toml` describes a role bundle (`hands/`).
+    pub hands_dir: PathBuf,
+    /// Per-session irreplaceability score log (`score.jsonl`).
+    pub score_file: PathBuf,
+    /// Credential vault — name→secret mapping resolved at request time (`vault.toml`).
+    pub vault_file: PathBuf,
 }
 
 pub fn detect_platform() -> Platform {
@@ -146,6 +156,7 @@ impl PraxisPaths {
         let learning_dir = data_dir.join("learning");
         let learning_sources_dir = learning_dir.join("sources");
         let backups_dir = data_dir.join("backups");
+        let hands_dir = data_dir.join("hands");
 
         Self {
             config_file: data_dir.join("praxis.toml"),
@@ -192,6 +203,11 @@ impl PraxisPaths {
             tool_cooldowns_file: data_dir.join("tool_cooldowns.json"),
             context_groups_file: data_dir.join("context_groups.json"),
             operator_schedule_file: data_dir.join("operator_schedule.json"),
+            system_anomalies_file: data_dir.join("system_anomalies.jsonl"),
+            delegation_links_file: data_dir.join("delegation_links.json"),
+            hands_dir,
+            score_file: data_dir.join("score.jsonl"),
+            vault_file: data_dir.join("vault.toml"),
             benchmarks_dir,
             data_dir,
         }
