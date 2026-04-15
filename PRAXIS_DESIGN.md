@@ -1299,14 +1299,15 @@ Move items upward as they ship:
 - `Completed` **Context-rot prevention** — make "fit work into clean context windows" a structural rule, not just a good habit.
 - `Completed` **Wake-on-intent** — support approved interrupt-style wakes alongside scheduled sessions.
 - `Completed` **Reviewer cost guardrails** — keep reviewer context and token ceilings explicit so mandatory review stays affordable.
+- `Completed` **Relational memory layer** — typed `MemoryLink` edges (`caused_by`, `related_to`, `contradicts`, `user_preference`, `follow_up`) stored in SQLite; top hot memories expand through links during context load.
+- `Completed` **Operator reinforcement commands** — `/memories`, `/reinforce <id>`, `/forget <id>`, `/link <from> <type> <to>` Telegram commands for direct memory management.
+- `Completed` **Config sensitivity split** — `security.toml` (gitignored) holds sensitive overrides such as security level; applied on top of committable `praxis.toml` at startup.
 
 ### Future / Optional
 
-- **Relational or graph memory layer** — add typed links between memories such as `caused_by`, `related_to`, `contradicts`, and `user_preference` without necessarily requiring a heavy graph database.
 - **Hybrid semantic retrieval** — optionally layer vectors or semantic search on top of FTS5 once the keyword + preference graph approach proves insufficient.
 - **Memory typing** — extend memory with episodic, semantic, and procedural classes, each with different decay and reinforcement rules.
 - **Published marketplace / portability standard** — align skill and tool packaging with a real public ecosystem spec, potentially including `agentskills.io` compatibility where it fits Praxis security needs.
-- **Operator reinforcement commands** — allow `/reinforce <memory_id>` or message reactions to strengthen memories directly.
 - **Conflict workbench** — create `MEMORY_CONFLICTS.md` or an equivalent workflow to surface conflicting memories with evidence and proposed resolution.
 - **Persistent context cache** — store a compressed working set from recent sessions for faster warm starts on constrained hardware.
 - **Automatic anatomy refresh daemon** — beyond on-demand updates, optionally re-index changed files during idle windows.
@@ -1316,7 +1317,6 @@ Move items upward as they ship:
 - **System anomaly correlation** — track CPU, memory, disk, and load anomalies against reviewer failures and bad outcomes.
 - **Per-context-group isolation** — isolate short-horizon memory and filesystem state by conversation or channel rather than sharing one blended working set.
 - **Credential vault proxy** — keep raw provider secrets outside the agent runtime entirely and inject them at request time with policy enforcement.
-- **Config sensitivity split** — separate insensitive instance config from sensitive overrides in a dedicated security file such as `.security.yml`.
 - **Delegation links** — add explicit outbound/inbound/bidirectional agent links with concurrency caps and allow/deny lists.
 - **Granular cooldown policies** — different approval windows per file or identity surface, potentially escalating some files to always-explicit approval.
 - **Per-channel sandboxing** — let the main operator surface run with fuller host access while non-main channels default to narrower isolated sandboxes.

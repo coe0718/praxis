@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 
 use crate::{
     context::{ContextLoadRequest, LocalContextLoader, compact_if_needed, consume_compact, handoff},
-    memory::MemoryStore,
+    memory::{MemoryLinkStore, MemoryStore},
     state::SessionState,
     storage::{
         AnatomyStore, ApprovalStore, OperationalMemoryStore, ProviderUsageStore, QualityStore,
@@ -29,6 +29,7 @@ where
     I: crate::identity::IdentityPolicy,
     S: SessionStore
         + MemoryStore
+        + MemoryLinkStore
         + ApprovalStore
         + QualityStore
         + ProviderUsageStore

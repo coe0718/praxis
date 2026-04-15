@@ -17,7 +17,7 @@ pub use gates::{
     CredentialScrubGate, ForbiddenPhraseGate, GateDecision, GatePipeline, MaxLengthGate,
     NonEmptyGate, QualityGate, default_delivery_pipeline,
 };
-pub use reviewer::{GoalCriteria, LocalReviewer, ReviewOutcome, Reviewer};
+pub use reviewer::{GoalCriteria, LocalReviewer, ReviewOutcome, Reviewer, ReviewerBudget};
 
 pub(crate) fn json_files(root: &Path) -> Result<Vec<std::path::PathBuf>> {
     let mut files = Vec::new();

@@ -93,6 +93,15 @@ impl ContextBudgeter {
 }
 
 impl BudgetedContext {
+    /// How full the context budget is as a fraction (0.0–1.0).
+    /// A value ≥ 0.50 triggers a handoff note in the design spec.
+    pub fn pressure_pct(&self) -> f32 {
+        if self.total_budget_tokens == 0 {
+            return 0.0;
+        }
+        self.used_tokens as f32 / self.total_budget_tokens as f32
+    }
+
     pub fn render(&self) -> String {
         self.included_sources
             .iter()

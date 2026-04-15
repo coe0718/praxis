@@ -7,6 +7,27 @@ use crate::{paths::PraxisPaths, storage::ReviewStatus};
 
 use super::json_files;
 
+/// Hard ceiling for reviewer sub-agent resource usage.
+///
+/// Design spec: the smaller of 15% of the primary session context budget or
+/// 8 000 tokens.  Since we use shell-based review rather than an LLM reviewer
+/// sub-agent, this manifests as limits on command count and captured output.
+pub struct ReviewerBudget {
+    /// Maximum number of shell commands to run.
+    pub max_commands: usize,
+    /// Maximum bytes captured per command (stdout + stderr combined).
+    pub max_output_bytes: usize,
+}
+
+impl Default for ReviewerBudget {
+    fn default() -> Self {
+        Self {
+            max_commands: 20,
+            max_output_bytes: 2_048,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct GoalCriteria {
     pub goal_id: String,
@@ -40,6 +61,18 @@ impl Reviewer for LocalReviewer {
     }
 
     fn review(&self, paths: &PraxisPaths, goal_id: Option<&str>) -> Result<ReviewOutcome> {
+        self.review_with_budget(paths, goal_id, &ReviewerBudget::default())
+    }
+}
+
+impl LocalReviewer {
+    /// Review with an explicit resource budget.
+    pub fn review_with_budget(
+        &self,
+        paths: &PraxisPaths,
+        goal_id: Option<&str>,
+        budget: &ReviewerBudget,
+    ) -> Result<ReviewOutcome> {
         let Some(goal_id) = goal_id else {
             return Ok(ReviewOutcome {
                 status: ReviewStatus::Skipped,
@@ -56,9 +89,18 @@ impl Reviewer for LocalReviewer {
             });
         };
 
+        if criteria.commands.len() > budget.max_commands {
+            bail!(
+                "Reviewer budget exceeded: criteria {} has {} commands but the budget allows {}",
+                goal_id,
+                criteria.commands.len(),
+                budget.max_commands
+            );
+        }
+
         let mut findings = Vec::new();
         for command in &criteria.commands {
-            if let Some(failure) = run_shell(paths, command)? {
+            if let Some(failure) = run_shell_bounded(paths, command, budget.max_output_bytes)? {
                 findings.push(failure);
             }
         }
@@ -142,7 +184,11 @@ fn load_criteria(path: &PathBuf) -> Result<GoalCriteria> {
     Ok(criteria)
 }
 
-fn run_shell(paths: &PraxisPaths, command: &str) -> Result<Option<String>> {
+fn run_shell_bounded(
+    paths: &PraxisPaths,
+    command: &str,
+    max_output_bytes: usize,
+) -> Result<Option<String>> {
     let output = Command::new("/bin/sh")
         .arg("-lc")
         .arg(command)
@@ -154,9 +200,19 @@ fn run_shell(paths: &PraxisPaths, command: &str) -> Result<Option<String>> {
         return Ok(None);
     }
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    let detail = format!("{stdout}\n{stderr}")
+    // Cap captured output to the budget ceiling.
+    let combined = {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let raw = format!("{stdout}\n{stderr}");
+        if raw.len() > max_output_bytes {
+            format!("{}… (truncated to {max_output_bytes} bytes)", &raw[..max_output_bytes])
+        } else {
+            raw
+        }
+    };
+
+    let detail = combined
         .lines()
         .rev()
         .find(|line| !line.trim().is_empty())

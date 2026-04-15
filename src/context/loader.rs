@@ -6,7 +6,7 @@ use serde::Deserialize;
 use crate::{
     config::AppConfig,
     identity::Goal,
-    memory::{MemoryLoader, MemoryStore, OperationalMemoryLoader},
+    memory::{MemoryLinkStore, MemoryLoader, MemoryStore, OperationalMemoryLoader},
     paths::PraxisPaths,
     skills,
     state::SessionState,
@@ -30,7 +30,7 @@ pub(crate) struct ContextLoadRequest<'a> {
 }
 
 impl LocalContextLoader {
-    pub fn load<S: MemoryStore + OperationalMemoryStore + AnatomyStore>(
+    pub fn load<S: MemoryStore + MemoryLinkStore + OperationalMemoryStore + AnatomyStore>(
         &self,
         store: &S,
         request: ContextLoadRequest<'_>,
@@ -66,6 +66,7 @@ impl LocalContextLoader {
             source("known_bugs", operational.render_known_bugs()),
             source("memory_hot", memory.render_hot()),
             source("memory_cold", memory.render_cold()),
+            source("memory_linked", memory.render_linked()),
             source(
                 "patterns",
                 reader.read(store, state, &paths.patterns_file, "patterns")?,

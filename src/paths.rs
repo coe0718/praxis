@@ -65,6 +65,8 @@ pub struct PraxisPaths {
     pub bus_file: PathBuf,
     /// Per-conversation activation modes (`activation.json`).
     pub activation_file: PathBuf,
+    /// Sensitive config overrides separated from the committable `praxis.toml` (`security.toml`).
+    pub security_file: PathBuf,
 }
 
 pub fn detect_platform() -> Platform {
@@ -171,6 +173,7 @@ impl PraxisPaths {
             benchmark_log_file: data_dir.join("benchmark_log.jsonl"),
             bus_file: data_dir.join("bus.jsonl"),
             activation_file: data_dir.join("activation.json"),
+            security_file: data_dir.join("security.toml"),
             benchmarks_dir,
             data_dir,
         }

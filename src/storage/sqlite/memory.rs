@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
-use rusqlite::params;
+use rusqlite::{OptionalExtension, params};
 
 use crate::memory::{
     MemoryStore, MemoryTier, NewColdMemory, NewHotMemory, StoredMemory, to_fts_query,
@@ -159,6 +159,114 @@ impl MemoryStore for SqliteSessionStore {
 
     fn decay_cold_memories(&self, now: DateTime<Utc>) -> Result<usize> {
         super::memory_decay::decay_cold_memories(self, now)
+    }
+
+    fn get_memory(&self, id: i64) -> Result<Option<StoredMemory>> {
+        let connection = self.connect()?;
+
+        // Try hot first.
+        let hot: Option<StoredMemory> = connection
+            .query_row(
+                "SELECT id, content, summary, tags, importance FROM hot_memories WHERE id = ?1",
+                params![id],
+                |row| {
+                    Ok(StoredMemory {
+                        id: row.get(0)?,
+                        tier: MemoryTier::Hot,
+                        content: row.get(1)?,
+                        summary: row.get(2)?,
+                        tags: parse_tags(row.get::<_, String>(3)?)?,
+                        score: row.get(4)?,
+                    })
+                },
+            )
+            .optional()
+            .context("failed to query hot memory by id")?;
+
+        if hot.is_some() {
+            return Ok(hot);
+        }
+
+        // Try cold.
+        let cold: Option<StoredMemory> = connection
+            .query_row(
+                "SELECT id, content, tags, weight FROM cold_memories WHERE id = ?1",
+                params![id],
+                |row| {
+                    Ok(StoredMemory {
+                        id: row.get(0)?,
+                        tier: MemoryTier::Cold,
+                        content: row.get(1)?,
+                        summary: None,
+                        tags: parse_tags(row.get::<_, String>(2)?)?,
+                        score: row.get(3)?,
+                    })
+                },
+            )
+            .optional()
+            .context("failed to query cold memory by id")?;
+
+        Ok(cold)
+    }
+
+    fn boost_memory(&self, id: i64) -> Result<bool> {
+        let connection = self.connect()?;
+
+        // Try hot first.
+        let hot_rows = connection
+            .execute(
+                "UPDATE hot_memories SET importance = MIN(importance + 0.2, 1.0),
+                         last_accessed = datetime('now'),
+                         access_count = access_count + 1
+                  WHERE id = ?1",
+                params![id],
+            )
+            .context("failed to boost hot memory")?;
+
+        if hot_rows > 0 {
+            return Ok(true);
+        }
+
+        // Try cold.
+        let cold_rows = connection
+            .execute(
+                "UPDATE cold_memories SET weight = MIN(weight + 0.2, 2.0),
+                         last_reinforced = datetime('now')
+                  WHERE id = ?1",
+                params![id],
+            )
+            .context("failed to boost cold memory")?;
+
+        Ok(cold_rows > 0)
+    }
+
+    fn forget_memory(&self, id: i64) -> Result<bool> {
+        let connection = self.connect()?;
+
+        let hot_rows = connection
+            .execute("DELETE FROM hot_memories WHERE id = ?1", params![id])
+            .context("failed to delete hot memory")?;
+        if hot_rows > 0 {
+            // FTS shadow table uses the same rowid.
+            let _ = connection.execute(
+                "DELETE FROM hot_fts WHERE rowid = ?1",
+                params![id],
+            );
+            return Ok(true);
+        }
+
+        let cold_rows = connection
+            .execute("DELETE FROM cold_memories WHERE id = ?1", params![id])
+            .context("failed to delete cold memory")?;
+        if cold_rows > 0 {
+            let _ = connection.execute(
+                "DELETE FROM cold_fts WHERE rowid = ?1",
+                params![id],
+            );
+            return Ok(true);
+        }
+
+        Ok(false)
     }
 }
 

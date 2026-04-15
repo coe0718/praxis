@@ -5,8 +5,10 @@ use anyhow::{Context, Result, bail};
 use crate::{
     boundaries::{BoundaryReviewState, add_boundary, list_boundaries, review_prompt},
     cli::{ApprovalActionArgs, AskArgs, QueueArgs, RunArgs, approvals, core},
+    memory::{MemoryLinkStore, MemoryLinkType, MemoryStore},
     messaging::{ActivationMode, ActivationStore},
     paths::PraxisPaths,
+    storage::SqliteSessionStore,
     time::{Clock, SystemClock},
 };
 
@@ -25,6 +27,14 @@ pub enum TelegramCommand {
     BoundariesAdd(String),
     /// Set the activation mode for the current conversation.
     Activation(String),
+    /// List recent memories with their IDs.
+    Memories,
+    /// Boost the importance of a memory.
+    Reinforce(i64),
+    /// Delete a memory.
+    Forget(i64),
+    /// Add a relational link between two memories.
+    Link(i64, String, i64),
     Help,
 }
 
@@ -50,6 +60,18 @@ pub fn parse_telegram_command(text: &str) -> TelegramCommand {
         TelegramCommand::BoundariesAdd(rest.trim().to_string())
     } else if let Some(rest) = trimmed.strip_prefix("/activation ") {
         TelegramCommand::Activation(rest.trim().to_string())
+    } else if let Some(rest) = trimmed.strip_prefix("/reinforce ") {
+        rest.trim()
+            .parse::<i64>()
+            .map(TelegramCommand::Reinforce)
+            .unwrap_or(TelegramCommand::Help)
+    } else if let Some(rest) = trimmed.strip_prefix("/forget ") {
+        rest.trim()
+            .parse::<i64>()
+            .map(TelegramCommand::Forget)
+            .unwrap_or(TelegramCommand::Help)
+    } else if let Some(rest) = trimmed.strip_prefix("/link ") {
+        parse_link_command(rest.trim())
     } else {
         match trimmed {
             "/status" => TelegramCommand::Status,
@@ -58,6 +80,7 @@ pub fn parse_telegram_command(text: &str) -> TelegramCommand {
             "/health" => TelegramCommand::Health,
             "/boundaries" => TelegramCommand::Boundaries,
             "/activation" => TelegramCommand::Activation(String::new()),
+            "/memories" => TelegramCommand::Memories,
             _ => TelegramCommand::Help,
         }
     }
@@ -110,6 +133,12 @@ pub fn handle_telegram_command(
         TelegramCommand::BoundariesAdd(rule) => append_boundary(data_dir, &rule),
         TelegramCommand::Activation(mode_str) => {
             handle_activation(data_dir, chat_id, &mode_str)
+        }
+        TelegramCommand::Memories => handle_memories(data_dir),
+        TelegramCommand::Reinforce(id) => handle_reinforce(data_dir, id),
+        TelegramCommand::Forget(id) => handle_forget(data_dir, id),
+        TelegramCommand::Link(from_id, link_type, to_id) => {
+            handle_link(data_dir, from_id, &link_type, to_id)
         }
         TelegramCommand::Help => Ok(help_text().to_string()),
     }
@@ -198,6 +227,90 @@ fn parse_activation_mode(s: &str) -> Result<ActivationMode> {
     }
 }
 
+fn parse_link_command(rest: &str) -> TelegramCommand {
+    let parts: Vec<&str> = rest.splitn(3, ' ').collect();
+    if parts.len() != 3 {
+        return TelegramCommand::Help;
+    }
+    let from_id = match parts[0].parse::<i64>() {
+        Ok(id) => id,
+        Err(_) => return TelegramCommand::Help,
+    };
+    let to_id = match parts[2].parse::<i64>() {
+        Ok(id) => id,
+        Err(_) => return TelegramCommand::Help,
+    };
+    TelegramCommand::Link(from_id, parts[1].to_string(), to_id)
+}
+
+fn handle_memories(data_dir: std::path::PathBuf) -> Result<String> {
+    let paths = PraxisPaths::for_data_dir(data_dir);
+    let store = SqliteSessionStore::new(paths.database_file.clone());
+    let hot = store.recent_hot_memories(5)?;
+    let cold = store.strongest_cold_memories(5)?;
+
+    if hot.is_empty() && cold.is_empty() {
+        return Ok("memories: none stored yet".to_string());
+    }
+
+    let mut lines = vec!["memories:".to_string()];
+    if !hot.is_empty() {
+        lines.push("hot:".to_string());
+        for m in &hot {
+            let summary = m.summary.as_deref().unwrap_or(m.content.as_str());
+            let truncated = if summary.len() > 80 {
+                format!("{}…", &summary[..80])
+            } else {
+                summary.to_string()
+            };
+            lines.push(format!("  [{}] {}", m.id, truncated));
+        }
+    }
+    if !cold.is_empty() {
+        lines.push("cold:".to_string());
+        for m in &cold {
+            let summary = m.summary.as_deref().unwrap_or(m.content.as_str());
+            let truncated = if summary.len() > 80 {
+                format!("{}…", &summary[..80])
+            } else {
+                summary.to_string()
+            };
+            lines.push(format!("  [{}] {}", m.id, truncated));
+        }
+    }
+    Ok(lines.join("\n"))
+}
+
+fn handle_reinforce(data_dir: std::path::PathBuf, id: i64) -> Result<String> {
+    let paths = PraxisPaths::for_data_dir(data_dir);
+    let store = SqliteSessionStore::new(paths.database_file.clone());
+    store.boost_memory(id)?;
+    Ok(format!("memory: reinforced [{id}]"))
+}
+
+fn handle_forget(data_dir: std::path::PathBuf, id: i64) -> Result<String> {
+    let paths = PraxisPaths::for_data_dir(data_dir);
+    let store = SqliteSessionStore::new(paths.database_file.clone());
+    store.forget_memory(id)?;
+    Ok(format!("memory: forgotten [{id}]"))
+}
+
+fn handle_link(
+    data_dir: std::path::PathBuf,
+    from_id: i64,
+    link_type_str: &str,
+    to_id: i64,
+) -> Result<String> {
+    let paths = PraxisPaths::for_data_dir(data_dir);
+    let store = SqliteSessionStore::new(paths.database_file.clone());
+    let link_type = MemoryLinkType::parse(link_type_str)
+        .with_context(|| format!("unknown link type: {link_type_str}"))?;
+    store.add_memory_link(from_id, to_id, link_type)?;
+    Ok(format!(
+        "memory: linked [{from_id}] --{link_type_str}--> [{to_id}]"
+    ))
+}
+
 fn help_text() -> &'static str {
     "supported commands:\n\
      /ask <prompt> — quick stateless question\n\
@@ -211,7 +324,11 @@ fn help_text() -> &'static str {
      /health — system health check\n\
      /boundaries — list active boundaries\n\
      /boundaries add <rule> — add a boundary\n\
-     /activation [mention_only|thread_only|always_listening] — get or set activation mode"
+     /activation [mention_only|thread_only|always_listening] — get or set activation mode\n\
+     /memories — list recent memories with IDs\n\
+     /reinforce <id> — boost memory importance\n\
+     /forget <id> — delete a memory\n\
+     /link <from_id> <type> <to_id> — add relational link (types: caused_by, related_to, contradicts, user_preference, follow_up)"
 }
 
 #[cfg(test)]

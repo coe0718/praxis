@@ -6,7 +6,7 @@ use crate::{
     forensics::record_snapshot,
     heartbeat::write_heartbeat,
     identity::{GoalParser, IdentityPolicy},
-    memory::MemoryStore,
+    memory::{MemoryLinkStore, MemoryStore},
     paths::PraxisPaths,
     state::{SessionPhase, SessionState},
     storage::{
@@ -40,6 +40,7 @@ where
     I: IdentityPolicy,
     S: SessionStore
         + MemoryStore
+        + MemoryLinkStore
         + ApprovalStore
         + QualityStore
         + ProviderUsageStore

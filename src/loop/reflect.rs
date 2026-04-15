@@ -3,7 +3,7 @@ use anyhow::{Context, Result};
 use crate::{
     forensics::attach_session_id,
     identity::Goal,
-    memory::{MemoryStore, NewDoNotRepeat, NewHotMemory, NewKnownBug},
+    memory::{MemoryLinkStore, MemoryStore, NewDoNotRepeat, NewHotMemory, NewKnownBug},
     postmortem::append_postmortem,
     quality::{EvalRunner, LocalEvalSuite, LocalReviewer, Reviewer, summarize},
     skills::{SkillSynthesizer, synthesis::SkillSynthesisInput},
@@ -30,6 +30,7 @@ where
     I: crate::identity::IdentityPolicy,
     S: SessionStore
         + MemoryStore
+        + MemoryLinkStore
         + ApprovalStore
         + QualityStore
         + ProviderUsageStore

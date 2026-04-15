@@ -9,4 +9,7 @@ pub use ops::{
     StoredDoNotRepeat, StoredKnownBug,
 };
 pub(crate) use query::{build_lookup_query, to_fts_query};
-pub use types::{MemoryStore, MemoryTier, NewColdMemory, NewHotMemory, StoredMemory};
+pub use types::{
+    MemoryLink, MemoryLinkStore, MemoryLinkType, MemoryStore, MemoryTier, NewColdMemory,
+    NewHotMemory, StoredMemory,
+};

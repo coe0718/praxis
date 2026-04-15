@@ -9,7 +9,7 @@ use crate::{
     boundaries::BoundaryReviewState,
     canary::ModelCanaryLedger,
     cli::{AskArgs, InitArgs, RunArgs},
-    config::AppConfig,
+    config::{AppConfig, SecurityOverrides},
     events::FileEventSink,
     heartbeat::write_heartbeat,
     identity::{IdentityPolicy, LocalIdentityPolicy, MarkdownGoalParser},
@@ -237,10 +237,17 @@ pub(crate) fn load_initialized_config(
         );
     }
 
-    let config = AppConfig::load(&base_paths.config_file)
+    let mut config = AppConfig::load(&base_paths.config_file)
         .with_context(|| format!("failed to load {}", base_paths.config_file.display()))?
         .with_overridden_data_dir(data_dir);
     let paths = PraxisPaths::from_config(&config);
+
+    // Apply sensitive overrides from `security.toml` (gitignored, operator-only).
+    let security = SecurityOverrides::load_or_default(&paths.security_file)?;
+    if let Some(level) = security.level {
+        config.security.level = level;
+    }
+
     let config = ProfileSettings::load_or_default(&paths.profiles_file)?.apply(&config)?;
     Ok((config, paths))
 }
