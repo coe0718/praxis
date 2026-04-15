@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -)",
+      "Bash(grep -n \"pub fn\\\\|pub trait\\\\|impl.*MemoryStore\" /home/coemedia/Documents/code/praxis/src/memory/*.rs /home/coemedia/Documents/code/praxis/src/storage/*.rs)"
+    ]
+  }
+}
