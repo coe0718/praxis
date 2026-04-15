@@ -8,7 +8,7 @@ use crate::{
     memory::{MemoryLinkStore, MemoryLinkType, MemoryStore},
     messaging::{ActivationMode, ActivationStore},
     paths::PraxisPaths,
-    storage::SqliteSessionStore,
+    storage::{DecisionReceiptStore, SqliteSessionStore},
     time::{Clock, SystemClock},
 };
 
@@ -35,6 +35,8 @@ pub enum TelegramCommand {
     Forget(i64),
     /// Add a relational link between two memories.
     Link(i64, String, i64),
+    /// Show the last N decision receipts.
+    Decisions,
     Help,
 }
 
@@ -81,6 +83,7 @@ pub fn parse_telegram_command(text: &str) -> TelegramCommand {
             "/boundaries" => TelegramCommand::Boundaries,
             "/activation" => TelegramCommand::Activation(String::new()),
             "/memories" => TelegramCommand::Memories,
+            "/decisions" => TelegramCommand::Decisions,
             _ => TelegramCommand::Help,
         }
     }
@@ -140,6 +143,7 @@ pub fn handle_telegram_command(
         TelegramCommand::Link(from_id, link_type, to_id) => {
             handle_link(data_dir, from_id, &link_type, to_id)
         }
+        TelegramCommand::Decisions => handle_decisions(data_dir),
         TelegramCommand::Help => Ok(help_text().to_string()),
     }
 }
@@ -311,6 +315,36 @@ fn handle_link(
     ))
 }
 
+fn handle_decisions(data_dir: std::path::PathBuf) -> Result<String> {
+    let paths = PraxisPaths::for_data_dir(data_dir);
+    let store = SqliteSessionStore::new(paths.database_file.clone());
+    let receipts = store.recent_decisions(8)?;
+
+    if receipts.is_empty() {
+        return Ok("decisions: none recorded yet".to_string());
+    }
+
+    let mut lines = vec!["decisions (oldest first):".to_string()];
+    for r in &receipts {
+        let goal = r.goal_id.as_deref().map(|id| format!(" [{id}]")).unwrap_or_default();
+        let approval = if r.approval_required { " ⚠ approval" } else { "" };
+        let action = if r.chosen_action.len() > 80 {
+            format!("{}…", &r.chosen_action[..80])
+        } else {
+            r.chosen_action.clone()
+        };
+        lines.push(format!(
+            "{:.0}%{}{}{} — {}",
+            r.confidence * 100.0,
+            goal,
+            approval,
+            format!(" ({})", r.reason_code),
+            action
+        ));
+    }
+    Ok(lines.join("\n"))
+}
+
 fn help_text() -> &'static str {
     "supported commands:\n\
      /ask <prompt> — quick stateless question\n\
@@ -328,7 +362,8 @@ fn help_text() -> &'static str {
      /memories — list recent memories with IDs\n\
      /reinforce <id> — boost memory importance\n\
      /forget <id> — delete a memory\n\
-     /link <from_id> <type> <to_id> — add relational link (types: caused_by, related_to, contradicts, user_preference, follow_up)"
+     /link <from_id> <type> <to_id> — add relational link (types: caused_by, related_to, contradicts, user_preference, follow_up)\n\
+     /decisions — last 8 decide-phase receipts"
 }
 
 #[cfg(test)]

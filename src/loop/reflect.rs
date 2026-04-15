@@ -9,9 +9,9 @@ use crate::{
     skills::{SkillSynthesizer, synthesis::SkillSynthesisInput},
     state::SessionState,
     storage::{
-        AnatomyStore, ApprovalStore, EvalRunRecord, OperationalMemoryStore, ProviderUsageStore,
-        QualityStore, ReviewRecord, ReviewStatus, SessionQualityUpdate, SessionRecord,
-        SessionStore,
+        AnatomyStore, ApprovalStore, DecisionReceiptStore, EvalRunRecord, OperationalMemoryStore,
+        ProviderUsageStore, QualityStore, ReviewRecord, ReviewStatus, SessionQualityUpdate,
+        SessionRecord, SessionStore,
     },
     tools::ToolRegistry,
 };
@@ -35,7 +35,8 @@ where
         + QualityStore
         + ProviderUsageStore
         + OperationalMemoryStore
-        + AnatomyStore,
+        + AnatomyStore
+        + DecisionReceiptStore,
     T: ToolRegistry,
 {
     pub(super) fn reflect(&self, state: &mut SessionState) -> Result<()> {

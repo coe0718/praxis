@@ -5,8 +5,8 @@ use crate::{
     memory::{MemoryLinkStore, MemoryStore},
     state::SessionState,
     storage::{
-        AnatomyStore, ApprovalStore, OperationalMemoryStore, ProviderUsageStore, QualityStore,
-        SessionStore,
+        AnatomyStore, ApprovalStore, DecisionReceiptStore, NewDecisionReceipt,
+        OperationalMemoryStore, ProviderUsageStore, QualityStore, SessionStore,
     },
     tools::{
         DEFAULT_LOOP_GUARD_LIMIT, GuardDecision, LoopGuard, SecurityPolicy, ToolRegistry,
@@ -34,7 +34,8 @@ where
         + QualityStore
         + ProviderUsageStore
         + OperationalMemoryStore
-        + AnatomyStore,
+        + AnatomyStore
+        + DecisionReceiptStore,
     T: ToolRegistry,
 {
     pub(super) fn orient(&self, state: &mut SessionState) -> Result<()> {
@@ -167,6 +168,30 @@ where
         }
 
         state.updated_at = self.clock.now_utc();
+        self.write_decision_receipt(state)?;
+        Ok(())
+    }
+
+    fn write_decision_receipt(&self, state: &SessionState) -> anyhow::Result<()> {
+        let reason_code = match state.last_outcome.as_deref() {
+            Some(code) => code.to_string(),
+            None => return Ok(()),
+        };
+        let confidence = decision_confidence(&reason_code);
+        let approval_required = state.selected_tool_request_id.is_some();
+        let receipt = NewDecisionReceipt {
+            session_started_at: state.started_at,
+            reason_code,
+            goal_id: state.selected_goal_id.clone(),
+            chosen_action: state
+                .action_summary
+                .clone()
+                .unwrap_or_else(|| "No action selected.".to_string()),
+            context_sources: state.context_sources.clone(),
+            confidence,
+            approval_required,
+        };
+        self.store.record_decision(&receipt)?;
         Ok(())
     }
 
@@ -267,6 +292,22 @@ where
             "Usage budget blocked another backend call.",
         )?;
         Ok(true)
+    }
+}
+
+/// Derive a confidence score from the reason code.
+///
+/// Explicit operator requests are near-certain; goal-driven decisions carry
+/// meaningful uncertainty; budget/guard blocks are deterministic.
+fn decision_confidence(reason_code: &str) -> f64 {
+    match reason_code {
+        "task_selected" => 0.95,
+        "approved_tool_selected" => 0.99,
+        "goal_selected" => 0.80,
+        "waiting_on_dependencies" => 0.90,
+        "stop_condition_met" => 1.0,
+        "budget_exhausted" | "blocked_loop_guard" => 1.0,
+        _ => 0.70,
     }
 }
 

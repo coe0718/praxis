@@ -12,6 +12,36 @@ pub use ops::{OperationalMemoryCounts, OperationalMemoryStore};
 pub use provider::ProviderUsageStore;
 pub use sqlite::SqliteSessionStore;
 
+/// A structured audit record written after every Decide phase.
+#[derive(Debug, Clone)]
+pub struct NewDecisionReceipt {
+    pub session_started_at: DateTime<Utc>,
+    pub reason_code: String,
+    pub goal_id: Option<String>,
+    pub chosen_action: String,
+    pub context_sources: Vec<String>,
+    pub confidence: f64,
+    pub approval_required: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct StoredDecisionReceipt {
+    pub id: i64,
+    pub session_started_at: String,
+    pub reason_code: String,
+    pub goal_id: Option<String>,
+    pub chosen_action: String,
+    pub context_sources: Vec<String>,
+    pub confidence: f64,
+    pub approval_required: bool,
+    pub recorded_at: String,
+}
+
+pub trait DecisionReceiptStore {
+    fn record_decision(&self, receipt: &NewDecisionReceipt) -> Result<()>;
+    fn recent_decisions(&self, limit: usize) -> Result<Vec<StoredDecisionReceipt>>;
+}
+
 pub trait SessionStore {
     fn initialize(&self) -> Result<()>;
     fn validate_schema(&self) -> Result<()>;

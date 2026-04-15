@@ -10,8 +10,8 @@ use crate::{
     paths::PraxisPaths,
     state::{SessionPhase, SessionState},
     storage::{
-        AnatomyStore, ApprovalStore, OperationalMemoryStore, ProviderUsageStore, QualityStore,
-        SessionStore,
+        AnatomyStore, ApprovalStore, DecisionReceiptStore, OperationalMemoryStore,
+        ProviderUsageStore, QualityStore, SessionStore,
     },
     time::Clock,
     tools::ToolRegistry,
@@ -45,7 +45,8 @@ where
         + QualityStore
         + ProviderUsageStore
         + OperationalMemoryStore
-        + AnatomyStore,
+        + AnatomyStore
+        + DecisionReceiptStore,
     T: ToolRegistry,
 {
     pub fn run_once(&self, options: RunOptions) -> Result<RunSummary> {

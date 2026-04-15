@@ -1302,6 +1302,7 @@ Move items upward as they ship:
 - `Completed` **Relational memory layer** — typed `MemoryLink` edges (`caused_by`, `related_to`, `contradicts`, `user_preference`, `follow_up`) stored in SQLite; top hot memories expand through links during context load.
 - `Completed` **Operator reinforcement commands** — `/memories`, `/reinforce <id>`, `/forget <id>`, `/link <from> <type> <to>` Telegram commands for direct memory management.
 - `Completed` **Config sensitivity split** — `security.toml` (gitignored) holds sensitive overrides such as security level; applied on top of committable `praxis.toml` at startup.
+- `Completed` **Decision receipts** — every Decide phase writes a structured audit record (reason code, goal, chosen action, context sources, confidence) to a `decision_receipts` SQLite table; recent receipts surface in context; `/decisions` Telegram command for operator review.
 
 ### Future / Optional
 

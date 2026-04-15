@@ -10,7 +10,7 @@ use crate::{
     paths::PraxisPaths,
     skills,
     state::SessionState,
-    storage::{AnatomyStore, OperationalMemoryStore},
+    storage::{AnatomyStore, DecisionReceiptStore, OperationalMemoryStore},
 };
 
 use super::{
@@ -30,7 +30,9 @@ pub(crate) struct ContextLoadRequest<'a> {
 }
 
 impl LocalContextLoader {
-    pub fn load<S: MemoryStore + MemoryLinkStore + OperationalMemoryStore + AnatomyStore>(
+    pub fn load<
+        S: MemoryStore + MemoryLinkStore + OperationalMemoryStore + AnatomyStore + DecisionReceiptStore,
+    >(
         &self,
         store: &S,
         request: ContextLoadRequest<'_>,
@@ -46,6 +48,7 @@ impl LocalContextLoader {
         let config = adapt_config(config, &paths.context_adaptation_file)?;
         let memory = MemoryLoader.load(store, requested_task, open_goals)?;
         let operational = OperationalMemoryLoader.load(store, requested_task, open_goals)?;
+        let recent_decisions = store.recent_decisions(5)?;
         let reader = TrackedContextReader;
         let inputs = vec![
             source(
@@ -79,6 +82,7 @@ impl LocalContextLoader {
                 ),
             ),
             source("tools", render_tools(tool_summary, &paths.skills_dir)),
+            source("decision_receipts", render_receipts(&recent_decisions)),
             source("task", requested_task.unwrap_or_default().to_string()),
         ];
 
@@ -167,6 +171,40 @@ fn load_operator_model(path: &Path) -> String {
         }
     }
     out
+}
+
+fn render_receipts(receipts: &[crate::storage::StoredDecisionReceipt]) -> String {
+    if receipts.is_empty() {
+        return String::new();
+    }
+    receipts
+        .iter()
+        .map(|r| {
+            let goal = r
+                .goal_id
+                .as_deref()
+                .map(|id| format!(" goal={id}"))
+                .unwrap_or_default();
+            let approval = if r.approval_required { " approval=required" } else { "" };
+            format!(
+                "[{:.0}%]{}{} {} — {}",
+                r.confidence * 100.0,
+                goal,
+                approval,
+                r.reason_code,
+                truncate(&r.chosen_action, 120),
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn truncate(s: &str, max: usize) -> &str {
+    if s.len() <= max {
+        s
+    } else {
+        &s[..max]
+    }
 }
 
 fn tail_lines(content: &str, limit: usize) -> String {

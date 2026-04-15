@@ -1,4 +1,4 @@
-pub(super) const SCHEMA_VERSION: i64 = 11;
+pub(super) const SCHEMA_VERSION: i64 = 12;
 
 pub(super) const BASE_SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -161,6 +161,17 @@ CREATE TABLE IF NOT EXISTS memory_links (
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(from_memory_id, to_memory_id, link_type)
 );
+CREATE TABLE IF NOT EXISTS decision_receipts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_started_at TEXT NOT NULL,
+    reason_code TEXT NOT NULL,
+    goal_id TEXT,
+    chosen_action TEXT NOT NULL,
+    context_sources_json TEXT NOT NULL DEFAULT '[]',
+    confidence REAL NOT NULL DEFAULT 0.0,
+    approval_required INTEGER NOT NULL DEFAULT 0,
+    recorded_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS opportunities (
     id INTEGER PRIMARY KEY,
     signature TEXT NOT NULL UNIQUE,
@@ -193,5 +204,6 @@ pub(super) const EXPECTED_TABLES: &[&str] = &[
     "learning_sources",
     "learning_runs",
     "memory_links",
+    "decision_receipts",
     "opportunities",
 ];
