@@ -1341,6 +1341,12 @@ Move items upward as they ship:
 - **Plugin / extension architecture** — make backends, stores, and adapters more pluggable via stable trait objects so third-party extensions can be compiled separately.
 - **Multi-node / distributed mode** — design a coordination layer for running multiple Praxis instances against shared goals, with conflict resolution and work partitioning.
 - **Security fuzzing** — fuzz the tool manifest parser, approval queue, and boundary enforcement for robustness against malformed or adversarial input.
+- **Zero-LLM deterministic mode** — a rule-based operating mode (flagged in `profiles.toml`) that skips all backend calls and uses static decision logic; enables offline maintenance passes, cost-free CI smoke tests, and a guaranteed fallback when providers are unavailable.
+- **Git-backed state sync** — optional `praxis git-push` that commits SQLite exports and markdown state files to a git remote, giving operators an immutable audit trail and easy rollback of any session's effects.
+- **MCP (Model Context Protocol) native integration** — register Praxis tools and skills as MCP-native resources so other agents and editors can consume them without custom adapters, and let Praxis consume third-party MCP servers as first-class tool sources.
+- **Discord and Slack adapters** — extend `src/messaging/` to cover Discord and Slack with the same activation-mode and typing-indicator model as Telegram, reaching operators on their primary platforms.
+- **Voice transcript streaming** — pipe real-time speech-to-text (Whisper or equivalent) into the ask and run entry points so operators can interact hands-free from a Pi or mobile device.
+- **Serverless / edge entry point** — a minimal stateless Praxis handler compatible with Cloudflare Workers or AWS Lambda for low-frequency, on-demand runs without a persistent process.
 - **VS Code ops surface** — lightweight editor integration for status, current goal, and safe run triggers.
 - **PRD/story-mode dev runtime** — an optional developer-focused operating mode that works from explicit story state and stop signals.
 - **Dedicated TUI launcher** — package a separate headless/SSH-first TUI artifact instead of only exposing terminal UI as a subcommand.
