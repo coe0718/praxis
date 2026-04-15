@@ -27,6 +27,10 @@ fn write_manifest() -> ToolManifest {
         path: None,
         args: Vec::new(),
         timeout_secs: None,
+        endpoint: None,
+        method: None,
+        headers: Vec::new(),
+        body: None,
     }
 }
 

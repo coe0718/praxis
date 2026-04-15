@@ -67,6 +67,8 @@ pub struct PraxisPaths {
     pub activation_file: PathBuf,
     /// Sensitive config overrides separated from the committable `praxis.toml` (`security.toml`).
     pub security_file: PathBuf,
+    /// Sender pairing state — approved + pending unknown-chat requests (`sender_pairing.json`).
+    pub sender_pairing_file: PathBuf,
 }
 
 pub fn detect_platform() -> Platform {
@@ -174,6 +176,7 @@ impl PraxisPaths {
             bus_file: data_dir.join("bus.jsonl"),
             activation_file: data_dir.join("activation.json"),
             security_file: data_dir.join("security.toml"),
+            sender_pairing_file: data_dir.join("sender_pairing.json"),
             benchmarks_dir,
             data_dir,
         }

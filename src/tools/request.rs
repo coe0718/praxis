@@ -7,6 +7,12 @@ use super::ToolManifest;
 pub struct ToolRequestPayload {
     #[serde(default)]
     pub append_text: Option<String>,
+    /// Key-value params substituted into HTTP endpoint/body templates.
+    #[serde(default)]
+    pub params: std::collections::HashMap<String, String>,
+    /// Raw JSON body override for HTTP tools (takes precedence over `body` template).
+    #[serde(default)]
+    pub body: Option<String>,
 }
 
 pub fn build_payload(
@@ -21,6 +27,8 @@ pub fn build_payload(
                 .ok_or_else(|| anyhow::anyhow!("tool {} requires --append-text", manifest.name))?;
             let payload = ToolRequestPayload {
                 append_text: Some(text),
+                params: Default::default(),
+                body: None,
             };
             serde_json::to_string(&payload)
                 .map(Some)
@@ -59,6 +67,10 @@ mod tests {
             path: None,
             args: Vec::new(),
             timeout_secs: None,
+            endpoint: None,
+            method: None,
+            headers: Vec::new(),
+            body: None,
         }
     }
 

@@ -1,5 +1,6 @@
 pub mod anatomy;
 pub mod archive;
+pub mod brief;
 pub mod argus;
 pub mod attachments;
 pub mod backend;
@@ -33,6 +34,7 @@ pub mod state;
 pub mod storage;
 pub mod time;
 pub mod tools;
+pub mod tui;
 pub mod usage;
 pub mod wakeup;
 pub mod wave;

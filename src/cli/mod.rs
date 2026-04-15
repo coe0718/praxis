@@ -3,6 +3,7 @@ pub(crate) mod approvals;
 mod archive;
 mod argus;
 mod boundaries;
+mod brief;
 mod canary;
 pub(crate) mod core;
 mod discord;
@@ -15,6 +16,7 @@ mod serve;
 mod slack;
 mod telegram;
 mod tools;
+mod tui;
 mod vscode;
 mod watchdog;
 
@@ -65,6 +67,8 @@ pub enum Commands {
     Discord(discord::DiscordArgs),
     Slack(slack::SlackArgs),
     Vscode(vscode::VscodeArgs),
+    Tui(tui::TuiArgs),
+    Brief(brief::BriefArgs),
 }
 
 #[derive(Debug, Args)]
@@ -200,6 +204,8 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::Discord(args) => discord::handle_discord(cli.data_dir, args),
         Commands::Slack(args) => slack::handle_slack(cli.data_dir, args),
         Commands::Vscode(args) => vscode::handle_vscode(cli.data_dir, args),
+        Commands::Tui(args) => tui::handle_tui(cli.data_dir, args),
+        Commands::Brief(args) => brief::handle_brief(cli.data_dir, args),
     }
 }
 

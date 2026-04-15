@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     fs::{self, OpenOptions},
     io::Write,
     path::{Path, PathBuf},
@@ -7,6 +8,7 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail};
+use reqwest::blocking::Client;
 
 use crate::{oauth::OAuthTokenStore, paths::PraxisPaths, storage::StoredApprovalRequest};
 
@@ -37,6 +39,14 @@ pub fn execute_request(
                     .is_some_and(|p| !p.trim().is_empty()) =>
             {
                 run_shell(paths, manifest, request)
+            }
+            ToolKind::Http
+                if manifest
+                    .endpoint
+                    .as_deref()
+                    .is_some_and(|e| !e.trim().is_empty()) =>
+            {
+                run_http(paths, manifest, request)
             }
             _ => Ok(fallback_result(
                 manifest,
@@ -162,6 +172,135 @@ fn run_shell(
             manifest.name, output_snippet
         ),
     })
+}
+
+fn run_http(
+    paths: &PraxisPaths,
+    manifest: &ToolManifest,
+    request: &StoredApprovalRequest,
+) -> Result<ToolExecutionResult> {
+    let endpoint_template = manifest
+        .endpoint
+        .as_deref()
+        .filter(|e| !e.trim().is_empty())
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "http tool {} has no 'endpoint' field in its manifest",
+                manifest.name
+            )
+        })?;
+
+    let method = manifest
+        .method
+        .as_deref()
+        .unwrap_or("GET")
+        .to_ascii_uppercase();
+
+    let timeout_secs = manifest
+        .timeout_secs
+        .unwrap_or(DEFAULT_TIMEOUT_SECS)
+        .max(1)
+        .min(120);
+
+    let payload = parse_payload(request.payload_json.as_deref())?;
+
+    // Substitute {param} placeholders in the URL.
+    let url = substitute_params(endpoint_template, &payload.params);
+
+    log::info!(
+        "executing http tool {} {} {}",
+        manifest.name,
+        method,
+        url
+    );
+
+    let client = Client::builder()
+        .timeout(Duration::from_secs(timeout_secs))
+        .build()
+        .context("failed to build HTTP client for tool")?;
+
+    let mut builder = match method.as_str() {
+        "GET" => client.get(&url),
+        "POST" => client.post(&url),
+        "PUT" => client.put(&url),
+        "DELETE" => client.delete(&url),
+        "PATCH" => client.patch(&url),
+        other => bail!("http tool {} has unsupported method {other}", manifest.name),
+    };
+
+    // Apply manifest headers.
+    for header_str in &manifest.headers {
+        if let Some((key, value)) = header_str.split_once(':') {
+            builder = builder.header(key.trim(), value.trim());
+        }
+    }
+
+    // Inject OAuth tokens.
+    let oauth_store = OAuthTokenStore::new(&paths.data_dir);
+    if let Ok(tokens) = oauth_store.load() {
+        for (provider, token) in &tokens {
+            if !token.is_expired() {
+                let header_name = format!("X-Praxis-OAuth-{}", provider_title(provider));
+                builder = builder.header(header_name, &token.access_token);
+            }
+        }
+    }
+
+    // Attach body: explicit payload.body beats manifest.body template.
+    let body_str = payload
+        .body
+        .clone()
+        .or_else(|| manifest.body.as_ref().map(|t| substitute_params(t, &payload.params)));
+
+    if let Some(body) = body_str {
+        builder = builder
+            .header("Content-Type", "application/json")
+            .body(body);
+    }
+
+    let response = builder
+        .send()
+        .with_context(|| format!("failed to send request for http tool {}", manifest.name))?;
+
+    let status = response.status();
+    let body_text = response
+        .text()
+        .unwrap_or_else(|_| "(unreadable body)".to_string());
+
+    if !status.is_success() {
+        bail!(
+            "http tool {} returned {}: {}",
+            manifest.name,
+            status,
+            body_text.chars().take(200).collect::<String>()
+        );
+    }
+
+    let snippet = body_text.chars().take(500).collect::<String>();
+    Ok(ToolExecutionResult {
+        summary: format!(
+            "HTTP tool {} completed ({}).\n{}",
+            manifest.name, status, snippet
+        ),
+    })
+}
+
+/// Substitute `{key}` placeholders in `template` with values from `params`.
+fn substitute_params(template: &str, params: &HashMap<String, String>) -> String {
+    let mut result = template.to_string();
+    for (key, value) in params {
+        result = result.replace(&format!("{{{key}}}"), value);
+    }
+    result
+}
+
+/// Convert a provider name to Title-Case for use in header names.
+fn provider_title(provider: &str) -> String {
+    let mut chars = provider.chars();
+    match chars.next() {
+        None => String::new(),
+        Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+    }
 }
 
 fn append_text(

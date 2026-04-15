@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     bus::{BusEvent, MessageBus},
-    messaging::{ActivationStore, TypingIndicator},
+    messaging::{ActivationStore, TypingIndicator, pairing::PairingStore},
 };
 
 #[derive(Debug, Clone)]
@@ -88,9 +88,13 @@ impl TelegramBot {
 
     /// Poll for new messages, gate them through the activation store, and
     /// publish accepted messages onto the message bus.
+    ///
+    /// `pairing_path` points to `sender_pairing.json`.  Messages from unknown
+    /// chats trigger a one-time code flow rather than being silently dropped.
     pub fn poll_once(
         &self,
         state_path: &Path,
+        pairing_path: &Path,
         bus: &dyn MessageBus,
         activation: &ActivationStore,
     ) -> Result<Vec<TelegramMessage>> {
@@ -104,7 +108,7 @@ impl TelegramBot {
         if next_offset > offset {
             save_offset(state_path, next_offset)?;
         }
-        filter_messages(&self.allowed_chat_ids, &updates, bus, activation)
+        filter_messages(self, &self.allowed_chat_ids, pairing_path, &updates, bus, activation)
     }
 
     pub fn send_message(&self, chat_id: i64, text: &str) -> Result<()> {
@@ -212,13 +216,20 @@ fn has_mention_entity(entities: &Option<Vec<TelegramMessageEntity>>) -> bool {
 
 /// Filter raw updates down to accepted messages, applying the activation gate
 /// for group chats and publishing each accepted message onto the bus.
+///
+/// Unknown chat IDs go through the sender pairing flow instead of being
+/// dropped silently.
 fn filter_messages(
+    bot: &TelegramBot,
     allowed_chat_ids: &[i64],
+    pairing_path: &Path,
     updates: &[TelegramUpdate],
     bus: &dyn MessageBus,
     activation: &ActivationStore,
 ) -> Result<Vec<TelegramMessage>> {
     let mut accepted = Vec::new();
+    let mut pairing = PairingStore::load(pairing_path)?;
+    let mut pairing_dirty = false;
 
     for update in updates {
         let Some(message) = update.message.as_ref() else {
@@ -231,14 +242,37 @@ fn filter_messages(
         if text.is_empty() {
             continue;
         }
-        if !allowed_chat_ids.contains(&message.chat.id) {
+
+        let chat_id = message.chat.id;
+        let in_static_allow_list = allowed_chat_ids.contains(&chat_id);
+        let in_pairing_allow_list = pairing.is_approved(chat_id);
+
+        if !in_static_allow_list && !in_pairing_allow_list {
+            // Unknown chat — run the pairing flow.
+            if !pairing.is_pending(chat_id) {
+                let code = pairing.initiate(chat_id, text);
+                pairing_dirty = true;
+                // Notify the operator via the first allowed chat.
+                if let Some(&operator_chat) = allowed_chat_ids.first() {
+                    let notice = format!(
+                        "⚠️ Unknown sender (chat {chat_id}) wants access.\n\
+                         Their message has been queued.\n\
+                         To approve, send: /approve-sender {code}"
+                    );
+                    // Best-effort — don't fail the whole poll if this errors.
+                    if let Err(e) = bot.send_message(operator_chat, &notice) {
+                        log::warn!("sender pairing notification failed: {e}");
+                    }
+                }
+            }
+            // Already pending — ignore until approved.
             continue;
         }
 
         let is_private = message.chat.r#type == "private" || message.chat.r#type.is_empty();
         let is_mention = has_mention_entity(&message.entities);
         let is_reply = message.reply_to_message.is_some();
-        let conversation_id = message.chat.id.to_string();
+        let conversation_id = chat_id.to_string();
         let sender_id = message.from.as_ref().map(|u| u.id).unwrap_or(0);
 
         // Private chats always pass through; groups obey the activation mode.
@@ -256,13 +290,17 @@ fn filter_messages(
         bus.publish(&event)?;
 
         accepted.push(TelegramMessage {
-            chat_id: message.chat.id,
+            chat_id,
             sender_id,
             text: text.to_string(),
             is_reply,
             is_mention,
             is_private,
         });
+    }
+
+    if pairing_dirty {
+        pairing.save(pairing_path)?;
     }
 
     Ok(accepted)

@@ -6,7 +6,7 @@ use crate::{
     boundaries::{BoundaryReviewState, add_boundary, list_boundaries, review_prompt},
     cli::{ApprovalActionArgs, AskArgs, QueueArgs, RunArgs, approvals, core},
     memory::{MemoryLinkStore, MemoryLinkType, MemoryStore},
-    messaging::{ActivationMode, ActivationStore},
+    messaging::{ActivationMode, ActivationStore, pairing::PairingStore},
     paths::PraxisPaths,
     storage::{DecisionReceiptStore, SqliteSessionStore},
     time::{Clock, SystemClock},
@@ -37,6 +37,8 @@ pub enum TelegramCommand {
     Link(i64, String, i64),
     /// Show the last N decision receipts.
     Decisions,
+    /// Approve an unknown sender by their one-time pairing code.
+    ApproveSender(String),
     Help,
 }
 
@@ -72,6 +74,8 @@ pub fn parse_telegram_command(text: &str) -> TelegramCommand {
             .parse::<i64>()
             .map(TelegramCommand::Forget)
             .unwrap_or(TelegramCommand::Help)
+    } else if let Some(rest) = trimmed.strip_prefix("/approve-sender ") {
+        TelegramCommand::ApproveSender(rest.trim().to_string())
     } else if let Some(rest) = trimmed.strip_prefix("/link ") {
         parse_link_command(rest.trim())
     } else {
@@ -141,6 +145,7 @@ pub fn handle_telegram_command(
             handle_link(data_dir, from_id, &link_type, to_id)
         }
         TelegramCommand::Decisions => handle_decisions(data_dir),
+        TelegramCommand::ApproveSender(code) => handle_approve_sender(data_dir, &code),
         TelegramCommand::Help => Ok(help_text().to_string()),
     }
 }
@@ -168,12 +173,8 @@ fn append_goal(data_dir: std::path::PathBuf, description: &str) -> Result<String
 
 fn render_brief(data_dir: std::path::PathBuf) -> Result<String> {
     let paths = PraxisPaths::for_data_dir(data_dir);
-    let journal = fs::read_to_string(&paths.journal_file)?;
-    let lines = journal.lines().rev().take(8).collect::<Vec<_>>();
-    Ok(format!(
-        "brief:\n{}",
-        lines.into_iter().rev().collect::<Vec<_>>().join("\n")
-    ))
+    let now = SystemClock::from_env()?.now_utc();
+    crate::brief::generate_brief(&paths, now)
 }
 
 fn render_boundaries(data_dir: std::path::PathBuf) -> Result<String> {
@@ -346,6 +347,23 @@ fn handle_decisions(data_dir: std::path::PathBuf) -> Result<String> {
     Ok(lines.join("\n"))
 }
 
+fn handle_approve_sender(data_dir: std::path::PathBuf, code: &str) -> Result<String> {
+    if code.trim().is_empty() {
+        return Ok("usage: /approve-sender <6-digit code>".to_string());
+    }
+    let paths = PraxisPaths::for_data_dir(data_dir);
+    let mut store = PairingStore::load(&paths.sender_pairing_file)?;
+    match store.approve_by_code(code.trim()) {
+        Some((chat_id, queued_text)) => {
+            store.save(&paths.sender_pairing_file)?;
+            Ok(format!(
+                "sender approved\nchat: {chat_id}\nqueued message: {queued_text}"
+            ))
+        }
+        None => Ok(format!("no pending request with code {code}")),
+    }
+}
+
 fn help_text() -> &'static str {
     "supported commands:\n\
      /ask <prompt> — quick stateless question\n\
@@ -364,7 +382,8 @@ fn help_text() -> &'static str {
      /reinforce <id> — boost memory importance\n\
      /forget <id> — delete a memory\n\
      /link <from_id> <type> <to_id> — add relational link (types: caused_by, related_to, contradicts, user_preference, follow_up)\n\
-     /decisions — last 8 decide-phase receipts"
+     /decisions — last 8 decide-phase receipts\n\
+     /approve-sender <code> — approve an unknown chat by its pairing code"
 }
 
 #[cfg(test)]

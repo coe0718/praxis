@@ -18,6 +18,10 @@ fn payload_changes_tool_invocation_key() {
         path: None,
         args: Vec::new(),
         timeout_secs: None,
+        endpoint: None,
+        method: None,
+        headers: Vec::new(),
+        body: None,
     };
     let first = StoredApprovalRequest {
         id: 1,

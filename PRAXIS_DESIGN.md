@@ -1282,6 +1282,17 @@ Move items upward as they ship:
 - **Route classes and rule-based routing** — `ProviderRoute` now carries an optional `class` (`fast`, `reliable`, `local`). The router selects by class when dispatching: Fast for Orient/ask, Reliable for Decide/Act. Unclassed routes match any class as a fallback.
 - **Prompt caching** — Anthropic adapter sends `cache_control: ephemeral` on the system prompt when `agent.prompt_caching = true`, enabling cache-read discounts on repeated Orient/Ask calls.
 - **Env-first onboarding** — `ProviderSettings::load_or_default` now auto-adds claude/openai/ollama routes when `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `OLLAMA_HOST` are set and no matching route is configured.
+- **OAuth token injection** — `oauth::OAuthTokenStore` loads per-provider tokens from `PRAXIS_OAUTH_<UPPER>_TOKEN` env vars at act time; HTTP tool execution automatically injects them as `X-Praxis-OAuth-<Provider>` headers without storing credentials at rest.
+- **Deterministic execution profile** — `profiles.toml` now ships a `deterministic` profile (temperature 0, top-p 0.1, max 512 tokens) for tool-verification tasks requiring repeatable outputs; selectable via `praxis run --profile deterministic`.
+- **Git adapter** — `praxis git status/log/diff/commit/push/pull` wraps git operations as typed Praxis CLI subcommands with data-dir awareness; integrates with the approval gate before destructive operations.
+- **Watchdog install** — `praxis watchdog install/uninstall/status` writes a platform-appropriate process supervisor unit (systemd on Linux, launchd on macOS) so the runtime loop restarts automatically after crashes or reboots.
+- **Discord and Slack adapters** — `praxis discord poll` and `praxis slack poll` handle webhook inbound events and outbound messaging through `DiscordClient` and `SlackClient`; both adapters share the common message-bus and activation-mode infrastructure.
+- **MCP server and client** — `/mcp` HTTP endpoint serves JSON-RPC 2.0 `tools/list`, `tools/call`, `resources/list`, and `resources/read` so Praxis tools and identity files are accessible to any MCP-compatible client; `McpClient` wraps outbound calls.
+- **VS Code surface** — `praxis vscode status/tasks/open` exposes session state, active goals, and file navigation hooks to the VS Code extension API without requiring the main loop to be running.
+- **HTTP tool execution** — tool manifests now carry `endpoint`, `method`, `headers`, and `body` fields; `run_http()` performs `{param}` substitution on URL and body templates, dispatches via `reqwest::blocking::Client`, and injects OAuth tokens as request headers.
+- **TUI dashboard** — `praxis tui` launches a full-screen `ratatui` terminal UI showing current phase (color-coded), active goal, last outcome, tool count, pending approvals, and recent events; refreshes at 750 ms; exits on `q` or Ctrl-C.
+- **Morning brief** — `praxis brief` and Telegram `/brief` now aggregate active goals, top hot memories, pending approvals, boundary review status, recent events, and a journal excerpt into a single operator-facing summary sized for a Telegram message.
+- **Sender pairing** — unknown Telegram chat IDs now trigger a 6-digit one-time pairing code instead of a silent drop; the code is delivered to the operator's primary chat, the first message is queued, and all further input from the unknown chat is held until the operator sends `/approve-sender <code>`.
 
 ### Adopt Soon
 

@@ -91,7 +91,7 @@ fn process_messages(bot: &TelegramBot, paths: &crate::paths::PraxisPaths) -> Res
     let bus = FileBus::new(&paths.bus_file);
     let activation = ActivationStore::load(&paths.activation_file)?;
 
-    let messages = bot.poll_once(&paths.telegram_state_file, &bus, &activation)?;
+    let messages = bot.poll_once(&paths.telegram_state_file, &paths.sender_pairing_file, &bus, &activation)?;
 
     for message in &messages {
         // Emit typing indicator while processing the command.

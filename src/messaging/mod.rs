@@ -1,5 +1,6 @@
 pub mod activation;
 pub mod discord;
+pub mod pairing;
 mod router;
 pub mod slack;
 mod telegram;
