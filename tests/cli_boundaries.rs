@@ -62,7 +62,9 @@ fn boundaries_are_editable_and_track_weekly_review_state() {
         .assert()
         .success()
         .stdout(predicate::str::contains("boundary_review_due: false"))
-        .stdout(predicate::str::contains("last_boundary_review: 2026-04-04T12:10:00+00:00"));
+        .stdout(predicate::str::contains(
+            "last_boundary_review: 2026-04-04T12:10:00+00:00",
+        ));
 
     let identity = fs::read_to_string(data_dir.join("IDENTITY.md")).unwrap();
     assert!(identity.contains("Never deploy after midnight"));

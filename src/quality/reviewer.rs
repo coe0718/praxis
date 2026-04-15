@@ -206,7 +206,10 @@ fn run_shell_bounded(
         let stderr = String::from_utf8_lossy(&output.stderr);
         let raw = format!("{stdout}\n{stderr}");
         if raw.len() > max_output_bytes {
-            format!("{}… (truncated to {max_output_bytes} bytes)", &raw[..max_output_bytes])
+            format!(
+                "{}… (truncated to {max_output_bytes} bytes)",
+                &raw[..max_output_bytes]
+            )
         } else {
             raw
         }

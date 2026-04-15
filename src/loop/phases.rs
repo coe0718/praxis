@@ -1,7 +1,9 @@
 use anyhow::{Context, Result};
 
 use crate::{
-    context::{ContextLoadRequest, LocalContextLoader, compact_if_needed, consume_compact, handoff},
+    context::{
+        ContextLoadRequest, LocalContextLoader, compact_if_needed, consume_compact, handoff,
+    },
     memory::{MemoryLinkStore, MemoryStore},
     state::SessionState,
     storage::{

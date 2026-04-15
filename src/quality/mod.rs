@@ -1,17 +1,17 @@
+mod evals;
 pub mod evaluate;
 pub mod gates;
-mod evals;
 mod reviewer;
 
 use std::path::Path;
 
 use anyhow::Result;
 
-pub use evaluate::{
-    EvaluateConfig, EvaluateResult, EvaluatorVerdict, GeneratorOutput, run_evaluate_loop,
-};
 pub use evals::{
     EvalDefinition, EvalOutcome, EvalRunner, EvalSummary, EvalTrigger, LocalEvalSuite, summarize,
+};
+pub use evaluate::{
+    EvaluateConfig, EvaluateResult, EvaluatorVerdict, GeneratorOutput, run_evaluate_loop,
 };
 pub use gates::{
     CredentialScrubGate, ForbiddenPhraseGate, GateDecision, GatePipeline, MaxLengthGate,

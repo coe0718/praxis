@@ -254,7 +254,10 @@ mod tests {
     #[test]
     fn non_empty_gate_blocks_blank_response() {
         let gate = NonEmptyGate;
-        assert_eq!(gate.check("   \n"), GateDecision::Block("Response is empty.".to_string()));
+        assert_eq!(
+            gate.check("   \n"),
+            GateDecision::Block("Response is empty.".to_string())
+        );
         assert_eq!(gate.check("Hello"), GateDecision::Pass);
     }
 
@@ -264,7 +267,10 @@ mod tests {
             .add(NonEmptyGate)
             .add(MaxLengthGate { max_bytes: 5 });
 
-        assert_eq!(pipeline.run(""), GateDecision::Block("Response is empty.".to_string()));
+        assert_eq!(
+            pipeline.run(""),
+            GateDecision::Block("Response is empty.".to_string())
+        );
         match pipeline.run("Too long for the limit.") {
             GateDecision::RetryWithFeedback(_) => {}
             other => panic!("expected RetryWithFeedback, got {other:?}"),

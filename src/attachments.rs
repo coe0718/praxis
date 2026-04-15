@@ -1,4 +1,7 @@
-use std::{fs, path::{Path, PathBuf}};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use anyhow::{Context, Result, bail};
 
@@ -62,12 +65,7 @@ fn render_chunks(path: &Path, content: &str, byte_len: usize) -> String {
         total_parts
     )];
     for (index, part) in parts.into_iter().enumerate() {
-        lines.push(format!(
-            "\n[chunk {}/{}]\n{}",
-            index + 1,
-            total_parts,
-            part
-        ));
+        lines.push(format!("\n[chunk {}/{}]\n{}", index + 1, total_parts, part));
     }
     lines.join("\n")
 }
@@ -129,7 +127,10 @@ fn truncate_chars(content: &str, limit: usize) -> String {
     if content.chars().count() <= limit {
         return content.to_string();
     }
-    let shortened = content.chars().take(limit.saturating_sub(3)).collect::<String>();
+    let shortened = content
+        .chars()
+        .take(limit.saturating_sub(3))
+        .collect::<String>();
     format!("{}...", shortened.trim_end())
 }
 
@@ -139,7 +140,10 @@ mod tests {
 
     #[test]
     fn parses_policy_values() {
-        assert_eq!(AttachmentPolicy::parse("chunk").unwrap(), AttachmentPolicy::Chunk);
+        assert_eq!(
+            AttachmentPolicy::parse("chunk").unwrap(),
+            AttachmentPolicy::Chunk
+        );
         assert!(AttachmentPolicy::parse("bogus").is_err());
     }
 

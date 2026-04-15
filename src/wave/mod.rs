@@ -28,7 +28,7 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 
 // ── Node ──────────────────────────────────────────────────────────────────────
@@ -87,11 +87,7 @@ impl WaveGraph {
         for node in &self.nodes {
             for dep in &node.deps {
                 if !node_map.contains_key(dep) {
-                    bail!(
-                        "node {} depends on unknown node {}",
-                        node.id,
-                        dep
-                    );
+                    bail!("node {} depends on unknown node {}", node.id, dep);
                 }
             }
         }
@@ -131,10 +127,7 @@ impl WaveGraph {
         while !queue.is_empty() {
             // Collect all nodes currently in the queue as one wave.
             let wave_ids: Vec<&str> = queue.drain(..).collect();
-            let mut wave: Vec<WaveNode> = wave_ids
-                .iter()
-                .map(|&id| node_map[id].clone())
-                .collect();
+            let mut wave: Vec<WaveNode> = wave_ids.iter().map(|&id| node_map[id].clone()).collect();
             wave.sort_by(|a, b| a.id.cmp(&b.id));
             processed += wave.len();
 
@@ -144,9 +137,9 @@ impl WaveGraph {
                 if let Some(deps_on) = dependents.get(id) {
                     for &dep_id in deps_on {
                         // Safety: dep_id was validated as a known node above.
-                        let deg = in_degree
-                            .get_mut(dep_id)
-                            .ok_or_else(|| anyhow::anyhow!("internal: missing in-degree entry for node {dep_id}"))?;
+                        let deg = in_degree.get_mut(dep_id).ok_or_else(|| {
+                            anyhow::anyhow!("internal: missing in-degree entry for node {dep_id}")
+                        })?;
                         *deg -= 1;
                         if *deg == 0 {
                             next.push(dep_id);
@@ -257,9 +250,18 @@ where
 
 /// Format a wave execution summary for logging.
 pub fn summarize_waves(results: &[WaveNodeResult]) -> String {
-    let success = results.iter().filter(|r| r.outcome == WaveOutcome::Success).count();
-    let failed = results.iter().filter(|r| r.outcome == WaveOutcome::Failed).count();
-    let skipped = results.iter().filter(|r| r.outcome == WaveOutcome::Skipped).count();
+    let success = results
+        .iter()
+        .filter(|r| r.outcome == WaveOutcome::Success)
+        .count();
+    let failed = results
+        .iter()
+        .filter(|r| r.outcome == WaveOutcome::Failed)
+        .count();
+    let skipped = results
+        .iter()
+        .filter(|r| r.outcome == WaveOutcome::Skipped)
+        .count();
     format!(
         "Wave execution: {}/{} succeeded, {} failed, {} skipped",
         success,
@@ -323,10 +325,7 @@ mod tests {
 
     #[test]
     fn cycle_returns_error() {
-        let graph = WaveGraph::new(vec![
-            node_deps("a", &["b"]),
-            node_deps("b", &["a"]),
-        ]);
+        let graph = WaveGraph::new(vec![node_deps("a", &["b"]), node_deps("b", &["a"])]);
         assert!(graph.into_waves().is_err());
     }
 
@@ -338,10 +337,7 @@ mod tests {
 
     #[test]
     fn execute_waves_runs_all_and_collects_results() {
-        let graph = WaveGraph::new(vec![
-            node("a"),
-            node_deps("b", &["a"]),
-        ]);
+        let graph = WaveGraph::new(vec![node("a"), node_deps("b", &["a"])]);
         let results = execute_waves(graph, |n| Ok(format!("ran {}", n.id))).unwrap();
         assert_eq!(results.len(), 2);
         assert!(results.iter().all(|r| r.outcome == WaveOutcome::Success));
@@ -371,11 +367,7 @@ mod tests {
     #[test]
     fn sibling_in_same_wave_still_runs_when_unrelated_node_fails() {
         // a and b are independent; c depends on a only.
-        let graph = WaveGraph::new(vec![
-            node("a"),
-            node("b"),
-            node_deps("c", &["a"]),
-        ]);
+        let graph = WaveGraph::new(vec![node("a"), node("b"), node_deps("c", &["a"])]);
         let results = execute_waves(graph, |n| {
             if n.id == "a" {
                 bail!("a failed")
@@ -394,11 +386,7 @@ mod tests {
 
     #[test]
     fn summarize_gives_correct_counts() {
-        let graph = WaveGraph::new(vec![
-            node("a"),
-            node("b"),
-            node_deps("c", &["a"]),
-        ]);
+        let graph = WaveGraph::new(vec![node("a"), node("b"), node_deps("c", &["a"])]);
         let results = execute_waves(graph, |n| {
             if n.id == "a" {
                 bail!("fail")

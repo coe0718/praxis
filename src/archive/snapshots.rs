@@ -86,7 +86,12 @@ fn export_snapshot(
         output_dir.join(MANIFEST_FILE),
         serde_json::to_string_pretty(&manifest).context("failed to serialize snapshot manifest")?,
     )
-    .with_context(|| format!("failed to write {}", output_dir.join(MANIFEST_FILE).display()))?;
+    .with_context(|| {
+        format!(
+            "failed to write {}",
+            output_dir.join(MANIFEST_FILE).display()
+        )
+    })?;
 
     Ok(SnapshotExportSummary {
         output_dir: output_dir.to_path_buf(),
@@ -110,7 +115,8 @@ fn prune_old_snapshots(root: &std::path::Path, keep: usize) -> Result<usize> {
 
     let remove_count = snapshots.len().saturating_sub(keep);
     for path in snapshots.into_iter().take(remove_count) {
-        fs::remove_dir_all(&path).with_context(|| format!("failed to remove {}", path.display()))?;
+        fs::remove_dir_all(&path)
+            .with_context(|| format!("failed to remove {}", path.display()))?;
     }
     Ok(remove_count)
 }

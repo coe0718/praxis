@@ -46,9 +46,8 @@ impl GoogleOAuth {
              Create a 'TV and limited input devices' OAuth client at \
              https://console.cloud.google.com/apis/credentials",
         )?;
-        let client_secret = std::env::var("PRAXIS_GOOGLE_OAUTH_CLIENT_SECRET").context(
-            "PRAXIS_GOOGLE_OAUTH_CLIENT_SECRET is required for Google OAuth.",
-        )?;
+        let client_secret = std::env::var("PRAXIS_GOOGLE_OAUTH_CLIENT_SECRET")
+            .context("PRAXIS_GOOGLE_OAUTH_CLIENT_SECRET is required for Google OAuth.")?;
         Ok(Self {
             client_id,
             client_secret,
@@ -91,10 +90,7 @@ impl GoogleOAuth {
 
         // Google returns scopes space-separated.
         let scope_str = result.scope.as_deref().unwrap_or(scopes);
-        let scopes_list = scope_str
-            .split_whitespace()
-            .map(str::to_string)
-            .collect();
+        let scopes_list = scope_str.split_whitespace().map(str::to_string).collect();
 
         Ok(OAuthToken {
             provider: "google".to_string(),
@@ -109,10 +105,9 @@ impl GoogleOAuth {
 
     /// Exchange a refresh token for a fresh access token.
     pub fn refresh(&self, token: &OAuthToken) -> Result<OAuthToken> {
-        let refresh_token = token
-            .refresh_token
-            .as_deref()
-            .context("google token has no refresh_token — please run `praxis oauth login google` again")?;
+        let refresh_token = token.refresh_token.as_deref().context(
+            "google token has no refresh_token — please run `praxis oauth login google` again",
+        )?;
 
         let params = [
             ("client_id", self.client_id.as_str()),

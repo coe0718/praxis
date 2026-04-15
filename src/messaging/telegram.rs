@@ -199,8 +199,7 @@ fn save_offset(path: &Path, last_update_id: i64) -> Result<()> {
             .with_context(|| format!("failed to create {}", parent.display()))?;
     }
     let state = TelegramState { last_update_id };
-    let raw =
-        serde_json::to_string_pretty(&state).context("failed to serialize Telegram state")?;
+    let raw = serde_json::to_string_pretty(&state).context("failed to serialize Telegram state")?;
     fs::write(path, raw).with_context(|| format!("failed to write {}", path.display()))
 }
 

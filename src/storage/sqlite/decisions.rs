@@ -50,8 +50,7 @@ impl DecisionReceiptStore for SqliteSessionStore {
         let rows = stmt
             .query_map(params![limit as i64], |row| {
                 let sources_json: String = row.get(5)?;
-                let sources: Vec<String> =
-                    serde_json::from_str(&sources_json).unwrap_or_default();
+                let sources: Vec<String> = serde_json::from_str(&sources_json).unwrap_or_default();
                 Ok(StoredDecisionReceipt {
                     id: row.get(0)?,
                     session_started_at: row.get(1)?,
@@ -79,7 +78,9 @@ mod tests {
     use chrono::TimeZone;
     use tempfile::tempdir;
 
-    use crate::storage::{DecisionReceiptStore, NewDecisionReceipt, SessionStore, SqliteSessionStore};
+    use crate::storage::{
+        DecisionReceiptStore, NewDecisionReceipt, SessionStore, SqliteSessionStore,
+    };
 
     #[test]
     fn records_and_retrieves_decisions() {

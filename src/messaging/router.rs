@@ -116,9 +116,7 @@ pub fn handle_telegram_command(
             },
         ),
         TelegramCommand::Status => core::handle_status(Some(data_dir)),
-        TelegramCommand::Queue => {
-            approvals::handle_queue(Some(data_dir), QueueArgs { all: false })
-        }
+        TelegramCommand::Queue => approvals::handle_queue(Some(data_dir), QueueArgs { all: false }),
         TelegramCommand::Approve(id) => approvals::handle_approval_action(
             Some(data_dir),
             ApprovalActionArgs { id, note: None },
@@ -134,9 +132,7 @@ pub fn handle_telegram_command(
         TelegramCommand::Health => core::handle_doctor(Some(data_dir)),
         TelegramCommand::Boundaries => render_boundaries(data_dir),
         TelegramCommand::BoundariesAdd(rule) => append_boundary(data_dir, &rule),
-        TelegramCommand::Activation(mode_str) => {
-            handle_activation(data_dir, chat_id, &mode_str)
-        }
+        TelegramCommand::Activation(mode_str) => handle_activation(data_dir, chat_id, &mode_str),
         TelegramCommand::Memories => handle_memories(data_dir),
         TelegramCommand::Reinforce(id) => handle_reinforce(data_dir, id),
         TelegramCommand::Forget(id) => handle_forget(data_dir, id),
@@ -202,11 +198,7 @@ fn append_boundary(data_dir: std::path::PathBuf, rule: &str) -> Result<String> {
     Ok(format!("boundary: added\nrule: {rule}"))
 }
 
-fn handle_activation(
-    data_dir: std::path::PathBuf,
-    chat_id: i64,
-    mode_str: &str,
-) -> Result<String> {
+fn handle_activation(data_dir: std::path::PathBuf, chat_id: i64, mode_str: &str) -> Result<String> {
     let paths = PraxisPaths::for_data_dir(data_dir);
     let mut store = ActivationStore::load(&paths.activation_file)?;
 
@@ -326,8 +318,16 @@ fn handle_decisions(data_dir: std::path::PathBuf) -> Result<String> {
 
     let mut lines = vec!["decisions (oldest first):".to_string()];
     for r in &receipts {
-        let goal = r.goal_id.as_deref().map(|id| format!(" [{id}]")).unwrap_or_default();
-        let approval = if r.approval_required { " ⚠ approval" } else { "" };
+        let goal = r
+            .goal_id
+            .as_deref()
+            .map(|id| format!(" [{id}]"))
+            .unwrap_or_default();
+        let approval = if r.approval_required {
+            " ⚠ approval"
+        } else {
+            ""
+        };
         let action = if r.chosen_action.len() > 80 {
             format!("{}…", &r.chosen_action[..80])
         } else {

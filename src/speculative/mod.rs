@@ -146,7 +146,10 @@ pub fn select_branch(
     let best_score = &scores[best_idx];
 
     let rationale = if success_criteria.is_empty() && trust_constraints.is_empty() {
-        format!("Selected {} (first branch, no criteria provided).", winner.id)
+        format!(
+            "Selected {} (first branch, no criteria provided).",
+            winner.id
+        )
     } else {
         format!(
             "Selected {} — score {} ({}/{} criteria matched, {} trust violations).",

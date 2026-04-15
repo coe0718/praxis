@@ -70,7 +70,8 @@ impl CompactionRequest {
 /// Write a compaction request to the data directory.
 pub fn request_compact(data_dir: &Path, req: &CompactionRequest) -> Result<()> {
     let path = data_dir.join(FILENAME);
-    let raw = serde_json::to_string_pretty(req).context("failed to serialize compaction request")?;
+    let raw =
+        serde_json::to_string_pretty(req).context("failed to serialize compaction request")?;
     fs::write(&path, raw)
         .with_context(|| format!("failed to write compaction request to {}", path.display()))
 }

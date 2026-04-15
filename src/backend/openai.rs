@@ -104,9 +104,7 @@ fn resolve_api_key(provider: &str) -> Result<String> {
     std::env::var(&env_name)
         .or_else(|_| std::env::var("OPENAI_API_KEY"))
         .with_context(|| {
-            format!(
-                "no API key found for provider '{provider}': set {env_name} or OPENAI_API_KEY"
-            )
+            format!("no API key found for provider '{provider}': set {env_name} or OPENAI_API_KEY")
         })
 }
 
@@ -133,8 +131,8 @@ fn stubbed(route: &ProviderRoute, phase: &str) -> Result<Option<ProviderResponse
     let stub_key = format!("PRAXIS_{upper}_STUB_RESPONSE");
 
     // Also accept the legacy PRAXIS_OPENAI_* keys for the "openai" provider.
-    if let Ok(error) = std::env::var(&force_error_key)
-        .or_else(|_| std::env::var("PRAXIS_OPENAI_FORCE_ERROR"))
+    if let Ok(error) =
+        std::env::var(&force_error_key).or_else(|_| std::env::var("PRAXIS_OPENAI_FORCE_ERROR"))
     {
         bail!("{error}");
     }

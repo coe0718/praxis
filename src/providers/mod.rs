@@ -85,9 +85,11 @@ impl ProviderSettings {
         let has_ollama = settings.providers.iter().any(|r| r.provider == "ollama");
 
         if !has_claude && std::env::var("ANTHROPIC_API_KEY").is_ok() {
-            settings
-                .providers
-                .push(ProviderRoute::new("claude", "claude-3-5-sonnet-latest", None));
+            settings.providers.push(ProviderRoute::new(
+                "claude",
+                "claude-3-5-sonnet-latest",
+                None,
+            ));
         }
 
         if !has_openai && std::env::var("OPENAI_API_KEY").is_ok() {

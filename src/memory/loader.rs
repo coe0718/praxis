@@ -36,12 +36,18 @@ impl MemoryLoader {
                 .collect::<Vec<_>>();
 
             if hot.is_empty() && cold.is_empty() {
-                (store.recent_hot_memories(3)?, store.strongest_cold_memories(3)?)
+                (
+                    store.recent_hot_memories(3)?,
+                    store.strongest_cold_memories(3)?,
+                )
             } else {
                 (hot, cold)
             }
         } else {
-            (store.recent_hot_memories(3)?, store.strongest_cold_memories(3)?)
+            (
+                store.recent_hot_memories(3)?,
+                store.strongest_cold_memories(3)?,
+            )
         };
 
         // Expand the top 3 hot memories through their relational links.
@@ -57,7 +63,12 @@ impl MemoryLoader {
             }
         }
 
-        Ok(LoadedMemoryContext { hot, cold, linked, query })
+        Ok(LoadedMemoryContext {
+            hot,
+            cold,
+            linked,
+            query,
+        })
     }
 }
 

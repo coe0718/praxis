@@ -230,11 +230,11 @@ fn handle_bench(data_dir_override: Option<PathBuf>, args: BenchArgs) -> Result<S
 
 fn handle_compact(data_dir_override: Option<PathBuf>, args: CompactArgs) -> Result<String> {
     use crate::{
-        context::request_compact,
         context::CompactionRequest,
+        context::request_compact,
         paths::{PraxisPaths, default_data_dir},
-        time::SystemClock,
         time::Clock,
+        time::SystemClock,
     };
 
     let data_dir = data_dir_override.unwrap_or(default_data_dir()?);
@@ -278,7 +278,11 @@ fn handle_wake(data_dir_override: Option<PathBuf>, args: WakeArgs) -> Result<Str
     Ok(format!(
         "wake intent written\nsource: {}\npriority: {}\nreason: {}",
         intent.source,
-        if intent.is_urgent() { "urgent" } else { "normal" },
+        if intent.is_urgent() {
+            "urgent"
+        } else {
+            "normal"
+        },
         intent.reason,
     ))
 }

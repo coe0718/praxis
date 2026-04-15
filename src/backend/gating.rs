@@ -1,6 +1,8 @@
 use anyhow::{Result, bail};
 
-use crate::{canary::ModelCanaryLedger, config::AppConfig, paths::PraxisPaths, providers::ProviderRoute};
+use crate::{
+    canary::ModelCanaryLedger, config::AppConfig, paths::PraxisPaths, providers::ProviderRoute,
+};
 
 #[derive(Debug, Clone)]
 pub struct CanaryGate {

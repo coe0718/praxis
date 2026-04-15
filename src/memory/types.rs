@@ -117,12 +117,7 @@ pub trait MemoryStore {
 /// Typed relational links between memories.
 pub trait MemoryLinkStore {
     /// Record a directed link between two memories.  Idempotent.
-    fn add_memory_link(
-        &self,
-        from_id: i64,
-        to_id: i64,
-        link_type: MemoryLinkType,
-    ) -> Result<()>;
+    fn add_memory_link(&self, from_id: i64, to_id: i64, link_type: MemoryLinkType) -> Result<()>;
 
     /// All links involving `memory_id` as either the source or target.
     fn links_for(&self, memory_id: i64) -> Result<Vec<MemoryLink>>;

@@ -31,7 +31,11 @@ pub(crate) struct ContextLoadRequest<'a> {
 
 impl LocalContextLoader {
     pub fn load<
-        S: MemoryStore + MemoryLinkStore + OperationalMemoryStore + AnatomyStore + DecisionReceiptStore,
+        S: MemoryStore
+            + MemoryLinkStore
+            + OperationalMemoryStore
+            + AnatomyStore
+            + DecisionReceiptStore,
     >(
         &self,
         store: &S,
@@ -51,15 +55,15 @@ impl LocalContextLoader {
         let recent_decisions = store.recent_decisions(5)?;
         let reader = TrackedContextReader;
         let inputs = vec![
-            source(
-                "soul",
-                reader.read(store, state, &paths.soul_file, "soul")?,
-            ),
+            source("soul", reader.read(store, state, &paths.soul_file, "soul")?),
             source(
                 "identity",
                 reader.read(store, state, &paths.identity_file, "identity")?,
             ),
-            source("operator_model", load_operator_model(&paths.operator_model_file)),
+            source(
+                "operator_model",
+                load_operator_model(&paths.operator_model_file),
+            ),
             source(
                 "agents",
                 reader.read(store, state, &paths.agents_file, "agents")?,
@@ -185,7 +189,11 @@ fn render_receipts(receipts: &[crate::storage::StoredDecisionReceipt]) -> String
                 .as_deref()
                 .map(|id| format!(" goal={id}"))
                 .unwrap_or_default();
-            let approval = if r.approval_required { " approval=required" } else { "" };
+            let approval = if r.approval_required {
+                " approval=required"
+            } else {
+                ""
+            };
             format!(
                 "[{:.0}%]{}{} {} — {}",
                 r.confidence * 100.0,
@@ -200,11 +208,7 @@ fn render_receipts(receipts: &[crate::storage::StoredDecisionReceipt]) -> String
 }
 
 fn truncate(s: &str, max: usize) -> &str {
-    if s.len() <= max {
-        s
-    } else {
-        &s[..max]
-    }
+    if s.len() <= max { s } else { &s[..max] }
 }
 
 fn tail_lines(content: &str, limit: usize) -> String {

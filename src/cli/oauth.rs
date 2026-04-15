@@ -5,8 +5,7 @@ use clap::{Args, Subcommand};
 
 use crate::{
     oauth::{
-        GitHubOAuth, GoogleOAuth, OAuthTokenStore,
-        github::DEFAULT_SCOPES as GITHUB_DEFAULT_SCOPES,
+        GitHubOAuth, GoogleOAuth, OAuthTokenStore, github::DEFAULT_SCOPES as GITHUB_DEFAULT_SCOPES,
         google::DEFAULT_SCOPES as GOOGLE_DEFAULT_SCOPES,
     },
     paths::{PraxisPaths, default_data_dir},
@@ -94,11 +93,9 @@ fn handle_status(store: &OAuthTokenStore) -> Result<String> {
     let tokens = store.load()?;
 
     if tokens.is_empty() {
-        return Ok(
-            "No OAuth providers authorized.\n\
+        return Ok("No OAuth providers authorized.\n\
              Run `praxis oauth login github` or `praxis oauth login google` to connect."
-                .to_string(),
-        );
+            .to_string());
     }
 
     let mut lines = Vec::new();
@@ -132,9 +129,9 @@ fn handle_status(store: &OAuthTokenStore) -> Result<String> {
 
 fn handle_token(store: &OAuthTokenStore, provider: &str) -> Result<String> {
     let prov = provider.to_lowercase();
-    let token = store
-        .get(&prov)?
-        .with_context(|| format!("no token for '{provider}' — run `praxis oauth login {provider}`"))?;
+    let token = store.get(&prov)?.with_context(|| {
+        format!("no token for '{provider}' — run `praxis oauth login {provider}`")
+    })?;
 
     if token.is_expired() {
         bail!(

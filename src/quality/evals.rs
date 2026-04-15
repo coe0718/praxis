@@ -71,7 +71,11 @@ impl EvalRunner for LocalEvalSuite {
 }
 
 impl LocalEvalSuite {
-    pub fn run_trigger(&self, paths: &PraxisPaths, trigger: EvalTrigger) -> Result<Vec<EvalOutcome>> {
+    pub fn run_trigger(
+        &self,
+        paths: &PraxisPaths,
+        trigger: EvalTrigger,
+    ) -> Result<Vec<EvalOutcome>> {
         let mut results = Vec::new();
         for path in json_files(&paths.evals_dir)? {
             let definition = load_eval(&path)?;

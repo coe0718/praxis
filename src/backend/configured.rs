@@ -10,8 +10,9 @@ use crate::{
 use super::{
     AgentBackend, BackendOutput, ProviderRequest, StubBackend,
     attempts::failed_attempt,
-    claude, ollama, openai,
+    claude,
     gating::CanaryGate,
+    ollama, openai,
     prompts::{request_for_ask, request_for_finalize, request_for_plan},
     provider_routes::{default_route, route_for, validate_provider},
 };

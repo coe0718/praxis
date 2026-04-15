@@ -4,7 +4,9 @@ use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
 
 use crate::{
-    boundaries::{BoundaryReviewState, add_boundary, confirm_review, list_boundaries, review_prompt},
+    boundaries::{
+        BoundaryReviewState, add_boundary, confirm_review, list_boundaries, review_prompt,
+    },
     cli::core::load_initialized_config,
     time::{Clock, SystemClock},
 };

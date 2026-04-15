@@ -5,8 +5,8 @@ use serde::Serialize;
 
 use crate::{
     argus::analyze,
-    canary::ModelCanaryLedger,
     boundaries::{BoundaryReviewState, review_prompt},
+    canary::ModelCanaryLedger,
     config::AppConfig,
     events::{Event, read_events_since},
     learning::StoredLearningRun,

@@ -20,8 +20,8 @@ impl BoundaryReviewState {
         }
         let raw = fs::read_to_string(path)
             .with_context(|| format!("failed to read {}", path.display()))?;
-        let state: Self =
-            serde_json::from_str(&raw).with_context(|| format!("invalid JSON in {}", path.display()))?;
+        let state: Self = serde_json::from_str(&raw)
+            .with_context(|| format!("invalid JSON in {}", path.display()))?;
         state.validate()?;
         Ok(state)
     }
@@ -46,8 +46,9 @@ impl BoundaryReviewState {
 
     pub fn validate(&self) -> Result<()> {
         if let Some(last_confirmed_at) = &self.last_confirmed_at {
-            DateTime::parse_from_rfc3339(last_confirmed_at)
-                .with_context(|| format!("invalid boundary review timestamp {last_confirmed_at}"))?;
+            DateTime::parse_from_rfc3339(last_confirmed_at).with_context(|| {
+                format!("invalid boundary review timestamp {last_confirmed_at}")
+            })?;
         }
         Ok(())
     }

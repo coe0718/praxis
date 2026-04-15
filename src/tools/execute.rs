@@ -30,7 +30,12 @@ pub fn execute_request(
         }),
         "praxis-data-write" => append_text(paths, manifest, request),
         _ => match manifest.kind {
-            ToolKind::Shell if manifest.path.as_deref().is_some_and(|p| !p.trim().is_empty()) => {
+            ToolKind::Shell
+                if manifest
+                    .path
+                    .as_deref()
+                    .is_some_and(|p| !p.trim().is_empty()) =>
+            {
                 run_shell(manifest, request)
             }
             _ => Ok(fallback_result(

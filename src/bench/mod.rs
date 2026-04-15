@@ -178,8 +178,7 @@ fn append_results(log_file: &std::path::Path, results: &[BenchmarkResult]) -> Re
         .open(log_file)
         .with_context(|| format!("failed to open {}", log_file.display()))?;
     for result in results {
-        let line =
-            serde_json::to_string(result).context("failed to serialize benchmark result")?;
+        let line = serde_json::to_string(result).context("failed to serialize benchmark result")?;
         writeln!(file, "{line}")
             .with_context(|| format!("failed to write to {}", log_file.display()))?;
     }
@@ -233,9 +232,18 @@ impl BenchmarkResult {
 // ── Summary helpers ───────────────────────────────────────────────────────────
 
 pub fn summarize_results(results: &[BenchmarkResult]) -> String {
-    let passed = results.iter().filter(|r| r.status == BenchmarkStatus::Passed).count();
-    let failed = results.iter().filter(|r| r.status == BenchmarkStatus::Failed).count();
-    let errors = results.iter().filter(|r| r.status == BenchmarkStatus::Error).count();
+    let passed = results
+        .iter()
+        .filter(|r| r.status == BenchmarkStatus::Passed)
+        .count();
+    let failed = results
+        .iter()
+        .filter(|r| r.status == BenchmarkStatus::Failed)
+        .count();
+    let errors = results
+        .iter()
+        .filter(|r| r.status == BenchmarkStatus::Error)
+        .count();
     format!(
         "Benchmarks: {}/{} passed, {} failed, {} errors",
         passed,

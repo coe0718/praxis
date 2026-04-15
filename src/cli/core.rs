@@ -47,7 +47,10 @@ pub(crate) fn handle_init(data_dir_override: Option<PathBuf>, args: InitArgs) ->
     ProviderSettings::default().save_if_missing(&paths.providers_file)?;
     ProfileSettings::default().save_if_missing(&paths.profiles_file)?;
     UsageBudgetPolicy::default().save_if_missing(&paths.budgets_file)?;
-    ModelCanaryLedger { records: Vec::new() }.save_if_missing(&paths.model_canary_file)?;
+    ModelCanaryLedger {
+        records: Vec::new(),
+    }
+    .save_if_missing(&paths.model_canary_file)?;
     BoundaryReviewState::default().save_if_missing(&paths.boundary_review_file)?;
 
     let store = SqliteSessionStore::new(paths.database_file.clone());

@@ -128,7 +128,11 @@ pub fn is_pending(data_dir: &Path) -> bool {
 
 /// Format a wake intent summary for logging.
 pub fn format_summary(intent: &WakeIntent) -> String {
-    let priority = if intent.is_urgent() { "urgent" } else { "normal" };
+    let priority = if intent.is_urgent() {
+        "urgent"
+    } else {
+        "normal"
+    };
     let task = intent
         .task
         .as_deref()

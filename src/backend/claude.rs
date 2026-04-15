@@ -95,11 +95,7 @@ pub(super) fn execute(
         .as_ref()
         .map(|u| u.input_tokens + u.cache_read_input_tokens.unwrap_or(0))
         .unwrap_or(0);
-    let output_tokens = parsed
-        .usage
-        .as_ref()
-        .map(|u| u.output_tokens)
-        .unwrap_or(0);
+    let output_tokens = parsed.usage.as_ref().map(|u| u.output_tokens).unwrap_or(0);
 
     Ok(ProviderResponse {
         summary: text,

@@ -65,7 +65,12 @@ pub fn write_if_needed(
         return Ok(false);
     }
 
-    let note = HandoffNote::new(goal.map(ToString::to_string), action_summary, pressure_pct, now);
+    let note = HandoffNote::new(
+        goal.map(ToString::to_string),
+        action_summary,
+        pressure_pct,
+        now,
+    );
     let path = data_dir.join("handoff_note.json");
     let raw = serde_json::to_string_pretty(&note).context("failed to serialize handoff note")?;
     fs::write(&path, raw)
@@ -103,7 +108,14 @@ mod tests {
         let tmp = tempdir().unwrap();
         let now = chrono::Utc.with_ymd_and_hms(2026, 4, 14, 8, 0, 0).unwrap();
 
-        let wrote = write_if_needed(tmp.path(), 0.55, Some("G-042: ship memory"), Some("completed module"), now).unwrap();
+        let wrote = write_if_needed(
+            tmp.path(),
+            0.55,
+            Some("G-042: ship memory"),
+            Some("completed module"),
+            now,
+        )
+        .unwrap();
         assert!(wrote);
 
         let note = load(tmp.path()).unwrap();

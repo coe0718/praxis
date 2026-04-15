@@ -40,12 +40,14 @@ pub enum CanaryStatus {
 impl ModelCanaryLedger {
     pub fn load_or_default(path: &Path) -> Result<Self> {
         if !path.exists() {
-            return Ok(Self { records: Vec::new() });
+            return Ok(Self {
+                records: Vec::new(),
+            });
         }
         let raw = fs::read_to_string(path)
             .with_context(|| format!("failed to read {}", path.display()))?;
-        let ledger: Self =
-            serde_json::from_str(&raw).with_context(|| format!("invalid JSON in {}", path.display()))?;
+        let ledger: Self = serde_json::from_str(&raw)
+            .with_context(|| format!("invalid JSON in {}", path.display()))?;
         ledger.validate()?;
         Ok(ledger)
     }
@@ -86,8 +88,9 @@ impl ModelCanaryLedger {
     }
 
     pub fn replace(&mut self, record: ModelCanaryRecord) {
-        self.records
-            .retain(|existing| existing.provider != record.provider || existing.model != record.model);
+        self.records.retain(|existing| {
+            existing.provider != record.provider || existing.model != record.model
+        });
         self.records.push(record);
         self.records.sort_by(|left, right| {
             left.provider
@@ -188,7 +191,9 @@ fn run_provider_canary(
                 .rev()
                 .find(|attempt| attempt.success)
                 .cloned()
-                .with_context(|| format!("provider {provider} returned no successful canary attempt"))?;
+                .with_context(|| {
+                    format!("provider {provider} returned no successful canary attempt")
+                })?;
             Ok(ModelCanaryRecord {
                 provider: attempt.provider,
                 model: attempt.model,
@@ -221,7 +226,9 @@ mod tests {
 
     #[test]
     fn replacing_records_keeps_latest_status_per_provider_model() {
-        let mut ledger = ModelCanaryLedger { records: Vec::new() };
+        let mut ledger = ModelCanaryLedger {
+            records: Vec::new(),
+        };
         ledger.replace(ModelCanaryRecord {
             provider: "claude".to_string(),
             model: "sonnet".to_string(),

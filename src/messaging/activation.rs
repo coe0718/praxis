@@ -63,19 +63,15 @@ impl ActivationStore {
             fs::create_dir_all(parent)
                 .with_context(|| format!("failed to create {}", parent.display()))?;
         }
-        let raw = serde_json::to_string_pretty(self)
-            .context("failed to serialize activation store")?;
-        fs::write(path, raw)
-            .with_context(|| format!("failed to write {}", path.display()))
+        let raw =
+            serde_json::to_string_pretty(self).context("failed to serialize activation store")?;
+        fs::write(path, raw).with_context(|| format!("failed to write {}", path.display()))
     }
 
     /// Return the activation mode for a conversation, defaulting to
     /// [`ActivationMode::MentionOnly`] if none is set.
     pub fn get(&self, conversation_id: &str) -> ActivationMode {
-        self.modes
-            .get(conversation_id)
-            .copied()
-            .unwrap_or_default()
+        self.modes.get(conversation_id).copied().unwrap_or_default()
     }
 
     /// Set the activation mode for a conversation.
