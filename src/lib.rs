@@ -1,4 +1,5 @@
 pub mod anatomy;
+pub mod oauth;
 pub mod bench;
 pub mod bus;
 pub mod archive;

@@ -8,6 +8,7 @@ pub(crate) mod core;
 mod forensics;
 mod heartbeat;
 mod learning;
+mod oauth;
 mod serve;
 mod telegram;
 mod tools;
@@ -53,6 +54,7 @@ pub enum Commands {
     Wake(WakeArgs),
     Bench(BenchArgs),
     Compact(CompactArgs),
+    OAuth(oauth::OAuthArgs),
 }
 
 #[derive(Debug, Args)]
@@ -178,6 +180,7 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::Wake(args) => handle_wake(cli.data_dir, args),
         Commands::Bench(args) => handle_bench(cli.data_dir, args),
         Commands::Compact(args) => handle_compact(cli.data_dir, args),
+        Commands::OAuth(args) => oauth::handle_oauth(cli.data_dir, args),
     }
 }
 
