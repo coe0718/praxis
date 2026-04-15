@@ -129,6 +129,9 @@ fn default_manifests() -> Vec<ToolManifest> {
             requires_approval: false,
             rehearsal_required: false,
             allowed_paths: Vec::new(),
+            path: None,
+            args: Vec::new(),
+            timeout_secs: None,
         },
         ToolManifest {
             name: "praxis-data-write".to_string(),
@@ -144,6 +147,9 @@ fn default_manifests() -> Vec<ToolManifest> {
                 "METRICS.md".to_string(),
                 "PROPOSALS.md".to_string(),
             ],
+            path: None,
+            args: Vec::new(),
+            timeout_secs: None,
         },
     ]
 }

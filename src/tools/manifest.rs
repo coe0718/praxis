@@ -21,6 +21,15 @@ pub struct ToolManifest {
     pub rehearsal_required: bool,
     #[serde(default)]
     pub allowed_paths: Vec<String>,
+    /// Executable path for `shell` tools (e.g. `/usr/bin/git`).
+    #[serde(default)]
+    pub path: Option<String>,
+    /// Fixed arguments prepended before any request-supplied arguments.
+    #[serde(default)]
+    pub args: Vec<String>,
+    /// Maximum wall-clock seconds to wait for the process (default 30).
+    #[serde(default)]
+    pub timeout_secs: Option<u64>,
 }
 
 impl ToolManifest {

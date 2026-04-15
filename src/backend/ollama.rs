@@ -27,7 +27,7 @@ pub(super) fn execute(
         .json(&OllamaRequest {
             model: route.model.clone(),
             prompt: request.input.clone(),
-            system: request.system.to_string(),
+            system: request.system.clone(),
             stream: false,
         })
         .send()

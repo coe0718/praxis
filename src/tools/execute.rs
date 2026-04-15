@@ -2,13 +2,17 @@ use std::{
     fs::{self, OpenOptions},
     io::Write,
     path::{Path, PathBuf},
+    process::{Command, Stdio},
+    time::Duration,
 };
 
 use anyhow::{Context, Result, bail};
 
 use crate::{paths::PraxisPaths, storage::StoredApprovalRequest};
 
-use super::{ToolManifest, policy::normalize_relative, request::parse_payload};
+use super::{ToolKind, ToolManifest, policy::normalize_relative, request::parse_payload};
+
+const DEFAULT_TIMEOUT_SECS: u64 = 30;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ToolExecutionResult {
@@ -25,12 +29,122 @@ pub fn execute_request(
             summary: "Internal maintenance completed without external side effects.".to_string(),
         }),
         "praxis-data-write" => append_text(paths, manifest, request),
-        _ => Ok(fallback_result(
-            manifest,
-            request,
-            "No execution adapter is installed for this tool yet.",
-        )),
+        _ => match manifest.kind {
+            ToolKind::Shell if manifest.path.as_deref().is_some_and(|p| !p.trim().is_empty()) => {
+                run_shell(manifest, request)
+            }
+            _ => Ok(fallback_result(
+                manifest,
+                request,
+                "No execution adapter is installed for this tool yet.",
+            )),
+        },
     }
+}
+
+fn run_shell(
+    manifest: &ToolManifest,
+    request: &StoredApprovalRequest,
+) -> Result<ToolExecutionResult> {
+    let exe = manifest
+        .path
+        .as_deref()
+        .filter(|p| !p.trim().is_empty())
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "shell tool {} has no 'path' field in its manifest",
+                manifest.name
+            )
+        })?;
+
+    let timeout_secs = manifest
+        .timeout_secs
+        .unwrap_or(DEFAULT_TIMEOUT_SECS)
+        .max(1)
+        .min(300);
+
+    // Parse any extra arguments from the structured payload.
+    let payload = parse_payload(request.payload_json.as_deref())?;
+    let extra_args: Vec<String> = payload
+        .append_text
+        .as_deref()
+        .map(|text| {
+            text.split_whitespace()
+                .map(str::to_string)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    log::info!(
+        "executing shell tool {} (timeout {}s): {} {:?}",
+        manifest.name,
+        timeout_secs,
+        exe,
+        &manifest.args
+    );
+
+    let mut cmd = Command::new(exe);
+    cmd.args(&manifest.args);
+    if !extra_args.is_empty() {
+        cmd.args(&extra_args);
+    }
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::piped());
+
+    let mut child = cmd
+        .spawn()
+        .with_context(|| format!("failed to spawn shell tool {}", manifest.name))?;
+
+    // Poll with a deadline so we can kill runaway processes.
+    let deadline = std::time::Instant::now() + Duration::from_secs(timeout_secs);
+    let pid = child.id();
+    loop {
+        match child.try_wait()? {
+            Some(_) => break,
+            None if std::time::Instant::now() >= deadline => {
+                let _ = child.kill();
+                bail!(
+                    "shell tool {} timed out after {}s (pid {pid})",
+                    manifest.name,
+                    timeout_secs
+                );
+            }
+            None => std::thread::sleep(Duration::from_millis(100)),
+        }
+    }
+
+    let output = child
+        .wait_with_output()
+        .with_context(|| format!("failed to collect output of shell tool {}", manifest.name))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+
+    if !output.status.success() {
+        let code = output.status.code().unwrap_or(-1);
+        let detail = if stderr.is_empty() {
+            stdout.chars().take(200).collect::<String>()
+        } else {
+            stderr.chars().take(200).collect::<String>()
+        };
+        bail!(
+            "shell tool {} exited with code {code}: {detail}",
+            manifest.name
+        );
+    }
+
+    let output_snippet = if stdout.is_empty() {
+        "(no output)".to_string()
+    } else {
+        stdout.chars().take(500).collect::<String>()
+    };
+
+    Ok(ToolExecutionResult {
+        summary: format!(
+            "Shell tool {} completed successfully.\n{}",
+            manifest.name, output_snippet
+        ),
+    })
 }
 
 fn append_text(

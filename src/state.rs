@@ -64,6 +64,8 @@ pub struct SessionState {
     pub repeated_reads_avoided: u32,
     #[serde(default)]
     pub context_sources: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rendered_context: Option<String>,
 }
 
 impl SessionState {
@@ -87,6 +89,7 @@ impl SessionState {
             file_reads: Vec::new(),
             repeated_reads_avoided: 0,
             context_sources: Vec::new(),
+            rendered_context: None,
         }
     }
 

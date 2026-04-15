@@ -103,6 +103,9 @@ fn handle_register(data_dir_override: Option<PathBuf>, args: RegisterToolArgs) -
         requires_approval: args.approval,
         rehearsal_required: args.rehearsal,
         allowed_paths: args.allow_paths,
+        path: None,
+        args: Vec::new(),
+        timeout_secs: None,
     };
 
     let path = FileToolRegistry.register(&paths, &manifest)?;

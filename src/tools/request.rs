@@ -56,6 +56,9 @@ mod tests {
             requires_approval: true,
             rehearsal_required: true,
             allowed_paths: vec!["JOURNAL.md".to_string()],
+            path: None,
+            args: Vec::new(),
+            timeout_secs: None,
         }
     }
 

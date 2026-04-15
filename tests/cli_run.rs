@@ -130,6 +130,7 @@ fn run_once_resumes_from_interrupted_state() {
         file_reads: Vec::new(),
         repeated_reads_avoided: 0,
         context_sources: Vec::new(),
+        rendered_context: None,
     };
     state.save(&data_dir.join("session_state.json")).unwrap();
 

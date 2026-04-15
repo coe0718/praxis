@@ -42,11 +42,11 @@ pub(super) fn execute(
     let system = if use_cache {
         ClaudeSystem::Blocks(vec![ClaudeSystemBlock {
             kind: "text",
-            text: request.system,
+            text: request.system.clone(),
             cache_control: Some(CacheControl { kind: "ephemeral" }),
         }])
     } else {
-        ClaudeSystem::Plain(request.system)
+        ClaudeSystem::Plain(request.system.clone())
     };
 
     let mut req_builder = client
@@ -143,7 +143,7 @@ struct ClaudeRequest {
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 enum ClaudeSystem {
-    Plain(&'static str),
+    Plain(String),
     Blocks(Vec<ClaudeSystemBlock>),
 }
 
@@ -151,7 +151,7 @@ enum ClaudeSystem {
 struct ClaudeSystemBlock {
     #[serde(rename = "type")]
     kind: &'static str,
-    text: &'static str,
+    text: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     cache_control: Option<CacheControl>,
 }

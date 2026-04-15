@@ -77,6 +77,7 @@ where
             .iter()
             .map(|s| s.source.clone())
             .collect();
+        state.rendered_context = Some(context.render());
 
         // Context-rot prevention: write a handoff note when pressure exceeds 50%.
         let pressure = context.pressure_pct();
@@ -118,7 +119,9 @@ where
             state.last_outcome = Some("task_selected".to_string());
             state.selected_goal_id = None;
             state.selected_goal_title = None;
-            let output = self.backend.plan_action(None, Some(&task))?;
+            let output =
+                self.backend
+                    .plan_action(None, Some(&task), state.rendered_context.as_deref())?;
             state.provider_attempts.extend(output.attempts);
             state.action_summary = Some(output.summary);
             state.updated_at = self.clock.now_utc();
@@ -148,7 +151,11 @@ where
                 if self.block_for_usage_budget(state, UsageBudgetMode::Run)? {
                     return Ok(());
                 }
-                let output = self.backend.plan_action(Some(&goal), None)?;
+                let output = self.backend.plan_action(
+                    Some(&goal),
+                    None,
+                    state.rendered_context.as_deref(),
+                )?;
                 state.provider_attempts.extend(output.attempts);
                 state.action_summary = Some(output.summary);
             }
@@ -211,6 +218,7 @@ where
             &summary,
             super::reflect::selected_goal(state).as_ref(),
             state.requested_task.as_deref(),
+            state.rendered_context.as_deref(),
         )?;
         state.provider_attempts.extend(output.attempts);
         state.action_summary = Some(output.summary);

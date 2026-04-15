@@ -21,12 +21,18 @@ use self::{
 pub trait AgentBackend {
     fn name(&self) -> &'static str;
     fn answer_prompt(&self, prompt: &str) -> Result<BackendOutput>;
-    fn plan_action(&self, goal: Option<&Goal>, task: Option<&str>) -> Result<BackendOutput>;
+    fn plan_action(
+        &self,
+        goal: Option<&Goal>,
+        task: Option<&str>,
+        context: Option<&str>,
+    ) -> Result<BackendOutput>;
     fn finalize_action(
         &self,
         planned_summary: &str,
         goal: Option<&Goal>,
         task: Option<&str>,
+        context: Option<&str>,
     ) -> Result<BackendOutput>;
 }
 
@@ -39,7 +45,7 @@ pub struct BackendOutput {
 #[derive(Debug, Clone)]
 pub struct ProviderRequest {
     pub phase: &'static str,
-    pub system: &'static str,
+    pub system: String,
     pub input: String,
     pub max_output_tokens: u32,
 }
@@ -65,7 +71,12 @@ impl AgentBackend for StubBackend {
         })
     }
 
-    fn plan_action(&self, goal: Option<&Goal>, task: Option<&str>) -> Result<BackendOutput> {
+    fn plan_action(
+        &self,
+        goal: Option<&Goal>,
+        task: Option<&str>,
+        _context: Option<&str>,
+    ) -> Result<BackendOutput> {
         Ok(BackendOutput {
             summary: render_stub_summary(goal, task),
             attempts: vec![successful_attempt("decide", "stub", "stub", 0, 0, 0)],
@@ -77,6 +88,7 @@ impl AgentBackend for StubBackend {
         planned_summary: &str,
         _goal: Option<&Goal>,
         _task: Option<&str>,
+        _context: Option<&str>,
     ) -> Result<BackendOutput> {
         Ok(BackendOutput {
             summary: format!(

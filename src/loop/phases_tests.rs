@@ -15,6 +15,9 @@ fn payload_changes_tool_invocation_key() {
         requires_approval: true,
         rehearsal_required: true,
         allowed_paths: vec!["JOURNAL.md".to_string()],
+        path: None,
+        args: Vec::new(),
+        timeout_secs: None,
     };
     let first = StoredApprovalRequest {
         id: 1,

@@ -109,10 +109,15 @@ impl AgentBackend for ConfiguredBackend {
         }
     }
 
-    fn plan_action(&self, goal: Option<&Goal>, task: Option<&str>) -> Result<BackendOutput> {
-        let request = request_for_plan(goal, task);
+    fn plan_action(
+        &self,
+        goal: Option<&Goal>,
+        task: Option<&str>,
+        context: Option<&str>,
+    ) -> Result<BackendOutput> {
+        let request = request_for_plan(goal, task, context);
         match self {
-            Self::Stub(inner) => inner.plan_action(goal, task),
+            Self::Stub(inner) => inner.plan_action(goal, task, context),
             Self::Single(inner) => {
                 execute_routes(&inner.routable(&request)?, request, inner.prompt_caching)
             }
@@ -129,10 +134,11 @@ impl AgentBackend for ConfiguredBackend {
         planned_summary: &str,
         goal: Option<&Goal>,
         task: Option<&str>,
+        context: Option<&str>,
     ) -> Result<BackendOutput> {
-        let request = request_for_finalize(planned_summary, goal, task);
+        let request = request_for_finalize(planned_summary, goal, task, context);
         match self {
-            Self::Stub(inner) => inner.finalize_action(planned_summary, goal, task),
+            Self::Stub(inner) => inner.finalize_action(planned_summary, goal, task, context),
             Self::Single(inner) => {
                 execute_routes(&inner.routable(&request)?, request, inner.prompt_caching)
             }
