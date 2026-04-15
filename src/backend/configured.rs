@@ -212,16 +212,34 @@ fn execute_routes(
     prompt_caching: bool,
 ) -> Result<BackendOutput> {
     let mut attempts = Vec::new();
-    for route in routes {
+    let route_count = routes.len();
+    for (i, route) in routes.iter().enumerate() {
         match execute_single(route, &request, prompt_caching) {
             Ok(mut output) => {
+                if i > 0 {
+                    log::info!(
+                        "provider fallback succeeded on route {} of {} during {}",
+                        i + 1,
+                        route_count,
+                        request.phase
+                    );
+                }
                 attempts.append(&mut output.attempts);
                 return Ok(BackendOutput {
                     summary: output.summary,
                     attempts,
                 });
             }
-            Err(error) => attempts.push(failed_attempt(route, request.phase, error)),
+            Err(error) => {
+                log::warn!(
+                    "provider '{}' failed during {} (route {} of {}): {error:#}",
+                    route.provider,
+                    request.phase,
+                    i + 1,
+                    route_count,
+                );
+                attempts.push(failed_attempt(route, request.phase, error));
+            }
         }
     }
     bail!("all configured providers failed during {}", request.phase)

@@ -102,12 +102,19 @@ pub fn consume_intent(data_dir: &Path) -> Result<Option<WakeIntent>> {
 
     let intent: WakeIntent = match serde_json::from_str(&raw) {
         Ok(i) => i,
-        Err(_) => return Ok(None),
+        Err(e) => {
+            log::warn!("discarding corrupt wake intent file: {e}");
+            return Ok(None);
+        }
     };
 
     // Discard stale intents.
     let age = Utc::now().signed_duration_since(intent.created_at);
     if age > Duration::hours(MAX_AGE_HOURS) {
+        log::warn!(
+            "discarding stale wake intent ({:.0}h old, max {MAX_AGE_HOURS}h)",
+            age.num_minutes() as f64 / 60.0
+        );
         return Ok(None);
     }
 

@@ -145,6 +145,7 @@ pub fn run() -> Result<()> {
 }
 
 fn execute(cli: Cli) -> Result<String> {
+    log::debug!("dispatching command: {:?}", cli.command);
     match cli.command {
         Commands::Init(args) => core::handle_init(cli.data_dir, args),
         Commands::Ask(args) => core::handle_ask(cli.data_dir, args),

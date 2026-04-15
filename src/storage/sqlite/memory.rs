@@ -248,10 +248,9 @@ impl MemoryStore for SqliteSessionStore {
             .context("failed to delete hot memory")?;
         if hot_rows > 0 {
             // FTS shadow table uses the same rowid.
-            let _ = connection.execute(
-                "DELETE FROM hot_fts WHERE rowid = ?1",
-                params![id],
-            );
+            if let Err(e) = connection.execute("DELETE FROM hot_fts WHERE rowid = ?1", params![id]) {
+                log::warn!("failed to remove memory {id} from hot_fts index: {e}");
+            }
             return Ok(true);
         }
 
@@ -259,10 +258,9 @@ impl MemoryStore for SqliteSessionStore {
             .execute("DELETE FROM cold_memories WHERE id = ?1", params![id])
             .context("failed to delete cold memory")?;
         if cold_rows > 0 {
-            let _ = connection.execute(
-                "DELETE FROM cold_fts WHERE rowid = ?1",
-                params![id],
-            );
+            if let Err(e) = connection.execute("DELETE FROM cold_fts WHERE rowid = ?1", params![id]) {
+                log::warn!("failed to remove memory {id} from cold_fts index: {e}");
+            }
             return Ok(true);
         }
 
