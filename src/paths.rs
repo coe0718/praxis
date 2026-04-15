@@ -69,6 +69,16 @@ pub struct PraxisPaths {
     pub security_file: PathBuf,
     /// Sender pairing state — approved + pending unknown-chat requests (`sender_pairing.json`).
     pub sender_pairing_file: PathBuf,
+    /// Auto-generated conflict workbench (`MEMORY_CONFLICTS.md`).
+    pub memory_conflicts_file: PathBuf,
+    /// Compressed working-set cache from the last Reflect phase (`context_cache.json`).
+    pub context_cache_file: PathBuf,
+    /// Tool-level approval cooldown state (`tool_cooldowns.json`).
+    pub tool_cooldowns_file: PathBuf,
+    /// Per-conversation context isolation state (`context_groups.json`).
+    pub context_groups_file: PathBuf,
+    /// Operator interaction histogram for adaptive scheduling (`operator_schedule.json`).
+    pub operator_schedule_file: PathBuf,
 }
 
 pub fn detect_platform() -> Platform {
@@ -177,6 +187,11 @@ impl PraxisPaths {
             activation_file: data_dir.join("activation.json"),
             security_file: data_dir.join("security.toml"),
             sender_pairing_file: data_dir.join("sender_pairing.json"),
+            memory_conflicts_file: data_dir.join("MEMORY_CONFLICTS.md"),
+            context_cache_file: data_dir.join("context_cache.json"),
+            tool_cooldowns_file: data_dir.join("tool_cooldowns.json"),
+            context_groups_file: data_dir.join("context_groups.json"),
+            operator_schedule_file: data_dir.join("operator_schedule.json"),
             benchmarks_dir,
             data_dir,
         }

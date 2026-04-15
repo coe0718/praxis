@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use rusqlite::{OptionalExtension, params};
 
 use crate::memory::{
-    MemoryStore, MemoryTier, NewColdMemory, NewHotMemory, StoredMemory, to_fts_query,
+    MemoryStore, MemoryTier, MemoryType, NewColdMemory, NewHotMemory, StoredMemory, to_fts_query,
 };
 
 use super::SqliteSessionStore;
@@ -16,8 +16,8 @@ impl MemoryStore for SqliteSessionStore {
         connection
             .execute(
                 "
-                INSERT INTO hot_memories(content, summary, importance, tags, last_accessed, access_count, expires_at)
-                VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6)
+                INSERT INTO hot_memories(content, summary, importance, tags, last_accessed, access_count, expires_at, memory_type)
+                VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7)
                 ",
                 params![
                     memory.content,
@@ -26,6 +26,7 @@ impl MemoryStore for SqliteSessionStore {
                     tags,
                     Utc::now().to_rfc3339(),
                     memory.expires_at,
+                    memory.memory_type.as_str(),
                 ],
             )
             .context("failed to insert hot memory")?;
@@ -45,6 +46,7 @@ impl MemoryStore for SqliteSessionStore {
             summary: memory.summary,
             tags: memory.tags,
             score: memory.importance,
+            memory_type: memory.memory_type,
         })
     }
 
@@ -59,8 +61,8 @@ impl MemoryStore for SqliteSessionStore {
         connection
             .execute(
                 "
-                INSERT INTO cold_memories(content, weight, tags, source_ids, contradicts, last_reinforced)
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+                INSERT INTO cold_memories(content, weight, tags, source_ids, contradicts, last_reinforced, memory_type)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
                 ",
                 params![
                     memory.content,
@@ -69,6 +71,7 @@ impl MemoryStore for SqliteSessionStore {
                     source_ids,
                     contradicts,
                     Utc::now().to_rfc3339(),
+                    memory.memory_type.as_str(),
                 ],
             )
             .context("failed to insert cold memory")?;
@@ -88,6 +91,7 @@ impl MemoryStore for SqliteSessionStore {
             summary: None,
             tags: memory.tags,
             score: memory.weight,
+            memory_type: memory.memory_type,
         })
     }
 
@@ -95,7 +99,7 @@ impl MemoryStore for SqliteSessionStore {
         let connection = self.connect()?;
         let mut statement = connection.prepare(
             "
-            SELECT id, content, summary, tags, importance
+            SELECT id, content, summary, tags, importance, COALESCE(memory_type, 'episodic')
             FROM hot_memories
             ORDER BY datetime(created_at) DESC, id DESC
             LIMIT ?1
@@ -103,6 +107,7 @@ impl MemoryStore for SqliteSessionStore {
         )?;
 
         let rows = statement.query_map(params![limit as i64], |row| {
+            let mt: String = row.get(5)?;
             Ok(StoredMemory {
                 id: row.get(0)?,
                 tier: MemoryTier::Hot,
@@ -110,6 +115,7 @@ impl MemoryStore for SqliteSessionStore {
                 summary: row.get(2)?,
                 tags: parse_tags(row.get::<_, String>(3)?)?,
                 score: row.get(4)?,
+                memory_type: MemoryType::parse(&mt),
             })
         })?;
 
@@ -121,7 +127,7 @@ impl MemoryStore for SqliteSessionStore {
         let connection = self.connect()?;
         let mut statement = connection.prepare(
             "
-            SELECT id, content, tags, weight
+            SELECT id, content, tags, weight, COALESCE(memory_type, 'episodic')
             FROM cold_memories
             ORDER BY weight DESC, id DESC
             LIMIT ?1
@@ -129,6 +135,7 @@ impl MemoryStore for SqliteSessionStore {
         )?;
 
         let rows = statement.query_map(params![limit as i64], |row| {
+            let mt: String = row.get(4)?;
             Ok(StoredMemory {
                 id: row.get(0)?,
                 tier: MemoryTier::Cold,
@@ -136,6 +143,7 @@ impl MemoryStore for SqliteSessionStore {
                 summary: None,
                 tags: parse_tags(row.get::<_, String>(2)?)?,
                 score: row.get(3)?,
+                memory_type: MemoryType::parse(&mt),
             })
         })?;
 
@@ -167,9 +175,10 @@ impl MemoryStore for SqliteSessionStore {
         // Try hot first.
         let hot: Option<StoredMemory> = connection
             .query_row(
-                "SELECT id, content, summary, tags, importance FROM hot_memories WHERE id = ?1",
+                "SELECT id, content, summary, tags, importance, COALESCE(memory_type, 'episodic') FROM hot_memories WHERE id = ?1",
                 params![id],
                 |row| {
+                    let mt: String = row.get(5)?;
                     Ok(StoredMemory {
                         id: row.get(0)?,
                         tier: MemoryTier::Hot,
@@ -177,6 +186,7 @@ impl MemoryStore for SqliteSessionStore {
                         summary: row.get(2)?,
                         tags: parse_tags(row.get::<_, String>(3)?)?,
                         score: row.get(4)?,
+                        memory_type: MemoryType::parse(&mt),
                     })
                 },
             )
@@ -190,9 +200,10 @@ impl MemoryStore for SqliteSessionStore {
         // Try cold.
         let cold: Option<StoredMemory> = connection
             .query_row(
-                "SELECT id, content, tags, weight FROM cold_memories WHERE id = ?1",
+                "SELECT id, content, tags, weight, COALESCE(memory_type, 'episodic') FROM cold_memories WHERE id = ?1",
                 params![id],
                 |row| {
+                    let mt: String = row.get(4)?;
                     Ok(StoredMemory {
                         id: row.get(0)?,
                         tier: MemoryTier::Cold,
@@ -200,6 +211,7 @@ impl MemoryStore for SqliteSessionStore {
                         summary: None,
                         tags: parse_tags(row.get::<_, String>(2)?)?,
                         score: row.get(3)?,
+                        memory_type: MemoryType::parse(&mt),
                     })
                 },
             )
@@ -278,7 +290,8 @@ fn search_hot_memories(
     let mut statement = connection.prepare(
         "
         SELECT hot_memories.id, hot_memories.content, hot_memories.summary, hot_memories.tags,
-               hot_memories.importance, bm25(hot_fts) AS rank
+               hot_memories.importance, bm25(hot_fts) AS rank,
+               COALESCE(hot_memories.memory_type, 'episodic')
         FROM hot_fts
         JOIN hot_memories ON hot_fts.rowid = hot_memories.id
         WHERE hot_fts MATCH ?1
@@ -290,6 +303,7 @@ fn search_hot_memories(
     let rows = statement.query_map(params![query, limit as i64], |row| {
         let rank: f64 = row.get(5)?;
         let importance: f32 = row.get(4)?;
+        let mt: String = row.get(6)?;
         Ok(StoredMemory {
             id: row.get(0)?,
             tier: MemoryTier::Hot,
@@ -297,6 +311,7 @@ fn search_hot_memories(
             summary: row.get(2)?,
             tags: parse_tags(row.get::<_, String>(3)?)?,
             score: importance + relevance_score(rank),
+            memory_type: MemoryType::parse(&mt),
         })
     })?;
 
@@ -312,7 +327,8 @@ fn search_cold_memories(
     let mut statement = connection.prepare(
         "
         SELECT cold_memories.id, cold_memories.content, cold_memories.tags,
-               cold_memories.weight, bm25(cold_fts) AS rank
+               cold_memories.weight, bm25(cold_fts) AS rank,
+               COALESCE(cold_memories.memory_type, 'episodic')
         FROM cold_fts
         JOIN cold_memories ON cold_fts.rowid = cold_memories.id
         WHERE cold_fts MATCH ?1
@@ -324,6 +340,7 @@ fn search_cold_memories(
     let rows = statement.query_map(params![query, limit as i64], |row| {
         let rank: f64 = row.get(4)?;
         let weight: f32 = row.get(3)?;
+        let mt: String = row.get(5)?;
         Ok(StoredMemory {
             id: row.get(0)?,
             tier: MemoryTier::Cold,
@@ -331,6 +348,7 @@ fn search_cold_memories(
             summary: None,
             tags: parse_tags(row.get::<_, String>(2)?)?,
             score: weight + relevance_score(rank),
+            memory_type: MemoryType::parse(&mt),
         })
     })?;
 

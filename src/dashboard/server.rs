@@ -15,11 +15,15 @@ use crate::{
     cli::core,
     events::{Event as PraxisEvent, read_events_since},
     mcp::{server::dispatch, types::JsonRpcRequest},
-    messaging::{discord::DiscordInteraction, slack::SlackEvent},
     paths::PraxisPaths,
     report::build_status_report,
     wakeup::{WakeIntent, request_wake},
 };
+#[cfg(feature = "discord")]
+use crate::messaging::discord::DiscordInteraction;
+#[cfg(feature = "slack")]
+use crate::messaging::slack::SlackEvent;
+
 
 #[derive(Clone)]
 struct DashboardState {
@@ -33,12 +37,17 @@ pub async fn serve_dashboard(data_dir: PathBuf, host: String, port: u16) -> Resu
         .route("/status", get(status))
         .route("/summary", get(summary))
         .route("/health", get(health))
+        .route("/metrics", get(prometheus_metrics))
         .route("/events/recent", get(recent_events))
         .route("/events", get(events))
-        .route("/webhook/discord", post(webhook_discord))
-        .route("/webhook/slack", post(webhook_slack))
-        .route("/mcp", post(mcp_endpoint))
-        .with_state(state);
+        .route("/mcp", post(mcp_endpoint));
+
+    #[cfg(feature = "discord")]
+    let app = app.route("/webhook/discord", post(webhook_discord));
+    #[cfg(feature = "slack")]
+    let app = app.route("/webhook/slack", post(webhook_slack));
+
+    let app = app.with_state(state);
 
     let listener = tokio::net::TcpListener::bind(format!("{host}:{port}")).await?;
     axum::serve(listener, app).await?;
@@ -127,6 +136,7 @@ async fn events(
     Sse::new(stream)
 }
 
+#[cfg(feature = "discord")]
 /// Discord interactions endpoint.
 ///
 /// Handles PING (type=1) for endpoint verification and APPLICATION_COMMAND
@@ -172,6 +182,7 @@ async fn webhook_discord(
         .into_response()
 }
 
+#[cfg(feature = "slack")]
 /// Slack Events API endpoint.
 ///
 /// Handles `url_verification` challenges and `message` events by injecting
@@ -199,6 +210,105 @@ async fn webhook_slack(
     }
 
     (StatusCode::OK, Json(json!({ "ok": true }))).into_response()
+}
+
+/// Prometheus text-format metrics endpoint (`/metrics`).
+///
+/// Exposes a small set of operational gauges in the standard Prometheus
+/// exposition format.  No external SDK is required — the format is plain text.
+async fn prometheus_metrics(State(state): State<DashboardState>) -> impl IntoResponse {
+    let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
+    let body = collect_prometheus_metrics(&paths);
+    (
+        StatusCode::OK,
+        [("content-type", "text/plain; version=0.0.4; charset=utf-8")],
+        body,
+    )
+}
+
+fn collect_prometheus_metrics(paths: &PraxisPaths) -> String {
+    use crate::{
+        heartbeat::read_heartbeat,
+        memory::MemoryStore,
+        storage::{ApprovalStatus, ApprovalStore, SessionStore, SqliteSessionStore},
+    };
+    use chrono::{DateTime, Utc};
+
+    let store = SqliteSessionStore::new(paths.database_file.clone());
+    let now = Utc::now();
+    let mut lines = Vec::new();
+
+    macro_rules! gauge {
+        ($name:expr, $help:expr, $val:expr) => {
+            lines.push(format!("# HELP {} {}", $name, $help));
+            lines.push(format!("# TYPE {} gauge", $name));
+            lines.push(format!("{} {}", $name, $val));
+        };
+    }
+
+    // Hot memory count.
+    let hot_count = store
+        .recent_hot_memories(10_000)
+        .map(|v| v.len())
+        .unwrap_or(0);
+    gauge!(
+        "praxis_hot_memory_count",
+        "Number of hot memories in the store.",
+        hot_count
+    );
+
+    // Cold memory count.
+    let cold_count = store
+        .strongest_cold_memories(10_000)
+        .map(|v| v.len())
+        .unwrap_or(0);
+    gauge!(
+        "praxis_cold_memory_count",
+        "Number of cold memories in the store.",
+        cold_count
+    );
+
+    // Pending approvals.
+    let pending = store
+        .list_approvals(Some(ApprovalStatus::Pending))
+        .map(|v| v.len())
+        .unwrap_or(0);
+    gauge!(
+        "praxis_approvals_pending",
+        "Number of tool-approval requests awaiting operator action.",
+        pending
+    );
+
+    // Heartbeat age — parse the timestamp string from the record.
+    let heartbeat_age_secs: i64 = read_heartbeat(&paths.heartbeat_file)
+        .ok()
+        .and_then(|hb| {
+            DateTime::parse_from_rfc3339(&hb.updated_at)
+                .ok()
+                .map(|ts| (now - ts.with_timezone(&Utc)).num_seconds().max(0))
+        })
+        .unwrap_or(-1);
+    gauge!(
+        "praxis_heartbeat_age_seconds",
+        "Seconds since the last runtime heartbeat was written (-1 = never).",
+        heartbeat_age_secs
+    );
+
+    // Session count from last session ID (proxy for total sessions).
+    let session_count = store
+        .last_session()
+        .ok()
+        .flatten()
+        .map(|s| s.id)
+        .unwrap_or(0);
+    gauge!(
+        "praxis_sessions_total",
+        "Total sessions recorded (approximated by last session ID).",
+        session_count
+    );
+
+    lines.push(String::new()); // trailing newline
+    lines.join("\n")
 }
 
 /// MCP JSON-RPC endpoint — exposes Praxis tools and resources to any MCP client.

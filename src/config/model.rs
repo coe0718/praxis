@@ -46,6 +46,10 @@ pub struct DatabaseConfig {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SecurityConfig {
     pub level: u8,
+    /// Per-tool approval cooldown windows.  When a slot was approved within
+    /// the configured `window_secs`, re-approval is skipped automatically.
+    #[serde(default)]
+    pub tool_cooldowns: Vec<crate::tools::cooldown::CooldownPolicy>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -121,7 +125,7 @@ impl AppConfig {
             database: DatabaseConfig {
                 path: PathBuf::from("praxis.db"),
             },
-            security: SecurityConfig { level: 2 },
+            security: SecurityConfig { level: 2, tool_cooldowns: Vec::new() },
             agent: AgentConfig {
                 backend: "stub".to_string(),
                 context_ceiling_pct: 0.80,

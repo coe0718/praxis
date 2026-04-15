@@ -1,3 +1,4 @@
+pub mod cooldown;
 mod docs;
 mod execute;
 mod guard;

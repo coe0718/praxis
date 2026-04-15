@@ -5,6 +5,23 @@ edition = "2024"
 description = "A self-evolving personal AI agent foundation"
 license = "MIT"
 
+# ── Optional feature flags ───────────────────────────────────────────────────
+#
+# tui      — full-screen ratatui terminal dashboard (`praxis tui`)
+# discord  — Discord webhook adapter (`praxis discord`)
+# slack    — Slack Events API adapter (`praxis slack`)
+#
+# All three are on by default.  To build a smaller binary, disable defaults
+# and re-enable only what you need:
+#
+#   cargo build --no-default-features --features tui
+#
+[features]
+default = ["tui", "discord", "slack"]
+tui     = ["dep:crossterm", "dep:ratatui"]
+discord = []
+slack   = []
+
 [dependencies]
 async-stream = "0.3"
 anyhow = "1"
@@ -14,8 +31,8 @@ axum = { version = "0.7", features = ["json"] }
 chrono = { version = "0.4", features = ["clock", "serde"] }
 chrono-tz = "0.10"
 clap = { version = "4.5", features = ["derive"] }
-crossterm = "0.28"
-ratatui = "0.29"
+crossterm = { version = "0.28", optional = true }
+ratatui = { version = "0.29", optional = true }
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }

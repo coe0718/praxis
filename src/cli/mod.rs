@@ -6,6 +6,7 @@ mod boundaries;
 mod brief;
 mod canary;
 pub(crate) mod core;
+#[cfg(feature = "discord")]
 mod discord;
 mod forensics;
 mod git;
@@ -13,9 +14,11 @@ mod heartbeat;
 mod learning;
 mod oauth;
 mod serve;
+#[cfg(feature = "slack")]
 mod slack;
 mod telegram;
 mod tools;
+#[cfg(feature = "tui")]
 mod tui;
 mod vscode;
 mod watchdog;
@@ -64,9 +67,12 @@ pub enum Commands {
     OAuth(oauth::OAuthArgs),
     Git(git::GitArgs),
     Watchdog(watchdog::WatchdogArgs),
+    #[cfg(feature = "discord")]
     Discord(discord::DiscordArgs),
+    #[cfg(feature = "slack")]
     Slack(slack::SlackArgs),
     Vscode(vscode::VscodeArgs),
+    #[cfg(feature = "tui")]
     Tui(tui::TuiArgs),
     Brief(brief::BriefArgs),
 }
@@ -201,9 +207,12 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::OAuth(args) => oauth::handle_oauth(cli.data_dir, args),
         Commands::Git(args) => git::handle_git(cli.data_dir, args),
         Commands::Watchdog(args) => watchdog::handle_watchdog(cli.data_dir, args),
+        #[cfg(feature = "discord")]
         Commands::Discord(args) => discord::handle_discord(cli.data_dir, args),
+        #[cfg(feature = "slack")]
         Commands::Slack(args) => slack::handle_slack(cli.data_dir, args),
         Commands::Vscode(args) => vscode::handle_vscode(cli.data_dir, args),
+        #[cfg(feature = "tui")]
         Commands::Tui(args) => tui::handle_tui(cli.data_dir, args),
         Commands::Brief(args) => brief::handle_brief(cli.data_dir, args),
     }

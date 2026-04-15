@@ -13,6 +13,8 @@ mod schema;
 mod schema_data;
 mod sessions;
 
+pub(crate) use memory_links::ContradictionQuery;
+
 #[cfg(test)]
 mod insights_tests;
 

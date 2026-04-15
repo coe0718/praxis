@@ -1318,32 +1318,35 @@ Move items upward as they ship:
 ### Future / Optional
 
 - **Hybrid semantic retrieval** — optionally layer vectors or semantic search on top of FTS5 once the keyword + preference graph approach proves insufficient.
-- **Memory typing** — extend memory with episodic, semantic, and procedural classes, each with different decay and reinforcement rules.
 - **Published marketplace / portability standard** — align skill and tool packaging with a real public ecosystem spec, potentially including `agentskills.io` compatibility where it fits Praxis security needs.
-- **Conflict workbench** — create `MEMORY_CONFLICTS.md` or an equivalent workflow to surface conflicting memories with evidence and proposed resolution.
-- **Persistent context cache** — store a compressed working set from recent sessions for faster warm starts on constrained hardware.
 - **Automatic anatomy refresh daemon** — beyond on-demand updates, optionally re-index changed files during idle windows.
 - **Community tool registry improvements** — include compatibility metadata, usage examples, and read-only community discovery.
 - **Workflow-provider integrations** — add first-class adapters for external orchestrators when operators want Praxis to sit above an existing automation stack.
 - **Local multimodal processing** — optional on-device transcription, captioning, or light image understanding for privacy-preserving installs.
 - **System anomaly correlation** — track CPU, memory, disk, and load anomalies against reviewer failures and bad outcomes.
-- **Per-context-group isolation** — isolate short-horizon memory and filesystem state by conversation or channel rather than sharing one blended working set.
 - **Credential vault proxy** — keep raw provider secrets outside the agent runtime entirely and inject them at request time with policy enforcement.
 - **Delegation links** — add explicit outbound/inbound/bidirectional agent links with concurrency caps and allow/deny lists.
-- **Granular cooldown policies** — different approval windows per file or identity surface, potentially escalating some files to always-explicit approval.
 - **Per-channel sandboxing** — let the main operator surface run with fuller host access while non-main channels default to narrower isolated sandboxes.
 - **Hand manifests** — formalize installable/schedulable autonomous capability bundles beyond loose skills and cron jobs.
 - **Meta-evolution workflow** — let Praxis propose changes to the framework itself via `SELF_EVOLUTION.md`, with heavy approval gating.
 - **Irreplaceability score** — track anticipation, follow-through, reliability, and operator dependence as a private metric, not as a vanity metric.
-- **Adaptive scheduling** — let wake times and non-urgent session timing learn from actual operator behavior and quiet-hour patterns.
-- **Cargo feature modularity** — keep the single binary lean while allowing optional compile-time extras like skill creation, Matrix/Lark/Nostr channels, voice, vector memory, or advanced graph features.
 - **Auto-maintained docs** — let Praxis keep public docs and examples current as capabilities mature.
 - **Lite mode** — reduce sub-agent usage, tighten budgets, and simplify behavior for Raspberry Pi or low-power installs.
 - **Anonymous learning exchange** — possibly allow instances to publish sanitized, non-personal learnings to a shared registry later, but only with strong privacy guarantees.
 - **WASM tool runtime** — support ultra-sandboxed community tools without granting broad local execution, ideally with explicit metering and a watchdog against runaway code.
-- **OpenTelemetry / Prometheus export** — richer external observability once local analytics and SSE are stable.
 - **Local multimodal and local model bundles** — optional heavy extras for privacy-first or travel/offline deployments.
 - **Synthetic example generation** — turn high-value learnings into reusable structured examples for future prompt shaping or evaluation.
+
+### Completed (Wave 3)
+
+- **Memory typing** — `MemoryType` enum (`Episodic` / `Semantic` / `Procedural`) stored on both hot and cold memories; decay thresholds differ by type (90 / 180 / 365 days); `#[serde(default)]` ensures full backwards compatibility with existing databases.
+- **Conflict workbench** — `memory::conflicts::generate_conflict_workbench()` queries all `contradicts` memory-link pairs and regenerates `MEMORY_CONFLICTS.md` with side-by-side text so the operator can review and resolve them.
+- **Persistent context cache** — `context::cache` module writes a `context_cache.json` at Reflect time; Orient can load it as a warm-start source; entries expire after 48 hours; `render_context_cache()` formats them for injection.
+- **Granular cooldown policies** — `tools::cooldown::CooldownPolicy` lets operators declare per-tool (optionally per-path glob) approval windows in `praxis.toml`; `CooldownStore` tracks last-approved timestamps in `tool_cooldowns.json` and short-circuits re-approval within the window.
+- **Per-context-group isolation** — `messaging::context_group::ContextGroupStore` scopes pinned memory IDs and tags to individual conversation/channel IDs (`context_groups.json`); idle groups prune automatically after a configurable number of days.
+- **Adaptive scheduling** — `wakeup::schedule::OperatorSchedule` maintains a 24-slot UTC hourly activity histogram; quiet-hour detection activates after 20 samples; `next_preferred_wake_time()` skips detected quiet hours when choosing the next session window.
+- **Prometheus / metrics export** — `/metrics` HTTP endpoint on the dashboard server emits Prometheus text-format gauges: hot/cold memory counts, pending approvals, heartbeat age, and session count; no external SDK required.
+- **Cargo feature modularity** — `tui` (ratatui + crossterm), `discord`, and `slack` are now optional Cargo features (all enabled by default); `--no-default-features` produces a leaner binary without the terminal UI or messaging adapters.
 - **Social runtime** — optional scheduled outward-facing posting or status sharing on behalf of the operator.
 - **Property-based and fuzz testing** — apply proptest to core data structures (memory, context budget, goal parsing) and fuzz security-critical components like tool manifest parsing and approval queues.
 - **Database connection pooling** — evaluate r2d2 or similar for concurrent access patterns if Praxis ever runs multiple threads or async tasks against SQLite simultaneously.

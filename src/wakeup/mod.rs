@@ -15,6 +15,8 @@
 //! The intent is consumed (deleted) once the session runs so it only triggers
 //! one wake.
 
+pub mod schedule;
+
 use std::{fs, path::Path};
 
 use anyhow::{Context, Result};

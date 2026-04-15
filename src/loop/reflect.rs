@@ -165,6 +165,7 @@ where
             importance: 0.7,
             tags: vec!["session".to_string(), "foundation".to_string()],
             expires_at: None,
+            memory_type: Default::default(),
         })?;
         Ok(())
     }

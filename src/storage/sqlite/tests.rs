@@ -54,6 +54,7 @@ fn stores_and_searches_hot_and_cold_memories() {
             importance: 0.8,
             tags: vec!["operator".to_string()],
             expires_at: None,
+            memory_type: Default::default(),
         })
         .unwrap();
     store
@@ -63,6 +64,7 @@ fn stores_and_searches_hot_and_cold_memories() {
             tags: vec!["identity".to_string()],
             source_ids: vec![1],
             contradicts: vec![],
+            memory_type: Default::default(),
         })
         .unwrap();
 
@@ -88,6 +90,7 @@ fn decays_stale_cold_memories_in_place() {
             tags: vec!["memory".to_string()],
             source_ids: vec![1],
             contradicts: vec![],
+            memory_type: Default::default(),
         })
         .unwrap();
     let connection = store.connect().unwrap();

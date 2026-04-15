@@ -5,6 +5,34 @@ use crate::memory::{MemoryLink, MemoryLinkStore, MemoryLinkType, MemoryStore, St
 
 use super::SqliteSessionStore;
 
+/// Internal helper for the conflict workbench.
+pub(crate) trait ContradictionQuery {
+    fn all_contradiction_pairs(&self) -> Result<Vec<(i64, String, i64, String)>>;
+}
+
+impl ContradictionQuery for SqliteSessionStore {
+    fn all_contradiction_pairs(&self) -> Result<Vec<(i64, String, i64, String)>> {
+        let connection = self.connect()?;
+        let mut statement = connection.prepare(
+            "SELECT from_memory_id, to_memory_id FROM memory_links WHERE link_type = 'contradicts'",
+        )?;
+        let pairs: Vec<(i64, i64)> = statement
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .collect::<rusqlite::Result<_>>()
+            .context("failed to query contradiction links")?;
+
+        let mut result = Vec::new();
+        for (from_id, to_id) in pairs {
+            let from_text = fetch_memory_content(&connection, from_id)?;
+            let to_text = fetch_memory_content(&connection, to_id)?;
+            if let (Some(f), Some(t)) = (from_text, to_text) {
+                result.push((from_id, f, to_id, t));
+            }
+        }
+        Ok(result)
+    }
+}
+
 impl MemoryLinkStore for SqliteSessionStore {
     fn add_memory_link(&self, from_id: i64, to_id: i64, link_type: MemoryLinkType) -> Result<()> {
         if from_id == to_id {
@@ -80,4 +108,31 @@ impl MemoryLinkStore for SqliteSessionStore {
 
         Ok(memories)
     }
+}
+
+fn fetch_memory_content(
+    connection: &rusqlite::Connection,
+    id: i64,
+) -> Result<Option<String>> {
+    use rusqlite::OptionalExtension;
+    let hot: Option<String> = connection
+        .query_row(
+            "SELECT content FROM hot_memories WHERE id = ?1",
+            params![id],
+            |row| row.get(0),
+        )
+        .optional()
+        .context("failed to fetch hot memory content")?;
+    if hot.is_some() {
+        return Ok(hot);
+    }
+    let cold: Option<String> = connection
+        .query_row(
+            "SELECT content FROM cold_memories WHERE id = ?1",
+            params![id],
+            |row| row.get(0),
+        )
+        .optional()
+        .context("failed to fetch cold memory content")?;
+    Ok(cold)
 }

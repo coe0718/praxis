@@ -255,6 +255,7 @@ mod tests {
                 importance: 0.9,
                 tags: vec!["operator".to_string()],
                 expires_at: None,
+                memory_type: Default::default(),
             })
             .unwrap();
         let mut state = SessionState::new(

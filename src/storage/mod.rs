@@ -5,12 +5,13 @@ use serde::{Deserialize, Serialize};
 mod anatomy;
 mod ops;
 mod provider;
-mod sqlite;
+pub(crate) mod sqlite;
 
 pub use anatomy::AnatomyStore;
 pub use ops::{OperationalMemoryCounts, OperationalMemoryStore};
 pub use provider::ProviderUsageStore;
 pub use sqlite::SqliteSessionStore;
+pub(crate) use sqlite::ContradictionQuery;
 
 /// A structured audit record written after every Decide phase.
 #[derive(Debug, Clone)]

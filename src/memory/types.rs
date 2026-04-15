@@ -9,6 +9,52 @@ pub enum MemoryTier {
     Cold,
 }
 
+/// Semantic class of a memory — governs decay rate and retrieval priority.
+///
+/// | Type        | Decay threshold | Example content                       |
+/// |-------------|----------------|---------------------------------------|
+/// | Episodic    | 90 days        | "Operator approved X on Tuesday"      |
+/// | Semantic    | 180 days       | "Operator prefers concise replies"    |
+/// | Procedural  | 365 days       | "Always run tests before committing"  |
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MemoryType {
+    /// Time-stamped autobiographical events — fastest decay.
+    #[default]
+    Episodic,
+    /// Generalised facts and preferences — medium decay.
+    Semantic,
+    /// How-to knowledge and workflow rules — slowest decay.
+    Procedural,
+}
+
+impl MemoryType {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Episodic => "episodic",
+            Self::Semantic => "semantic",
+            Self::Procedural => "procedural",
+        }
+    }
+
+    pub fn parse(s: &str) -> Self {
+        match s {
+            "semantic" => Self::Semantic,
+            "procedural" => Self::Procedural,
+            _ => Self::Episodic,
+        }
+    }
+
+    /// Days a cold memory of this type survives without reinforcement.
+    pub fn decay_days(self) -> i64 {
+        match self {
+            Self::Episodic => 90,
+            Self::Semantic => 180,
+            Self::Procedural => 365,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NewHotMemory {
     pub content: String,
@@ -16,6 +62,8 @@ pub struct NewHotMemory {
     pub importance: f32,
     pub tags: Vec<String>,
     pub expires_at: Option<String>,
+    #[serde(default)]
+    pub memory_type: MemoryType,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -25,6 +73,8 @@ pub struct NewColdMemory {
     pub tags: Vec<String>,
     pub source_ids: Vec<i64>,
     pub contradicts: Vec<i64>,
+    #[serde(default)]
+    pub memory_type: MemoryType,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -35,6 +85,8 @@ pub struct StoredMemory {
     pub summary: Option<String>,
     pub tags: Vec<String>,
     pub score: f32,
+    #[serde(default)]
+    pub memory_type: MemoryType,
 }
 
 // ── Memory links ──────────────────────────────────────────────────────────────
