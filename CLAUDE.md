@@ -128,9 +128,7 @@ Capped at 3 pending proposals; deduplicated by title prefix. Calls `render_self_
 ## What is NOT yet wired (see NEEDS_FINISHED.md for full list)
 
 - **Delegation** — store exists, Act phase never sends work over a link
-- **Hands** — manifests exist, Orient never loads an active hand
 - **Speculative execution** — store exists, Act has no branching logic
-- **Vault** — store exists, tools bypass it and use env vars directly
 - **MCP** — dispatch stub exists, never touches tool registry
 - **Discord/Slack inbound** — outbound only, no polling loop
 - **Dashboard UI** — SSE and Prometheus work; HTML is a skeleton

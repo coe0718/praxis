@@ -10,7 +10,9 @@ use std::{
 use anyhow::{Context, Result, bail};
 use reqwest::blocking::Client;
 
-use crate::{oauth::OAuthTokenStore, paths::PraxisPaths, storage::StoredApprovalRequest};
+use crate::{
+    oauth::OAuthTokenStore, paths::PraxisPaths, storage::StoredApprovalRequest, vault::Vault,
+};
 
 use super::{ToolKind, ToolManifest, policy::normalize_relative, request::parse_payload};
 
@@ -26,13 +28,14 @@ pub fn execute_request(
     manifest: &ToolManifest,
     request: &StoredApprovalRequest,
 ) -> Result<ToolExecutionResult> {
+    let vault = Vault::load(&paths.vault_file).unwrap_or_default();
     match manifest.name.as_str() {
         "internal-maintenance" => Ok(ToolExecutionResult {
             summary: "Internal maintenance completed without external side effects.".to_string(),
         }),
         "praxis-data-write" => append_text(paths, manifest, request),
         "file-read" => read_file(paths, manifest, request),
-        "shell-exec" => exec_shell_command(paths, manifest, request),
+        "shell-exec" => exec_shell_command(paths, &vault, manifest, request),
         _ => match manifest.kind {
             ToolKind::Shell
                 if manifest
@@ -40,7 +43,7 @@ pub fn execute_request(
                     .as_deref()
                     .is_some_and(|p| !p.trim().is_empty()) =>
             {
-                run_shell(paths, manifest, request)
+                run_shell(paths, &vault, manifest, request)
             }
             ToolKind::Http
                 if manifest
@@ -48,7 +51,7 @@ pub fn execute_request(
                     .as_deref()
                     .is_some_and(|e| !e.trim().is_empty()) =>
             {
-                run_http(paths, manifest, request)
+                run_http(paths, &vault, manifest, request)
             }
             _ => Ok(fallback_result(
                 manifest,
@@ -61,6 +64,7 @@ pub fn execute_request(
 
 fn run_shell(
     paths: &PraxisPaths,
+    vault: &Vault,
     manifest: &ToolManifest,
     request: &StoredApprovalRequest,
 ) -> Result<ToolExecutionResult> {
@@ -111,6 +115,14 @@ fn run_shell(
     }
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
+
+    // Inject vault secrets as VAULT_<NAME> env vars.
+    for (name, entry) in &vault.secrets {
+        if let Some(value) = entry.resolve().ok().flatten() {
+            let key = format!("VAULT_{}", name.to_ascii_uppercase().replace('-', "_"));
+            cmd.env(key, value);
+        }
+    }
 
     // Inject OAuth tokens as env vars so shell tools can call authenticated APIs.
     let oauth_store = OAuthTokenStore::new(&paths.data_dir);
@@ -181,6 +193,7 @@ fn run_shell(
 
 fn run_http(
     paths: &PraxisPaths,
+    vault: &Vault,
     manifest: &ToolManifest,
     request: &StoredApprovalRequest,
 ) -> Result<ToolExecutionResult> {
@@ -209,8 +222,11 @@ fn run_http(
 
     let payload = parse_payload(request.payload_json.as_deref())?;
 
-    // Substitute {param} placeholders in the URL.
-    let url = substitute_params(endpoint_template, &payload.params);
+    // Substitute {param} placeholders then $VAULT{name} references in the URL.
+    let url = substitute_vault(
+        &substitute_params(endpoint_template, &payload.params),
+        vault,
+    );
 
     log::info!("executing http tool {} {} {}", manifest.name, method, url);
 
@@ -228,10 +244,11 @@ fn run_http(
         other => bail!("http tool {} has unsupported method {other}", manifest.name),
     };
 
-    // Apply manifest headers.
+    // Apply manifest headers, resolving $VAULT{name} references in values.
     for header_str in &manifest.headers {
         if let Some((key, value)) = header_str.split_once(':') {
-            builder = builder.header(key.trim(), value.trim());
+            let resolved_value = substitute_vault(value.trim(), vault);
+            builder = builder.header(key.trim(), resolved_value);
         }
     }
 
@@ -292,6 +309,22 @@ fn substitute_params(template: &str, params: &HashMap<String, String>) -> String
     let mut result = template.to_string();
     for (key, value) in params {
         result = result.replace(&format!("{{{key}}}"), value);
+    }
+    result
+}
+
+/// Substitute `$VAULT{name}` references in `template` with resolved vault values.
+/// Unresolved references are left as-is so they surface as obvious errors.
+fn substitute_vault(template: &str, vault: &Vault) -> String {
+    let mut result = template.to_string();
+    // Iterate over known secret names and substitute any $VAULT{name} occurrences.
+    for name in vault.secrets.keys() {
+        let placeholder = format!("$VAULT{{{name}}}");
+        if result.contains(&placeholder) {
+            if let Some(value) = vault.resolve_optional(name) {
+                result = result.replace(&placeholder, &value);
+            }
+        }
     }
     result
 }
@@ -389,6 +422,7 @@ fn read_file(
 
 fn exec_shell_command(
     paths: &PraxisPaths,
+    vault: &Vault,
     manifest: &ToolManifest,
     request: &StoredApprovalRequest,
 ) -> Result<ToolExecutionResult> {
@@ -416,6 +450,14 @@ fn exec_shell_command(
     cmd.args(["-c", command]);
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
+
+    // Inject vault secrets as VAULT_<NAME> env vars.
+    for (name, entry) in &vault.secrets {
+        if let Some(value) = entry.resolve().ok().flatten() {
+            let key = format!("VAULT_{}", name.to_ascii_uppercase().replace('-', "_"));
+            cmd.env(key, value);
+        }
+    }
 
     let oauth_store = OAuthTokenStore::new(&paths.data_dir);
     if let Ok(tokens) = oauth_store.load() {

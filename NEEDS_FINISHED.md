@@ -58,8 +58,8 @@ Wired into `src/loop/reflect.rs`. `SessionScore::compute()` and `record_score()`
 
 These have real implementations but no call site in the main loop. They are effectively dead code until wired in.
 
-### Hand Manifests
-`src/hands.rs` and CLI (`src/cli/hands.rs`) are complete. Orient phase never loads an active hand. No tool activation, no role enforcement. The feature is invisible at runtime.
+### ~~Hand Manifests~~ ✓ DONE
+Wired into `src/loop/phases.rs::orient()`. `enforce_active_hand()` reads the active hand name from `hands/active.txt`, loads the manifest from `HandStore`, and validates that all required tools are registered. Missing required tools abort the session with a clear error. Missing optional tools log a warning. Write the hand name to `hands/active.txt` (or leave it empty/absent for no active hand).
 
 ### ~~Synthetic Example Generation~~ ✓ DONE
 Wired into `src/loop/reflect.rs`. `record_example()` is now called at the end of every Reflect phase for non-idle outcomes. Quality score is attached from the composite irreplaceability score computed in the same pass.
@@ -67,8 +67,8 @@ Wired into `src/loop/reflect.rs`. `record_example()` is now called at the end of
 ### ~~System Anomaly Correlation~~ ✓ DONE
 Wired into `src/loop/reflect.rs`. `SystemSnapshot::capture()` and `record_snapshot()` are now called at the end of every Reflect phase, tagged with the final session outcome.
 
-### Vault (Credential Store)
-`src/vault.rs` and `src/cli/vault.rs` are complete. Provider auth and tool injection both bypass the vault and use direct env vars. The vault is never queried at runtime.
+### ~~Vault (Credential Store)~~ ✓ DONE
+Wired into `src/tools/execute.rs`. The vault is loaded at the start of every `execute_request()`. Shell tools (including `shell-exec`) receive all vault secrets as `VAULT_<NAME>` env vars. HTTP tool headers and endpoint URLs have `$VAULT{name}` placeholders substituted with resolved values. Vault load failure is non-fatal (falls back to empty vault so env-var-only setups are unaffected).
 
 ### Speculative Execution
 `src/speculative/mod.rs` stores trial execution records. The Act phase has no branching logic. No rehearsal automation exists. Nothing calls into speculative at runtime.

@@ -4,7 +4,9 @@ use crate::{
     context::{
         ContextLoadRequest, LocalContextLoader, compact_if_needed, consume_compact, handoff,
     },
+    hands::HandStore,
     memory::{MemoryLinkStore, MemoryStore},
+    paths::PraxisPaths,
     state::SessionState,
     storage::{
         AnatomyStore, ApprovalStore, DecisionReceiptStore, NewDecisionReceipt,
@@ -56,6 +58,7 @@ where
 
         self.identity.validate(self.paths)?;
         self.tools.validate(self.paths)?;
+        enforce_active_hand(self.paths, self.tools)?;
 
         if let Err(e) = crate::anatomy::refresh_stale_anatomy(self.paths) {
             log::warn!("anatomy refresh failed: {e}");
@@ -337,4 +340,69 @@ pub(super) fn invocation_key(
         request.write_paths.join(","),
         request.payload_json.as_deref().unwrap_or("")
     )
+}
+
+/// Load the active hand (if any) and validate required tools are registered.
+/// Missing required tools return an error; missing optional tools log a warning.
+fn enforce_active_hand(paths: &PraxisPaths, tools: &impl ToolRegistry) -> Result<()> {
+    let name = match std::fs::read_to_string(&paths.active_hand_file) {
+        Ok(s) => {
+            let trimmed = s.trim().to_string();
+            if trimmed.is_empty() {
+                return Ok(());
+            }
+            trimmed
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => {
+            log::warn!("failed to read active hand file: {e}");
+            return Ok(());
+        }
+    };
+
+    let store = HandStore::load(&paths.hands_dir)?;
+    let hand = store.get(&name).ok_or_else(|| {
+        anyhow::anyhow!(
+            "active hand '{name}' not found in {}",
+            paths.hands_dir.display()
+        )
+    })?;
+
+    let registered: std::collections::HashSet<String> =
+        tools.list(paths)?.into_iter().map(|m| m.name).collect();
+
+    let missing_required: Vec<&str> = hand
+        .tools
+        .required
+        .iter()
+        .filter(|t| !registered.contains(*t))
+        .map(String::as_str)
+        .collect();
+
+    if !missing_required.is_empty() {
+        anyhow::bail!(
+            "active hand '{}' requires tools that are not registered: {}",
+            hand.name,
+            missing_required.join(", ")
+        );
+    }
+
+    for tool in &hand.tools.optional {
+        if !registered.contains(tool) {
+            log::warn!(
+                "active hand '{}': optional tool '{tool}' is not registered",
+                hand.name
+            );
+        }
+    }
+
+    log::info!(
+        "active hand '{}' loaded: {} required tool(s), {} optional, {} skill(s)",
+        hand.name,
+        hand.tools.required.len(),
+        hand.tools.optional.len(),
+        hand.skills.load.len(),
+    );
+
+    Ok(())
 }

@@ -85,6 +85,8 @@ pub struct PraxisPaths {
     pub delegation_links_file: PathBuf,
     /// Installed hand manifests — each `*.toml` describes a role bundle (`hands/`).
     pub hands_dir: PathBuf,
+    /// Name of the currently active hand (`hands/active.txt`). Empty file = no active hand.
+    pub active_hand_file: PathBuf,
     /// Per-session irreplaceability score log (`score.jsonl`).
     pub score_file: PathBuf,
     /// Credential vault — name→secret mapping resolved at request time (`vault.toml`).
@@ -215,6 +217,7 @@ impl PraxisPaths {
             operator_schedule_file: data_dir.join("operator_schedule.json"),
             system_anomalies_file: data_dir.join("system_anomalies.jsonl"),
             delegation_links_file: data_dir.join("delegation_links.json"),
+            active_hand_file: data_dir.join("hands").join("active.txt"),
             hands_dir,
             score_file: data_dir.join("score.jsonl"),
             vault_file: data_dir.join("vault.toml"),
