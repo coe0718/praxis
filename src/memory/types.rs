@@ -146,6 +146,11 @@ pub struct MemoryLink {
 
 // ── Traits ────────────────────────────────────────────────────────────────────
 
+pub struct ConsolidationSummary {
+    pub consolidated: usize,
+    pub pruned: usize,
+}
+
 pub trait MemoryStore {
     fn insert_hot_memory(&self, memory: NewHotMemory) -> Result<StoredMemory>;
     fn insert_cold_memory(&self, memory: NewColdMemory) -> Result<StoredMemory>;
@@ -153,6 +158,10 @@ pub trait MemoryStore {
     fn strongest_cold_memories(&self, limit: usize) -> Result<Vec<StoredMemory>>;
     fn search_memories(&self, query: &str, limit: usize) -> Result<Vec<StoredMemory>>;
     fn decay_cold_memories(&self, now: DateTime<Utc>) -> Result<usize>;
+
+    /// Cluster related hot memories into cold memories and prune dead cold memories.
+    /// Returns counts of clusters promoted and cold memories pruned.
+    fn consolidate_memories(&self, now: DateTime<Utc>) -> Result<ConsolidationSummary>;
 
     /// Fetch a single memory by ID, checking both tiers.
     fn get_memory(&self, id: i64) -> Result<Option<StoredMemory>>;

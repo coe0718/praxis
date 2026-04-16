@@ -3,7 +3,8 @@ use chrono::{DateTime, Utc};
 use rusqlite::{OptionalExtension, params};
 
 use crate::memory::{
-    MemoryStore, MemoryTier, MemoryType, NewColdMemory, NewHotMemory, StoredMemory, to_fts_query,
+    ConsolidationSummary, MemoryStore, MemoryTier, MemoryType, NewColdMemory, NewHotMemory,
+    StoredMemory, to_fts_query,
 };
 
 use super::SqliteSessionStore;
@@ -167,6 +168,10 @@ impl MemoryStore for SqliteSessionStore {
 
     fn decay_cold_memories(&self, now: DateTime<Utc>) -> Result<usize> {
         super::memory_decay::decay_cold_memories(self, now)
+    }
+
+    fn consolidate_memories(&self, now: DateTime<Utc>) -> Result<ConsolidationSummary> {
+        super::memory_consolidation::consolidate_memories(self, now)
     }
 
     fn get_memory(&self, id: i64) -> Result<Option<StoredMemory>> {

@@ -17,6 +17,7 @@ mod hands;
 mod heartbeat;
 mod hooks;
 mod learning;
+mod memory;
 mod oauth;
 mod sandbox;
 mod serve;
@@ -89,6 +90,7 @@ pub enum Commands {
     Hooks(hooks::HooksArgs),
     Sandbox(sandbox::SandboxArgs),
     Vault(vault::VaultArgs),
+    Memory(memory::MemoryArgs),
 }
 
 #[derive(Debug, Args)]
@@ -236,6 +238,7 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::Hooks(args) => hooks::handle_hooks(cli.data_dir, args),
         Commands::Sandbox(args) => sandbox::handle_sandbox(cli.data_dir, args),
         Commands::Vault(args) => vault::handle_vault(cli.data_dir, args),
+        Commands::Memory(args) => memory::handle_memory(cli.data_dir, args),
     }
 }
 

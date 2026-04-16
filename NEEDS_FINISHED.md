@@ -37,8 +37,8 @@ No Cloudflare Workers or AWS Lambda entry point. Nothing exists.
 ### Dashboard UI
 SSE stream and Prometheus endpoint work. The HTML served (`src/dashboard/server.rs` ~line 57) is a bare skeleton with no widgets, no controls, and no reactive state. Needs real frontend work.
 
-### Memory Consolidation
-Decay (`src/storage/sqlite/memory_decay.rs`) multiplies weight by 0.97 every N days. There is no synthesis pass that clusters related hot memories into a single cold memory or prunes redundant entries. Memory grows without bound beyond decay weight reduction.
+### ~~Memory Consolidation~~ ✓ DONE
+Implemented in `src/storage/sqlite/memory_consolidation.rs` and wired into `execute_reflect()`. Every session, hot memories older than 7 days are clustered by shared tag; clusters of 3+ are promoted to a single cold memory and the originals deleted. Cold memories at the weight floor (0.25) beyond 2× their type-specific decay window are pruned. Also available on demand via `praxis memory consolidate`.
 
 ### ~~Evolution — Agent-Driven Proposals~~ ✓ DONE
 Wired into `src/loop/reflect.rs`. `maybe_propose_evolution()` is now called after every non-trivial Reflect phase. Generates `Config` proposals for `review_failed`/`eval_failed` outcomes and `Identity` proposals when composite+follow-through scores are both below 0.5. Capped at 3 pending proposals, deduplicated by title prefix, and triggers `render_self_evolution_doc()` after each new proposal.

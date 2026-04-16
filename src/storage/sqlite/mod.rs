@@ -3,6 +3,7 @@ mod approvals;
 mod decisions;
 mod learning;
 mod memory;
+mod memory_consolidation;
 mod memory_decay;
 mod memory_links;
 mod opportunities;

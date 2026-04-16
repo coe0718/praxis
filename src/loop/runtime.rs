@@ -203,6 +203,22 @@ where
         record_snapshot(&self.paths.database_file, state, "agent:reflect_start")?;
         self.reflect(state)?;
         let decayed = self.store.decay_cold_memories(self.clock.now_utc())?;
+        let consolidation = self.store.consolidate_memories(self.clock.now_utc());
+        match consolidation {
+            Ok(ref summary) if summary.consolidated > 0 || summary.pruned > 0 => {
+                if let Err(e) = self.emit(
+                    "agent:memory_consolidated",
+                    &format!(
+                        "{} hot clusters promoted to cold, {} dead cold memories pruned.",
+                        summary.consolidated, summary.pruned
+                    ),
+                ) {
+                    log::warn!("failed to emit memory consolidation event: {e}");
+                }
+            }
+            Err(e) => log::warn!("memory consolidation failed: {e}"),
+            _ => {}
+        }
 
         let now = self.clock.now_utc();
         let learning_store =
