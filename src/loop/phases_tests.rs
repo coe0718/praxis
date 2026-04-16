@@ -15,6 +15,7 @@ fn payload_changes_tool_invocation_key() {
         requires_approval: true,
         rehearsal_required: true,
         allowed_paths: vec!["JOURNAL.md".to_string()],
+        allowed_read_paths: Vec::new(),
         path: None,
         args: Vec::new(),
         timeout_secs: None,

@@ -203,6 +203,36 @@ where
         record_snapshot(&self.paths.database_file, state, "agent:reflect_start")?;
         self.reflect(state)?;
         let decayed = self.store.decay_cold_memories(self.clock.now_utc())?;
+
+        let now = self.clock.now_utc();
+        let learning_store = crate::storage::SqliteSessionStore::new(self.paths.database_file.clone());
+        let already_ran_today = learning_store
+            .latest_learning_run()
+            .ok()
+            .flatten()
+            .and_then(|run| chrono::DateTime::parse_from_rfc3339(&run.completed_at).ok())
+            .map(|ts| ts.date_naive() == now.date_naive())
+            .unwrap_or(false);
+
+        // Only auto-run learning for autonomous (non-operator-driven) sessions.
+        // Operator-injected tasks run learning on demand via `praxis learn run`.
+        let is_autonomous = state.requested_task.is_none();
+
+        if !already_ran_today && is_autonomous {
+            match crate::learning::run_once(self.paths, &learning_store, now) {
+                Ok(summary) if summary.opportunities_created > 0 => {
+                    self.emit(
+                        "agent:learning_opportunities_found",
+                        &format!(
+                            "{} new learning opportunities queued.",
+                            summary.opportunities_created
+                        ),
+                    )?;
+                }
+                Err(e) => log::warn!("learning run failed: {e}"),
+                _ => {}
+            }
+        }
         if decayed > 0 {
             self.emit(
                 "agent:cold_memory_decayed",

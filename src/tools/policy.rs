@@ -196,6 +196,7 @@ mod tests {
             requires_approval: true,
             rehearsal_required: true,
             allowed_paths: paths.iter().map(|path| path.to_string()).collect(),
+            allowed_read_paths: Vec::new(),
             path: None,
             args: Vec::new(),
             timeout_secs: None,

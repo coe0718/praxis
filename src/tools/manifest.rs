@@ -21,6 +21,9 @@ pub struct ToolManifest {
     pub rehearsal_required: bool,
     #[serde(default)]
     pub allowed_paths: Vec<String>,
+    /// Read-path roots for `file-read` tools. Empty means data_dir only.
+    #[serde(default)]
+    pub allowed_read_paths: Vec<String>,
     /// Executable path for `shell` tools (e.g. `/usr/bin/git`).
     #[serde(default)]
     pub path: Option<String>,

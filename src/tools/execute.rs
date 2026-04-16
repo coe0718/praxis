@@ -31,6 +31,8 @@ pub fn execute_request(
             summary: "Internal maintenance completed without external side effects.".to_string(),
         }),
         "praxis-data-write" => append_text(paths, manifest, request),
+        "file-read" => read_file(paths, manifest, request),
+        "shell-exec" => exec_shell_command(paths, manifest, request),
         _ => match manifest.kind {
             ToolKind::Shell
                 if manifest
@@ -82,12 +84,15 @@ fn run_shell(
     // Parse any extra arguments from the structured payload.
     let payload = parse_payload(request.payload_json.as_deref())?;
     let extra_args: Vec<String> = payload
-        .append_text
-        .as_deref()
-        .map(|text| {
-            text.split_whitespace()
-                .map(str::to_string)
-                .collect::<Vec<_>>()
+        .params
+        .get("args")
+        .map(|s| s.split_whitespace().map(str::to_string).collect())
+        .or_else(|| {
+            payload.append_text.as_deref().map(|text| {
+                text.split_whitespace()
+                    .map(str::to_string)
+                    .collect::<Vec<_>>()
+            })
         })
         .unwrap_or_default();
 
@@ -301,6 +306,174 @@ fn provider_title(provider: &str) -> String {
         None => String::new(),
         Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
     }
+}
+
+fn read_file(
+    paths: &PraxisPaths,
+    manifest: &ToolManifest,
+    request: &StoredApprovalRequest,
+) -> Result<ToolExecutionResult> {
+    const MAX_READ_BYTES: usize = 32 * 1024;
+
+    let payload = parse_payload(request.payload_json.as_deref())?;
+    let raw_path = payload
+        .params
+        .get("path")
+        .map(|s| s.as_str())
+        .filter(|s| !s.trim().is_empty())
+        .ok_or_else(|| anyhow::anyhow!("file-read requires params.path"))?;
+
+    let full_path = if manifest.allowed_read_paths.is_empty() {
+        let relative = normalize_relative(raw_path)?;
+        let candidate = paths.data_dir.join(&relative);
+        if !candidate.starts_with(&paths.data_dir) {
+            anyhow::bail!("file-read path escapes the Praxis data directory");
+        }
+        candidate
+    } else {
+        let input = Path::new(raw_path);
+        let mut resolved: Option<PathBuf> = None;
+        for root_str in &manifest.allowed_read_paths {
+            let root = PathBuf::from(root_str);
+            let candidate = if input.is_absolute() {
+                input.to_path_buf()
+            } else {
+                root.join(input)
+            };
+            let Ok(canon_root) = fs::canonicalize(&root) else {
+                continue;
+            };
+            let Ok(canon_candidate) = fs::canonicalize(&candidate) else {
+                continue;
+            };
+            if canon_candidate.starts_with(&canon_root) {
+                resolved = Some(candidate);
+                break;
+            }
+        }
+        resolved.ok_or_else(|| {
+            anyhow::anyhow!(
+                "file-read path {} is not within any allowed_read_paths root",
+                raw_path
+            )
+        })?
+    };
+
+    if let Ok(meta) = fs::symlink_metadata(&full_path) {
+        if meta.file_type().is_symlink() {
+            anyhow::bail!(
+                "file-read refuses to follow symlink at {}",
+                full_path.display()
+            );
+        }
+    }
+
+    let content = fs::read(&full_path)
+        .with_context(|| format!("failed to read {}", full_path.display()))?;
+
+    let truncated = content.len() > MAX_READ_BYTES;
+    let text =
+        String::from_utf8_lossy(&content[..content.len().min(MAX_READ_BYTES)]).to_string();
+    let suffix = if truncated {
+        format!("\n[truncated at {} bytes]", MAX_READ_BYTES)
+    } else {
+        String::new()
+    };
+
+    Ok(ToolExecutionResult {
+        summary: format!(
+            "file-read {} ({} bytes).\n{}{}",
+            full_path.display(),
+            content.len(),
+            text,
+            suffix
+        ),
+    })
+}
+
+fn exec_shell_command(
+    paths: &PraxisPaths,
+    manifest: &ToolManifest,
+    request: &StoredApprovalRequest,
+) -> Result<ToolExecutionResult> {
+    let payload = parse_payload(request.payload_json.as_deref())?;
+    let command = payload
+        .params
+        .get("command")
+        .map(|s| s.as_str())
+        .filter(|s| !s.trim().is_empty())
+        .ok_or_else(|| anyhow::anyhow!("shell-exec requires params.command"))?;
+
+    let timeout_secs = manifest
+        .timeout_secs
+        .unwrap_or(DEFAULT_TIMEOUT_SECS)
+        .max(1)
+        .min(300);
+
+    log::info!(
+        "executing shell-exec (timeout {}s): {}",
+        timeout_secs,
+        &command[..command.len().min(80)]
+    );
+
+    let mut cmd = Command::new("/bin/bash");
+    cmd.args(["-c", command]);
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::piped());
+
+    let oauth_store = OAuthTokenStore::new(&paths.data_dir);
+    if let Ok(tokens) = oauth_store.load() {
+        for (provider, token) in &tokens {
+            if !token.is_expired() {
+                let key = format!("PRAXIS_OAUTH_{}_TOKEN", provider.to_uppercase());
+                cmd.env(key, &token.access_token);
+            }
+        }
+    }
+
+    let mut child = cmd.spawn().context("failed to spawn shell-exec process")?;
+
+    let deadline = std::time::Instant::now() + Duration::from_secs(timeout_secs);
+    let pid = child.id();
+    loop {
+        match child.try_wait()? {
+            Some(_) => break,
+            None if std::time::Instant::now() >= deadline => {
+                let _ = child.kill();
+                anyhow::bail!(
+                    "shell-exec timed out after {}s (pid {pid})",
+                    timeout_secs
+                );
+            }
+            None => std::thread::sleep(Duration::from_millis(100)),
+        }
+    }
+
+    let output = child
+        .wait_with_output()
+        .context("failed to collect shell-exec output")?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+
+    if !output.status.success() {
+        let code = output.status.code().unwrap_or(-1);
+        let detail = if stderr.is_empty() { &stdout } else { &stderr };
+        anyhow::bail!(
+            "shell-exec exited with code {code}: {}",
+            detail.chars().take(200).collect::<String>()
+        );
+    }
+
+    let snippet = if stdout.is_empty() {
+        "(no output)".to_string()
+    } else {
+        stdout.chars().take(2000).collect::<String>()
+    };
+
+    Ok(ToolExecutionResult {
+        summary: format!("shell-exec completed successfully.\n{snippet}"),
+    })
 }
 
 fn append_text(

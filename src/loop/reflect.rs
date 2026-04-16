@@ -1,11 +1,14 @@
 use anyhow::{Context, Result};
 
 use crate::{
+    anomaly::{SystemSnapshot, record_snapshot as record_system_snapshot},
+    examples::{SyntheticExample, build_context, examples_file, is_useful_outcome, record_example},
     forensics::attach_session_id,
     identity::Goal,
     memory::{MemoryLinkStore, MemoryStore, NewDoNotRepeat, NewHotMemory, NewKnownBug},
     postmortem::append_postmortem,
     quality::{EvalRunner, LocalEvalSuite, LocalReviewer, Reviewer, summarize},
+    score::{ScoreWeights, SessionScore, SessionScoreInput, record_score},
     skills::{SkillSynthesizer, synthesis::SkillSynthesisInput},
     state::SessionState,
     storage::{
@@ -115,6 +118,38 @@ where
 
         stored.outcome = final_outcome.clone();
         stored.action_summary = final_summary.clone();
+
+        let score_input = build_score_input(state, &stored.outcome, stored.selected_goal_id.is_some());
+        let score = SessionScore::compute(&score_input, &ScoreWeights::default())
+            .with_session_id(stored.id);
+        if let Err(e) = record_score(&self.paths.score_file, &score) {
+            log::warn!("failed to record session score: {e}");
+        }
+
+        if is_useful_outcome(&stored.outcome) {
+            let ctx = build_context(
+                stored.selected_goal_title.as_deref(),
+                &stored.action_summary,
+                0,
+                state.tool_invocation_hashes.len(),
+            );
+            let mut example =
+                SyntheticExample::new(ctx, &stored.action_summary, &stored.outcome)
+                    .with_session_id(stored.id);
+            if let Some(ref gid) = stored.selected_goal_id {
+                example = example.with_goal_id(gid);
+            }
+            example = example.with_quality_score(score.composite);
+            if let Err(e) = record_example(&examples_file(self.paths), &example) {
+                log::warn!("failed to record synthetic example: {e}");
+            }
+        }
+
+        let snapshot = SystemSnapshot::capture(&self.paths.data_dir, Some(stored.outcome.clone()));
+        if let Err(e) = record_system_snapshot(&self.paths.system_anomalies_file, &snapshot) {
+            log::warn!("failed to record system snapshot: {e}");
+        }
+
         append_postmortem(
             self.paths,
             &stored,
@@ -256,6 +291,24 @@ where
             "agent:session_complete",
             "Reflect finalized the session outcome.",
         )
+    }
+}
+
+fn build_score_input(state: &SessionState, outcome: &str, goal_was_selected: bool) -> SessionScoreInput {
+    let proactive = state.requested_task.is_none();
+    let goal_completed = goal_was_selected
+        && outcome != "review_failed"
+        && outcome != "eval_failed"
+        && outcome != "idle";
+    let tool_calls = state.tool_invocation_hashes.len() as u32;
+    SessionScoreInput {
+        proactive_wake_hits: u32::from(proactive && goal_completed),
+        proactive_wakes_total: u32::from(proactive),
+        goal_completed,
+        goal_was_selected,
+        approvals_passed: tool_calls,
+        approvals_total: tool_calls,
+        operator_intervened: state.resume_count > 0,
     }
 }
 

@@ -1,4 +1,4 @@
-use std::{fmt::Write as _, path::PathBuf};
+use std::{collections::HashMap, fmt::Write as _, path::PathBuf};
 
 use anyhow::{Context, Result, bail};
 use clap::{Args, Subcommand, ValueEnum};
@@ -15,6 +15,12 @@ use crate::{
 };
 
 use super::core::load_initialized_config;
+
+fn parse_key_val(s: &str) -> Result<(String, String), String> {
+    s.split_once('=')
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .ok_or_else(|| format!("invalid param '{s}': expected key=value"))
+}
 
 #[derive(Debug, Args)]
 pub struct ToolsArgs {
@@ -59,6 +65,9 @@ struct RequestToolArgs {
     write_paths: Vec<String>,
     #[arg(long)]
     append_text: Option<String>,
+    /// Key=value params for shell-exec, file-read, web-fetch, git-query.
+    #[arg(long = "param", value_parser = parse_key_val)]
+    params: Vec<(String, String)>,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -103,6 +112,7 @@ fn handle_register(data_dir_override: Option<PathBuf>, args: RegisterToolArgs) -
         requires_approval: args.approval,
         rehearsal_required: args.rehearsal,
         allowed_paths: args.allow_paths,
+        allowed_read_paths: Vec::new(),
         path: None,
         args: Vec::new(),
         timeout_secs: None,
@@ -142,7 +152,11 @@ fn handle_request(data_dir_override: Option<PathBuf>, args: RequestToolArgs) -> 
         summary: args.summary,
         requested_by: args.requested_by,
         write_paths: args.write_paths,
-        payload_json: build_payload(&manifest, args.append_text)?,
+        payload_json: build_payload(
+            &manifest,
+            args.append_text,
+            args.params.into_iter().collect::<HashMap<_, _>>(),
+        )?,
         status,
     };
     SecurityPolicy.validate_request(
