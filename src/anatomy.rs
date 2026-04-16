@@ -4,7 +4,10 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::{paths::PraxisPaths, storage::{AnatomyStore, SqliteSessionStore}};
+use crate::{
+    paths::PraxisPaths,
+    storage::{AnatomyStore, SqliteSessionStore},
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NewAnatomyEntry {
@@ -93,7 +96,9 @@ pub fn refresh_stale_anatomy(paths: &PraxisPaths) -> Result<usize> {
         if let Ok(entries) = fs::read_dir(&paths.tools_dir) {
             for entry in entries.flatten() {
                 let p = entry.path();
-                if p.extension().map_or(false, |ext| ext == "toml" || ext == "json") {
+                if p.extension()
+                    .map_or(false, |ext| ext == "toml" || ext == "json")
+                {
                     candidates.push(p);
                 }
             }

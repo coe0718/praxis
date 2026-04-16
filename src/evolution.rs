@@ -190,7 +190,11 @@ impl EvolutionStore {
 
     /// Load only proposals matching a status filter.
     pub fn with_status(&self, status: ProposalStatus) -> Result<Vec<EvolutionProposal>> {
-        Ok(self.all()?.into_iter().filter(|p| p.status == status).collect())
+        Ok(self
+            .all()?
+            .into_iter()
+            .filter(|p| p.status == status)
+            .collect())
     }
 
     /// Find a proposal by ID.
@@ -308,7 +312,12 @@ pub fn render_self_evolution_doc(paths: &PraxisPaths) -> Result<()> {
 
     let pending: Vec<_> = proposals
         .iter()
-        .filter(|p| matches!(p.status, ProposalStatus::Proposed | ProposalStatus::Approved))
+        .filter(|p| {
+            matches!(
+                p.status,
+                ProposalStatus::Proposed | ProposalStatus::Approved
+            )
+        })
         .collect();
     let historical: Vec<_> = proposals
         .iter()
@@ -339,7 +348,11 @@ fn render_proposal(p: &EvolutionProposal) -> String {
     let evidence = if p.evidence_session_ids.is_empty() {
         "none".to_string()
     } else {
-        p.evidence_session_ids.iter().map(|id| format!("#{id}")).collect::<Vec<_>>().join(", ")
+        p.evidence_session_ids
+            .iter()
+            .map(|id| format!("#{id}"))
+            .collect::<Vec<_>>()
+            .join(", ")
     };
     format!(
         "### {} `[{}]`\n\n\
@@ -372,7 +385,12 @@ fn render_proposal_summary(p: &EvolutionProposal) -> String {
             .unwrap_or_default(),
         _ => String::new(),
     };
-    format!("- `{}` **{}** [{}]{extra}\n", p.id, p.title, p.status.label())
+    format!(
+        "- `{}` **{}** [{}]{extra}\n",
+        p.id,
+        p.title,
+        p.status.label()
+    )
 }
 
 #[cfg(test)]

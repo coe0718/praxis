@@ -156,7 +156,9 @@ impl HandStore {
 
     /// Find a hand by name (case-insensitive).
     pub fn get(&self, name: &str) -> Option<&HandManifest> {
-        self.hands.iter().find(|h| h.name.eq_ignore_ascii_case(name))
+        self.hands
+            .iter()
+            .find(|h| h.name.eq_ignore_ascii_case(name))
     }
 
     /// Multi-line summary of all installed hands.

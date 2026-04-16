@@ -63,10 +63,7 @@ struct ResolveSecretArgs {
     name: String,
 }
 
-pub(super) fn handle_vault(
-    data_dir_override: Option<PathBuf>,
-    args: VaultArgs,
-) -> Result<String> {
+pub(super) fn handle_vault(data_dir_override: Option<PathBuf>, args: VaultArgs) -> Result<String> {
     let data_dir = data_dir_override.unwrap_or(default_data_dir()?);
     let paths = PraxisPaths::for_data_dir(data_dir);
 
@@ -114,7 +111,10 @@ pub(super) fn handle_vault(
             let vault = Vault::load(&paths.vault_file)?;
             let warnings = audit_literals(&vault);
             if warnings.is_empty() {
-                Ok("vault: no literal entries found — all secrets use env-var references".to_string())
+                Ok(
+                    "vault: no literal entries found — all secrets use env-var references"
+                        .to_string(),
+                )
             } else {
                 Ok(warnings.join("\n"))
             }

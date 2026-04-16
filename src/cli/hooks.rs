@@ -68,24 +68,31 @@ pub(super) fn handle_hooks(data_dir_override: Option<PathBuf>, args: HooksArgs) 
                 return Ok("hooks: none registered".to_string());
             }
             // Re-load as raw config for display.
-            let config: crate::hooks::HookConfig =
-                if paths.hooks_file.exists() {
-                    let raw = std::fs::read_to_string(&paths.hooks_file)?;
-                    toml::from_str(&raw)?
-                } else {
-                    Default::default()
-                };
-            let lines: Vec<String> = config.hooks.iter().map(|h| {
-                format!(
-                    "  [{:?}] {} → {} (filter: {}, timeout: {}s)",
-                    h.kind,
-                    h.event,
-                    h.script.display(),
-                    h.filter.as_deref().unwrap_or("*"),
-                    h.timeout_secs,
-                )
-            }).collect();
-            Ok(format!("hooks: {} registered\n{}", lines.len(), lines.join("\n")))
+            let config: crate::hooks::HookConfig = if paths.hooks_file.exists() {
+                let raw = std::fs::read_to_string(&paths.hooks_file)?;
+                toml::from_str(&raw)?
+            } else {
+                Default::default()
+            };
+            let lines: Vec<String> = config
+                .hooks
+                .iter()
+                .map(|h| {
+                    format!(
+                        "  [{:?}] {} → {} (filter: {}, timeout: {}s)",
+                        h.kind,
+                        h.event,
+                        h.script.display(),
+                        h.filter.as_deref().unwrap_or("*"),
+                        h.timeout_secs,
+                    )
+                })
+                .collect();
+            Ok(format!(
+                "hooks: {} registered\n{}",
+                lines.len(),
+                lines.join("\n")
+            ))
         }
 
         HooksCommands::Add(a) => {
@@ -109,7 +116,10 @@ pub(super) fn handle_hooks(data_dir_override: Option<PathBuf>, args: HooksArgs) 
         HooksCommands::Remove(a) => {
             let removed = remove_hook(&paths, &a.script)?;
             if removed > 0 {
-                Ok(format!("hooks: removed {removed} hook(s) matching {}", a.script.display()))
+                Ok(format!(
+                    "hooks: removed {removed} hook(s) matching {}",
+                    a.script.display()
+                ))
             } else {
                 Ok(format!("hooks: no hooks found for {}", a.script.display()))
             }
@@ -119,7 +129,10 @@ pub(super) fn handle_hooks(data_dir_override: Option<PathBuf>, args: HooksArgs) 
             let runner = HookRunner::load(&paths.hooks_file)?;
             let ctx = crate::hooks::HookContext::new(&a.event, paths.data_dir.clone());
             runner.fire_observer(&a.event, &ctx, "*");
-            Ok(format!("hooks: fired '{}' (observers only — interceptors not run in test)", a.event))
+            Ok(format!(
+                "hooks: fired '{}' (observers only — interceptors not run in test)",
+                a.event
+            ))
         }
     }
 }
@@ -129,6 +142,8 @@ fn parse_kind(s: &str) -> Result<HookKind> {
         "observer" => Ok(HookKind::Observer),
         "interceptor" => Ok(HookKind::Interceptor),
         "approval" => Ok(HookKind::Approval),
-        other => anyhow::bail!("unknown hook kind '{other}'; use observer, interceptor, or approval"),
+        other => {
+            anyhow::bail!("unknown hook kind '{other}'; use observer, interceptor, or approval")
+        }
     }
 }

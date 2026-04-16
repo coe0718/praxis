@@ -40,8 +40,8 @@ SSE stream and Prometheus endpoint work. The HTML served (`src/dashboard/server.
 ### Memory Consolidation
 Decay (`src/storage/sqlite/memory_decay.rs`) multiplies weight by 0.97 every N days. There is no synthesis pass that clusters related hot memories into a single cold memory or prunes redundant entries. Memory grows without bound beyond decay weight reduction.
 
-### Evolution — Agent-Driven Proposals
-`src/evolution.rs` is complete for the store and approval lifecycle. `src/loop/reflect.rs` never calls any proposal generation. The agent cannot propose changes to its own config, identity, or roadmap — only the operator can via CLI. The Reflect phase needs logic that inspects session outcomes and writes evolution proposals.
+### ~~Evolution — Agent-Driven Proposals~~ ✓ DONE
+Wired into `src/loop/reflect.rs`. `maybe_propose_evolution()` is now called after every non-trivial Reflect phase. Generates `Config` proposals for `review_failed`/`eval_failed` outcomes and `Identity` proposals when composite+follow-through scores are both below 0.5. Capped at 3 pending proposals, deduplicated by title prefix, and triggers `render_self_evolution_doc()` after each new proposal.
 
 ### Watchdog / Auto-Update
 `src/cli/watchdog.rs` installs a systemd/launchd timer that calls `praxis run --once`. Missing: binary self-update, canary-driven binary promotion/rollback, and automatic heartbeat verification with restart on stall.
@@ -76,11 +76,11 @@ Wired into `src/loop/reflect.rs`. `SystemSnapshot::capture()` and `record_snapsh
 ### ~~Learning / Opportunity Mining~~ ✓ DONE
 Wired into `src/loop/runtime.rs::execute_reflect()`. `learning::run_once()` is now called automatically after every session, with daily/weekly throttles enforced internally. New opportunities emit `agent:learning_opportunities_found` events.
 
-### Anatomy Refresh
-`src/anatomy.rs` has `refresh_stale_anatomy()`. The main loop never calls it automatically. It runs on `praxis doctor` only. CAPABILITIES.md drifts unless the operator manually refreshes.
+### ~~Anatomy Refresh~~ ✓ DONE
+Wired into `src/loop/phases.rs::orient()`. `refresh_stale_anatomy()` is now called automatically on every Orient phase, keeping CAPABILITIES.md in sync without operator intervention.
 
-### Brief Generation
-`src/brief/mod.rs` and `src/cli/brief.rs` exist. No scheduler triggers it. No Telegram delivery is wired. It runs on `praxis brief` only.
+### ~~Brief Generation~~ ✓ DONE
+Wired into `src/loop/runtime.rs::execute_reflect()`. `try_send_morning_brief()` runs after every session, delivering a Telegram brief to the primary configured chat if the brief hasn't been sent today. Gated by `PRAXIS_TELEGRAM_BOT_TOKEN` — silently skipped when Telegram is not configured.
 
 ### Sub-Agent Steering
 `src/wakeup/mod.rs` parses a steering flag on wakeup intent. The Act phase has no mid-session message injection or branch redirection handler. The flag is parsed and ignored.

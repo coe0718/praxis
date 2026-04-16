@@ -56,6 +56,11 @@ where
 
         self.identity.validate(self.paths)?;
         self.tools.validate(self.paths)?;
+
+        if let Err(e) = crate::anatomy::refresh_stale_anatomy(self.paths) {
+            log::warn!("anatomy refresh failed: {e}");
+        }
+
         let goals = self.goal_parser.load_goals(&self.paths.goals_file)?;
         let open_goals = goals
             .into_iter()

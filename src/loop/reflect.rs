@@ -2,10 +2,14 @@ use anyhow::{Context, Result};
 
 use crate::{
     anomaly::{SystemSnapshot, record_snapshot as record_system_snapshot},
+    evolution::{
+        ChangeKind, EvolutionProposal, EvolutionStore, ProposalStatus, render_self_evolution_doc,
+    },
     examples::{SyntheticExample, build_context, examples_file, is_useful_outcome, record_example},
     forensics::attach_session_id,
     identity::Goal,
     memory::{MemoryLinkStore, MemoryStore, NewDoNotRepeat, NewHotMemory, NewKnownBug},
+    paths::PraxisPaths,
     postmortem::append_postmortem,
     quality::{EvalRunner, LocalEvalSuite, LocalReviewer, Reviewer, summarize},
     score::{ScoreWeights, SessionScore, SessionScoreInput, record_score},
@@ -119,7 +123,8 @@ where
         stored.outcome = final_outcome.clone();
         stored.action_summary = final_summary.clone();
 
-        let score_input = build_score_input(state, &stored.outcome, stored.selected_goal_id.is_some());
+        let score_input =
+            build_score_input(state, &stored.outcome, stored.selected_goal_id.is_some());
         let score = SessionScore::compute(&score_input, &ScoreWeights::default())
             .with_session_id(stored.id);
         if let Err(e) = record_score(&self.paths.score_file, &score) {
@@ -133,9 +138,8 @@ where
                 0,
                 state.tool_invocation_hashes.len(),
             );
-            let mut example =
-                SyntheticExample::new(ctx, &stored.action_summary, &stored.outcome)
-                    .with_session_id(stored.id);
+            let mut example = SyntheticExample::new(ctx, &stored.action_summary, &stored.outcome)
+                .with_session_id(stored.id);
             if let Some(ref gid) = stored.selected_goal_id {
                 example = example.with_goal_id(gid);
             }
@@ -148,6 +152,10 @@ where
         let snapshot = SystemSnapshot::capture(&self.paths.data_dir, Some(stored.outcome.clone()));
         if let Err(e) = record_system_snapshot(&self.paths.system_anomalies_file, &snapshot) {
             log::warn!("failed to record system snapshot: {e}");
+        }
+
+        if let Err(e) = maybe_propose_evolution(self.paths, &stored.outcome, &score, stored.id) {
+            log::warn!("evolution proposal failed: {e}");
         }
 
         append_postmortem(
@@ -294,7 +302,101 @@ where
     }
 }
 
-fn build_score_input(state: &SessionState, outcome: &str, goal_was_selected: bool) -> SessionScoreInput {
+fn maybe_propose_evolution(
+    paths: &PraxisPaths,
+    outcome: &str,
+    score: &SessionScore,
+    session_id: i64,
+) -> Result<()> {
+    if matches!(
+        outcome,
+        "idle" | "skipped" | "deferred" | "approved_tool_selected"
+    ) {
+        return Ok(());
+    }
+
+    let store = EvolutionStore::from_paths(paths);
+    let pending = store.with_status(ProposalStatus::Proposed)?;
+
+    // Cap auto-proposals to avoid noise.
+    if pending.len() >= 3 {
+        return Ok(());
+    }
+
+    let proposal = if outcome == "review_failed" {
+        let title = "Review quality gate criteria after session review failure";
+        if pending
+            .iter()
+            .any(|p| p.title.starts_with("Review quality gate"))
+        {
+            return Ok(());
+        }
+        EvolutionProposal::new(
+            title,
+            format!(
+                "Session {session_id} ended with review_failed. The reviewer may be catching a \
+                 fixable pattern. Check AGENTS.md and the reviewer findings from this session."
+            ),
+            ChangeKind::Config,
+            "Review `[quality]` thresholds in praxis.toml or update AGENTS.md guidance to \
+             address the recurring failure pattern.",
+        )
+        .with_evidence(vec![session_id])
+    } else if outcome == "eval_failed" {
+        let title = "Address recurring eval failures";
+        if pending
+            .iter()
+            .any(|p| p.title.starts_with("Address recurring eval"))
+        {
+            return Ok(());
+        }
+        EvolutionProposal::new(
+            title,
+            format!(
+                "Session {session_id} ended with eval_failed. Review the `evals/` directory \
+                 for false positives or fix the underlying defect."
+            ),
+            ChangeKind::Config,
+            "Update or remove evals that consistently false-positive, or resolve the root \
+             cause they are detecting.",
+        )
+        .with_evidence(vec![session_id])
+    } else if score.composite < 0.5 && score.follow_through < 0.5 {
+        let title = "Improve goal follow-through rate";
+        if pending
+            .iter()
+            .any(|p| p.title.starts_with("Improve goal follow-through"))
+        {
+            return Ok(());
+        }
+        EvolutionProposal::new(
+            title,
+            format!(
+                "Session {session_id} scored {:.2} composite with {:.2} follow-through. \
+                 Goals are being selected but not completed.",
+                score.composite, score.follow_through
+            ),
+            ChangeKind::Identity,
+            "Consider: (1) breaking large goals into smaller milestones in GOALS.md, \
+             (2) increasing context budget in praxis.toml, \
+             (3) reviewing PATTERNS.md for recurring obstacles.",
+        )
+        .with_evidence(vec![session_id])
+    } else {
+        return Ok(());
+    };
+
+    store.propose(&proposal)?;
+    render_self_evolution_doc(paths)?;
+    log::info!("evolution: proposed '{}'", proposal.title);
+    Ok(())
+}
+
+fn build_score_input(
+    state: &SessionState,
+    outcome: &str,
+    goal_was_selected: bool,
+) -> SessionScoreInput {
     let proactive = state.requested_task.is_none();
     let goal_completed = goal_was_selected
         && outcome != "review_failed"

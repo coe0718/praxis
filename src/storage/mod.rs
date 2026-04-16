@@ -10,8 +10,8 @@ pub(crate) mod sqlite;
 pub use anatomy::AnatomyStore;
 pub use ops::{OperationalMemoryCounts, OperationalMemoryStore};
 pub use provider::ProviderUsageStore;
-pub use sqlite::SqliteSessionStore;
 pub(crate) use sqlite::ContradictionQuery;
+pub use sqlite::SqliteSessionStore;
 
 /// A structured audit record written after every Decide phase.
 #[derive(Debug, Clone)]

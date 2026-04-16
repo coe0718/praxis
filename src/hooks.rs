@@ -50,10 +50,10 @@
 
 use std::{
     collections::HashMap,
+    fs,
     path::{Path, PathBuf},
     process::{Command, Stdio},
     time::Duration,
-    fs,
 };
 
 use anyhow::{Context, Result};
@@ -91,7 +91,9 @@ pub struct HookEntry {
     pub timeout_secs: u64,
 }
 
-fn default_timeout() -> u64 { 10 }
+fn default_timeout() -> u64 {
+    10
+}
 
 impl HookEntry {
     /// True if this hook matches the given event name.
@@ -131,22 +133,38 @@ pub struct HookContext {
 
 impl HookContext {
     pub fn new(event: impl Into<String>, data_dir: PathBuf) -> Self {
-        Self { event: event.into(), data_dir, ..Default::default() }
+        Self {
+            event: event.into(),
+            data_dir,
+            ..Default::default()
+        }
     }
 
-    pub fn with_session(mut self, id: i64) -> Self { self.session_id = Some(id); self }
-    pub fn with_phase(mut self, p: impl Into<String>) -> Self { self.phase = Some(p.into()); self }
+    pub fn with_session(mut self, id: i64) -> Self {
+        self.session_id = Some(id);
+        self
+    }
+    pub fn with_phase(mut self, p: impl Into<String>) -> Self {
+        self.phase = Some(p.into());
+        self
+    }
     pub fn with_tool(mut self, name: impl Into<String>, id: Option<i64>) -> Self {
         self.tool_name = Some(name.into());
         self.tool_request_id = id;
         self
     }
-    pub fn with_outcome(mut self, o: impl Into<String>) -> Self { self.outcome = Some(o.into()); self }
+    pub fn with_outcome(mut self, o: impl Into<String>) -> Self {
+        self.outcome = Some(o.into());
+        self
+    }
 
     fn to_env(&self) -> Vec<(String, String)> {
         let mut vars = vec![
             ("PRAXIS_EVENT".into(), self.event.clone()),
-            ("PRAXIS_DATA_DIR".into(), self.data_dir.display().to_string()),
+            (
+                "PRAXIS_DATA_DIR".into(),
+                self.data_dir.display().to_string(),
+            ),
         ];
         if let Some(id) = self.session_id {
             vars.push(("PRAXIS_SESSION_ID".into(), id.to_string()));
@@ -197,7 +215,9 @@ impl HookRunner {
             Ok(raw) => {
                 let config: HookConfig = toml::from_str(&raw)
                     .with_context(|| format!("invalid TOML in hooks file {}", path.display()))?;
-                Ok(Self { hooks: config.hooks })
+                Ok(Self {
+                    hooks: config.hooks,
+                })
             }
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Self::default()),
             Err(e) => Err(e).with_context(|| format!("failed to read {}", path.display())),
@@ -209,7 +229,9 @@ impl HookRunner {
     }
 
     /// True if any hooks are registered.
-    pub fn is_empty(&self) -> bool { self.hooks.is_empty() }
+    pub fn is_empty(&self) -> bool {
+        self.hooks.is_empty()
+    }
 
     /// Fire all observer hooks matching `event` / filter.
     ///
@@ -253,7 +275,9 @@ impl HookRunner {
                 .stdout(Stdio::inherit())
                 .stderr(Stdio::inherit())
                 .spawn()
-                .with_context(|| format!("failed to spawn interceptor '{}'", hook.script.display()))?;
+                .with_context(|| {
+                    format!("failed to spawn interceptor '{}'", hook.script.display())
+                })?;
             let status = wait_with_timeout(&mut child, timeout)
                 .with_context(|| format!("interceptor '{}' timed out", hook.script.display()))?;
             if !status.success() {
@@ -299,13 +323,18 @@ impl HookRunner {
                     }
                 },
                 Err(e) => {
-                    log::warn!("approval hook '{}' spawn failed: {e}", hook.script.display());
+                    log::warn!(
+                        "approval hook '{}' spawn failed: {e}",
+                        hook.script.display()
+                    );
                     continue;
                 }
             };
 
             let _ = timeout; // timeout enforcement for approval hooks via wait_with_output
-            let stdout = String::from_utf8_lossy(&output.stdout).trim().to_lowercase();
+            let stdout = String::from_utf8_lossy(&output.stdout)
+                .trim()
+                .to_lowercase();
             match stdout.as_str() {
                 "approve" => {
                     log::info!(
@@ -336,9 +365,9 @@ impl HookRunner {
         kind: HookKind,
         filter: &str,
     ) -> impl Iterator<Item = &'a HookEntry> {
-        self.hooks.iter().filter(move |h| {
-            h.kind == kind && h.matches_event(event) && h.matches_filter(filter)
-        })
+        self.hooks
+            .iter()
+            .filter(move |h| h.kind == kind && h.matches_event(event) && h.matches_filter(filter))
     }
 }
 
@@ -381,7 +410,9 @@ fn glob_match(pattern: &str, value: &str) -> bool {
     let mut remaining = value;
     for (i, part) in parts.iter().enumerate() {
         if i == 0 {
-            if !remaining.starts_with(part) { return false; }
+            if !remaining.starts_with(part) {
+                return false;
+            }
             remaining = &remaining[part.len()..];
         } else if i == parts.len() - 1 {
             return remaining.ends_with(part);
@@ -418,8 +449,9 @@ pub fn remove_hook(paths: &PraxisPaths, script: &Path) -> Result<usize> {
 
 fn load_config(path: &Path) -> Result<HookConfig> {
     match fs::read_to_string(path) {
-        Ok(raw) => toml::from_str(&raw)
-            .with_context(|| format!("invalid hooks config {}", path.display())),
+        Ok(raw) => {
+            toml::from_str(&raw).with_context(|| format!("invalid hooks config {}", path.display()))
+        }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(HookConfig::default()),
         Err(e) => Err(e).with_context(|| format!("failed to read {}", path.display())),
     }
@@ -462,7 +494,9 @@ mod tests {
         let ctx = HookContext::new("session.end", "/tmp".into());
         // Should not panic.
         runner.fire_observer("session.end", &ctx, "*");
-        runner.fire_interceptor("phase.act.start", &ctx, "*").unwrap();
+        runner
+            .fire_interceptor("phase.act.start", &ctx, "*")
+            .unwrap();
         assert_eq!(
             runner.fire_approval_hooks("any-tool", &ctx, None),
             ApprovalVerdict::Defer

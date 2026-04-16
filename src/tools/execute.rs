@@ -212,12 +212,7 @@ fn run_http(
     // Substitute {param} placeholders in the URL.
     let url = substitute_params(endpoint_template, &payload.params);
 
-    log::info!(
-        "executing http tool {} {} {}",
-        manifest.name,
-        method,
-        url
-    );
+    log::info!("executing http tool {} {} {}", manifest.name, method, url);
 
     let client = Client::builder()
         .timeout(Duration::from_secs(timeout_secs))
@@ -252,10 +247,12 @@ fn run_http(
     }
 
     // Attach body: explicit payload.body beats manifest.body template.
-    let body_str = payload
-        .body
-        .clone()
-        .or_else(|| manifest.body.as_ref().map(|t| substitute_params(t, &payload.params)));
+    let body_str = payload.body.clone().or_else(|| {
+        manifest
+            .body
+            .as_ref()
+            .map(|t| substitute_params(t, &payload.params))
+    });
 
     if let Some(body) = body_str {
         builder = builder
@@ -368,12 +365,11 @@ fn read_file(
         }
     }
 
-    let content = fs::read(&full_path)
-        .with_context(|| format!("failed to read {}", full_path.display()))?;
+    let content =
+        fs::read(&full_path).with_context(|| format!("failed to read {}", full_path.display()))?;
 
     let truncated = content.len() > MAX_READ_BYTES;
-    let text =
-        String::from_utf8_lossy(&content[..content.len().min(MAX_READ_BYTES)]).to_string();
+    let text = String::from_utf8_lossy(&content[..content.len().min(MAX_READ_BYTES)]).to_string();
     let suffix = if truncated {
         format!("\n[truncated at {} bytes]", MAX_READ_BYTES)
     } else {
@@ -440,10 +436,7 @@ fn exec_shell_command(
             Some(_) => break,
             None if std::time::Instant::now() >= deadline => {
                 let _ = child.kill();
-                anyhow::bail!(
-                    "shell-exec timed out after {}s (pid {pid})",
-                    timeout_secs
-                );
+                anyhow::bail!("shell-exec timed out after {}s (pid {pid})", timeout_secs);
             }
             None => std::thread::sleep(Duration::from_millis(100)),
         }

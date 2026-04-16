@@ -56,12 +56,10 @@ impl VaultEntry {
     pub fn resolve(&self) -> Result<Option<String>> {
         match self {
             Self::Literal { value } => Ok(Some(value.clone())),
-            Self::EnvVar { env: var, fallback } => {
-                match env::var(var) {
-                    Ok(v) if !v.is_empty() => Ok(Some(v)),
-                    _ => Ok(fallback.clone()),
-                }
-            }
+            Self::EnvVar { env: var, fallback } => match env::var(var) {
+                Ok(v) if !v.is_empty() => Ok(Some(v)),
+                _ => Ok(fallback.clone()),
+            },
         }
     }
 
@@ -84,8 +82,9 @@ impl Vault {
     /// not exist.
     pub fn load(path: &Path) -> Result<Self> {
         match fs::read_to_string(path) {
-            Ok(raw) => toml::from_str(&raw)
-                .with_context(|| format!("invalid vault at {}", path.display())),
+            Ok(raw) => {
+                toml::from_str(&raw).with_context(|| format!("invalid vault at {}", path.display()))
+            }
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Self::default()),
             Err(e) => Err(e).with_context(|| format!("failed to read vault {}", path.display())),
         }
@@ -110,9 +109,9 @@ impl Vault {
             .secrets
             .get(name)
             .with_context(|| format!("vault: unknown secret '{name}'"))?;
-        entry
-            .resolve()?
-            .with_context(|| format!("vault: secret '{name}' resolved to nothing (env var unset and no fallback)"))
+        entry.resolve()?.with_context(|| {
+            format!("vault: secret '{name}' resolved to nothing (env var unset and no fallback)")
+        })
     }
 
     /// Resolve a named secret, returning `None` instead of an error when the
@@ -178,12 +177,16 @@ pub fn resolve_with_fallback(vault: &Vault, name: &str) -> Result<String> {
     // Env-var fallback: uppercase the name, replacing hyphens with underscores.
     let env_key: String = name
         .chars()
-        .map(|c| if c == '-' { '_' } else { c.to_ascii_uppercase() })
+        .map(|c| {
+            if c == '-' {
+                '_'
+            } else {
+                c.to_ascii_uppercase()
+            }
+        })
         .collect();
     env::var(&env_key).with_context(|| {
-        format!(
-            "vault: secret '{name}' not in vault and env var '{env_key}' is unset"
-        )
+        format!("vault: secret '{name}' not in vault and env var '{env_key}' is unset")
     })
 }
 
@@ -193,7 +196,9 @@ pub fn audit_literals(vault: &Vault) -> Vec<String> {
     vault
         .literal_entries()
         .into_iter()
-        .map(|name| format!("vault entry '{name}' uses a literal value — prefer env = \"VAR_NAME\""))
+        .map(|name| {
+            format!("vault entry '{name}' uses a literal value — prefer env = \"VAR_NAME\"")
+        })
         .collect()
 }
 
@@ -208,7 +213,12 @@ mod tests {
     #[test]
     fn literal_entry_resolves() {
         let mut vault = Vault::default();
-        vault.set("test_key", VaultEntry::Literal { value: "secret123".to_string() });
+        vault.set(
+            "test_key",
+            VaultEntry::Literal {
+                value: "secret123".to_string(),
+            },
+        );
         assert_eq!(vault.resolve("test_key").unwrap(), "secret123");
     }
 
@@ -273,7 +283,12 @@ mod tests {
     #[test]
     fn audit_literals_reports_literal_entries() {
         let mut vault = Vault::default();
-        vault.set("literal_key", VaultEntry::Literal { value: "oops".to_string() });
+        vault.set(
+            "literal_key",
+            VaultEntry::Literal {
+                value: "oops".to_string(),
+            },
+        );
         let warnings = audit_literals(&vault);
         assert_eq!(warnings.len(), 1);
         assert!(warnings[0].contains("literal_key"));

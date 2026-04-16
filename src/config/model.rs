@@ -132,7 +132,10 @@ impl AppConfig {
             database: DatabaseConfig {
                 path: PathBuf::from("praxis.db"),
             },
-            security: SecurityConfig { level: 2, tool_cooldowns: Vec::new() },
+            security: SecurityConfig {
+                level: 2,
+                tool_cooldowns: Vec::new(),
+            },
             agent: AgentConfig {
                 backend: "stub".to_string(),
                 context_ceiling_pct: 0.80,

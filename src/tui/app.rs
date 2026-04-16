@@ -65,9 +65,7 @@ impl TuiState {
                 .zip(session.selected_goal_title.as_deref())
                 .map(|(id, title)| format!("{id}: {title}"))
                 .unwrap_or_else(|| "–".to_string());
-            state.action = session
-                .action_summary
-                .unwrap_or_else(|| "–".to_string());
+            state.action = session.action_summary.unwrap_or_else(|| "–".to_string());
         }
 
         if let Ok(hb) = read_heartbeat(&paths.heartbeat_file) {
@@ -114,13 +112,11 @@ pub fn run_tui(data_dir: PathBuf) -> Result<()> {
         let state = TuiState::load(&paths);
         terminal.draw(|frame| render(frame, &state))?;
 
-        let timeout = TICK_MS
-            .saturating_sub(last_tick.elapsed().as_millis() as u64);
+        let timeout = TICK_MS.saturating_sub(last_tick.elapsed().as_millis() as u64);
         if event::poll(Duration::from_millis(timeout))? {
             if let Event::Key(key) = event::read()? {
                 match (key.code, key.modifiers) {
-                    (KeyCode::Char('q'), _)
-                    | (KeyCode::Char('c'), KeyModifiers::CONTROL) => break,
+                    (KeyCode::Char('q'), _) | (KeyCode::Char('c'), KeyModifiers::CONTROL) => break,
                     _ => {}
                 }
             }
@@ -196,7 +192,12 @@ fn render_status(frame: &mut Frame, area: Rect, state: &TuiState) {
     let items: Vec<ListItem> = vec![
         ListItem::new(Line::from(vec![
             Span::styled("phase     ", Style::default().fg(Color::DarkGray)),
-            Span::styled(&state.phase, Style::default().fg(phase_color).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                &state.phase,
+                Style::default()
+                    .fg(phase_color)
+                    .add_modifier(Modifier::BOLD),
+            ),
         ])),
         ListItem::new(Line::from(vec![
             Span::styled("outcome   ", Style::default().fg(Color::DarkGray)),
@@ -208,7 +209,10 @@ fn render_status(frame: &mut Frame, area: Rect, state: &TuiState) {
         ])),
         ListItem::new(Line::from(vec![
             Span::styled("heartbeat ", Style::default().fg(Color::DarkGray)),
-            Span::raw(format!("{} @ {}", state.heartbeat_phase, state.heartbeat_time)),
+            Span::raw(format!(
+                "{} @ {}",
+                state.heartbeat_phase, state.heartbeat_time
+            )),
         ])),
         ListItem::new(Line::from(vec![
             Span::styled("tools     ", Style::default().fg(Color::DarkGray)),
@@ -287,6 +291,9 @@ fn truncate(s: &str, max: usize) -> String {
     if s.chars().count() <= max {
         s.to_string()
     } else {
-        format!("{}…", s.chars().take(max.saturating_sub(1)).collect::<String>())
+        format!(
+            "{}…",
+            s.chars().take(max.saturating_sub(1)).collect::<String>()
+        )
     }
 }

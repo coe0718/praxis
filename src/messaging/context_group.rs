@@ -87,9 +87,7 @@ impl ContextGroupStore {
 
     /// Get or create the state for a conversation.
     pub fn get_or_create(&mut self, conversation_id: &str) -> &mut ContextGroupState {
-        self.groups
-            .entry(conversation_id.to_string())
-            .or_default()
+        self.groups.entry(conversation_id.to_string()).or_default()
     }
 
     /// Return an existing group without creating it.
@@ -123,11 +121,7 @@ impl ContextGroupStore {
     pub fn prune_idle(&mut self, max_idle_days: i64, now: DateTime<Utc>) {
         use chrono::Duration;
         let cutoff = now - Duration::days(max_idle_days);
-        self.groups.retain(|_, state| {
-            state
-                .last_active_at
-                .map(|ts| ts > cutoff)
-                .unwrap_or(false)
-        });
+        self.groups
+            .retain(|_, state| state.last_active_at.map(|ts| ts > cutoff).unwrap_or(false));
     }
 }

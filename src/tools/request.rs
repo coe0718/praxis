@@ -90,9 +90,7 @@ pub fn build_payload(
         }
         "git-query" => {
             if append_text.is_some() {
-                bail!(
-                    "tool git-query does not accept --append-text; use --param args=<git args>"
-                );
+                bail!("tool git-query does not accept --append-text; use --param args=<git args>");
             }
             if !params.contains_key("args") {
                 bail!("tool git-query requires --param args=<git subcommand and flags>");

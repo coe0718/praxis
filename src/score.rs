@@ -118,8 +118,10 @@ impl SessionScore {
 
         let operator_independence = if input.operator_intervened { 0.0 } else { 1.0 };
 
-        let total_weight =
-            weights.anticipation + weights.follow_through + weights.reliability + weights.operator_independence;
+        let total_weight = weights.anticipation
+            + weights.follow_through
+            + weights.reliability
+            + weights.operator_independence;
 
         let composite = if total_weight == 0.0 {
             0.0

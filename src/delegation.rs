@@ -71,11 +71,19 @@ pub struct DelegationLink {
     pub last_used_at: Option<DateTime<Utc>>,
 }
 
-fn default_concurrency() -> usize { 1 }
-fn default_true() -> bool { true }
+fn default_concurrency() -> usize {
+    1
+}
+fn default_true() -> bool {
+    true
+}
 
 impl DelegationLink {
-    pub fn new(name: impl Into<String>, endpoint: impl Into<String>, direction: LinkDirection) -> Self {
+    pub fn new(
+        name: impl Into<String>,
+        endpoint: impl Into<String>,
+        direction: LinkDirection,
+    ) -> Self {
         Self {
             name: name.into(),
             endpoint: endpoint.into(),
@@ -133,8 +141,8 @@ impl DelegationStore {
             fs::create_dir_all(parent)
                 .with_context(|| format!("failed to create {}", parent.display()))?;
         }
-        let raw = serde_json::to_string_pretty(self)
-            .context("failed to serialize delegation store")?;
+        let raw =
+            serde_json::to_string_pretty(self).context("failed to serialize delegation store")?;
         fs::write(path, raw).with_context(|| format!("failed to write {}", path.display()))
     }
 
@@ -197,7 +205,9 @@ fn glob_match(pattern: &str, value: &str) -> bool {
     let mut remaining = value;
     for (i, part) in parts.iter().enumerate() {
         if i == 0 {
-            if !remaining.starts_with(part) { return false; }
+            if !remaining.starts_with(part) {
+                return false;
+            }
             remaining = &remaining[part.len()..];
         } else if i == parts.len() - 1 {
             return remaining.ends_with(part);

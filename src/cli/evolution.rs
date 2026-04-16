@@ -4,7 +4,9 @@ use anyhow::Result;
 use clap::{Args, Subcommand};
 
 use crate::{
-    evolution::{ChangeKind, EvolutionProposal, EvolutionStore, ProposalStatus, render_self_evolution_doc},
+    evolution::{
+        ChangeKind, EvolutionProposal, EvolutionStore, ProposalStatus, render_self_evolution_doc,
+    },
     paths::{PraxisPaths, default_data_dir},
 };
 
@@ -89,31 +91,37 @@ pub(super) fn handle_evolve(
             if proposals.is_empty() {
                 return Ok("evolve: no proposals".to_string());
             }
-            Ok(proposals.iter().map(|p| p.summary_line()).collect::<Vec<_>>().join("\n"))
+            Ok(proposals
+                .iter()
+                .map(|p| p.summary_line())
+                .collect::<Vec<_>>()
+                .join("\n"))
         }
 
-        EvolveCommands::Show(a) => {
-            match store.get(&a.id)? {
-                None => Ok(format!("evolve: proposal '{}' not found", a.id)),
-                Some(p) => {
-                    let evidence = if p.evidence_session_ids.is_empty() {
-                        "none".to_string()
-                    } else {
-                        p.evidence_session_ids.iter().map(|id| format!("#{id}")).collect::<Vec<_>>().join(", ")
-                    };
-                    Ok(format!(
-                        "id: {}\nstatus: {}\nkind: {}\ncreated: {}\ntitle: {}\nevidence: {evidence}\n\nmotivation:\n{}\n\nchange:\n{}",
-                        p.id,
-                        p.status.label(),
-                        p.change_kind.label(),
-                        p.created_at.format("%Y-%m-%d %H:%M UTC"),
-                        p.title,
-                        p.motivation,
-                        p.change_details,
-                    ))
-                }
+        EvolveCommands::Show(a) => match store.get(&a.id)? {
+            None => Ok(format!("evolve: proposal '{}' not found", a.id)),
+            Some(p) => {
+                let evidence = if p.evidence_session_ids.is_empty() {
+                    "none".to_string()
+                } else {
+                    p.evidence_session_ids
+                        .iter()
+                        .map(|id| format!("#{id}"))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                };
+                Ok(format!(
+                    "id: {}\nstatus: {}\nkind: {}\ncreated: {}\ntitle: {}\nevidence: {evidence}\n\nmotivation:\n{}\n\nchange:\n{}",
+                    p.id,
+                    p.status.label(),
+                    p.change_kind.label(),
+                    p.created_at.format("%Y-%m-%d %H:%M UTC"),
+                    p.title,
+                    p.motivation,
+                    p.change_details,
+                ))
             }
-        }
+        },
 
         EvolveCommands::Propose(a) => {
             let kind = parse_kind(&a.kind)?;
@@ -121,7 +129,9 @@ pub(super) fn handle_evolve(
             let id = proposal.id.clone();
             store.propose(&proposal)?;
             render_self_evolution_doc(&paths)?;
-            Ok(format!("evolve: proposal '{id}' written\nreview with: praxis evolve show {id}"))
+            Ok(format!(
+                "evolve: proposal '{id}' written\nreview with: praxis evolve show {id}"
+            ))
         }
 
         EvolveCommands::Approve(a) => {
@@ -140,14 +150,16 @@ pub(super) fn handle_evolve(
         }
 
         EvolveCommands::Apply(a) => {
-            let p = store.get(&a.id)?.ok_or_else(|| {
-                anyhow::anyhow!("proposal '{}' not found", a.id)
-            })?;
+            let p = store
+                .get(&a.id)?
+                .ok_or_else(|| anyhow::anyhow!("proposal '{}' not found", a.id))?;
 
             if p.status != ProposalStatus::Approved {
                 anyhow::bail!(
                     "proposal '{}' is '{}' — approve it first with: praxis evolve approve {}",
-                    a.id, p.status.label(), a.id
+                    a.id,
+                    p.status.label(),
+                    a.id
                 );
             }
 
@@ -159,7 +171,10 @@ pub(super) fn handle_evolve(
 
         EvolveCommands::Render => {
             render_self_evolution_doc(&paths)?;
-            Ok(format!("evolve: SELF_EVOLUTION.md regenerated → {}", paths.self_evolution_file.display()))
+            Ok(format!(
+                "evolve: SELF_EVOLUTION.md regenerated → {}",
+                paths.self_evolution_file.display()
+            ))
         }
     }
 }
@@ -225,7 +240,9 @@ fn parse_status(s: &str) -> Result<ProposalStatus> {
         "approved" => Ok(ProposalStatus::Approved),
         "applied" => Ok(ProposalStatus::Applied),
         "rejected" => Ok(ProposalStatus::Rejected),
-        other => anyhow::bail!("unknown status '{other}'; use proposed, approved, applied, or rejected"),
+        other => {
+            anyhow::bail!("unknown status '{other}'; use proposed, approved, applied, or rejected")
+        }
     }
 }
 

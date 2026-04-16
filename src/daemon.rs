@@ -165,7 +165,9 @@ impl PidFile {
         }
         fs::write(path, pid.to_string())
             .with_context(|| format!("failed to write PID file {}", path.display()))?;
-        Ok(Self { path: path.to_path_buf() })
+        Ok(Self {
+            path: path.to_path_buf(),
+        })
     }
 }
 
@@ -327,8 +329,7 @@ async fn async_daemon_loop(
             // Run the blocking session on the current thread (blocking_in_place
             // keeps the executor responsive for signal handling).
             let data_dir2 = data_dir.clone();
-            let result =
-                tokio::task::block_in_place(|| run_session_blocking(&data_dir2, task));
+            let result = tokio::task::block_in_place(|| run_session_blocking(&data_dir2, task));
 
             match result {
                 Ok(summary) => {
@@ -363,8 +364,7 @@ async fn async_daemon_loop(
         if should_run_maintenance(last_maintenance_at, &config, now) {
             log::debug!("daemon: running maintenance window");
             let data_dir2 = data_dir.clone();
-            let result =
-                tokio::task::block_in_place(|| run_maintenance_blocking(&data_dir2));
+            let result = tokio::task::block_in_place(|| run_maintenance_blocking(&data_dir2));
             match result {
                 Ok(refreshed) if refreshed > 0 => {
                     log::info!("daemon: anatomy refresh — {refreshed} file(s) updated");

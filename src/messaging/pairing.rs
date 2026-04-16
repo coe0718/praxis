@@ -50,7 +50,8 @@ impl PairingStore {
             fs::create_dir_all(parent)
                 .with_context(|| format!("failed to create {}", parent.display()))?;
         }
-        let raw = serde_json::to_string_pretty(self).context("failed to serialize pairing store")?;
+        let raw =
+            serde_json::to_string_pretty(self).context("failed to serialize pairing store")?;
         fs::write(path, raw).with_context(|| format!("failed to write {}", path.display()))
     }
 

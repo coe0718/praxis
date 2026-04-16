@@ -108,7 +108,19 @@ impl TelegramBot {
         if next_offset > offset {
             save_offset(state_path, next_offset)?;
         }
-        filter_messages(self, &self.allowed_chat_ids, pairing_path, &updates, bus, activation)
+        filter_messages(
+            self,
+            &self.allowed_chat_ids,
+            pairing_path,
+            &updates,
+            bus,
+            activation,
+        )
+    }
+
+    /// Return the first configured chat ID — the primary operator chat.
+    pub fn primary_chat_id(&self) -> Option<i64> {
+        self.allowed_chat_ids.first().copied()
     }
 
     pub fn send_message(&self, chat_id: i64, text: &str) -> Result<()> {

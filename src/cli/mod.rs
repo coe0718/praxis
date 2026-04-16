@@ -1,12 +1,12 @@
 mod agents;
 pub(crate) mod approvals;
-mod daemon;
 mod archive;
 mod argus;
 mod boundaries;
 mod brief;
 mod canary;
 pub(crate) mod core;
+mod daemon;
 mod delegation;
 #[cfg(feature = "discord")]
 mod discord;
@@ -18,6 +18,7 @@ mod heartbeat;
 mod hooks;
 mod learning;
 mod oauth;
+mod sandbox;
 mod serve;
 #[cfg(feature = "slack")]
 mod slack;
@@ -25,7 +26,6 @@ mod telegram;
 mod tools;
 #[cfg(feature = "tui")]
 mod tui;
-mod sandbox;
 mod vault;
 mod vscode;
 mod watchdog;

@@ -205,7 +205,8 @@ where
         let decayed = self.store.decay_cold_memories(self.clock.now_utc())?;
 
         let now = self.clock.now_utc();
-        let learning_store = crate::storage::SqliteSessionStore::new(self.paths.database_file.clone());
+        let learning_store =
+            crate::storage::SqliteSessionStore::new(self.paths.database_file.clone());
         let already_ran_today = learning_store
             .latest_learning_run()
             .ok()
@@ -233,6 +234,8 @@ where
                 _ => {}
             }
         }
+
+        try_send_morning_brief(self.paths, now);
         if decayed > 0 {
             self.emit(
                 "agent:cold_memory_decayed",
@@ -250,10 +253,51 @@ where
         state.save(&self.paths.state_file)?;
 
         // session.end observer hooks — fire after all state is persisted.
-        let ctx_end = HookContext::new("session.end", self.paths.data_dir.clone())
-            .with_outcome(state.last_outcome.clone().unwrap_or_else(|| "idle".to_string()));
+        let ctx_end = HookContext::new("session.end", self.paths.data_dir.clone()).with_outcome(
+            state
+                .last_outcome
+                .clone()
+                .unwrap_or_else(|| "idle".to_string()),
+        );
         hooks.fire_observer("session.end", &ctx_end, "*");
 
         Ok(())
+    }
+}
+
+fn try_send_morning_brief(paths: &crate::paths::PraxisPaths, now: chrono::DateTime<chrono::Utc>) {
+    let brief_sent_path = paths.data_dir.join("brief_sent.txt");
+    let today = now.date_naive().to_string();
+
+    let already_sent = std::fs::read_to_string(&brief_sent_path)
+        .map(|s| s.trim() == today)
+        .unwrap_or(false);
+    if already_sent {
+        return;
+    }
+
+    let bot = match crate::messaging::TelegramBot::from_env() {
+        Ok(b) => b,
+        Err(_) => return,
+    };
+    let Some(chat_id) = bot.primary_chat_id() else {
+        return;
+    };
+
+    let brief = match crate::brief::generate_brief(paths, now) {
+        Ok(b) => b,
+        Err(e) => {
+            log::warn!("brief generation failed: {e}");
+            return;
+        }
+    };
+
+    if let Err(e) = bot.send_message(chat_id, &brief) {
+        log::warn!("brief send failed: {e}");
+        return;
+    }
+
+    if let Err(e) = std::fs::write(&brief_sent_path, &today) {
+        log::warn!("failed to record brief_sent date: {e}");
     }
 }

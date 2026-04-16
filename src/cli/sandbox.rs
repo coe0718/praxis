@@ -106,9 +106,9 @@ pub(super) fn handle_sandbox(
                     label: a.label.clone(),
                     ..Default::default()
                 },
-                other => anyhow::bail!(
-                    "unknown preset '{other}'; use strict, read-only, or custom"
-                ),
+                other => {
+                    anyhow::bail!("unknown preset '{other}'; use strict, read-only, or custom")
+                }
             };
 
             // Apply overrides on top of the preset.
@@ -138,9 +138,15 @@ pub(super) fn handle_sandbox(
             let mut store = ChannelSandboxStore::load(&paths.sandbox_file)?;
             if store.remove(&a.channel) {
                 store.save(&paths.sandbox_file)?;
-                Ok(format!("sandbox: policy removed for channel '{}'", a.channel))
+                Ok(format!(
+                    "sandbox: policy removed for channel '{}'",
+                    a.channel
+                ))
             } else {
-                Ok(format!("sandbox: no policy found for channel '{}'", a.channel))
+                Ok(format!(
+                    "sandbox: no policy found for channel '{}'",
+                    a.channel
+                ))
             }
         }
     }

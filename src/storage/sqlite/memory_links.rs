@@ -110,10 +110,7 @@ impl MemoryLinkStore for SqliteSessionStore {
     }
 }
 
-fn fetch_memory_content(
-    connection: &rusqlite::Connection,
-    id: i64,
-) -> Result<Option<String>> {
+fn fetch_memory_content(connection: &rusqlite::Connection, id: i64) -> Result<Option<String>> {
     use rusqlite::OptionalExtension;
     let hot: Option<String> = connection
         .query_row(

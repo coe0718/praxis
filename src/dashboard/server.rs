@@ -11,6 +11,10 @@ use axum::{
 };
 use serde_json::json;
 
+#[cfg(feature = "discord")]
+use crate::messaging::discord::DiscordInteraction;
+#[cfg(feature = "slack")]
+use crate::messaging::slack::SlackEvent;
 use crate::{
     cli::core,
     events::{Event as PraxisEvent, read_events_since},
@@ -19,11 +23,6 @@ use crate::{
     report::build_status_report,
     wakeup::{WakeIntent, request_wake},
 };
-#[cfg(feature = "discord")]
-use crate::messaging::discord::DiscordInteraction;
-#[cfg(feature = "slack")]
-use crate::messaging::slack::SlackEvent;
-
 
 #[derive(Clone)]
 struct DashboardState {

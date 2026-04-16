@@ -87,7 +87,10 @@ impl ChannelSandbox {
         Self {
             label: label.into(),
             allowed_tool_kinds: vec!["internal".to_string()],
-            denied_tool_name_patterns: vec!["praxis-data-write".to_string(), "*-write*".to_string()],
+            denied_tool_name_patterns: vec![
+                "praxis-data-write".to_string(),
+                "*-write*".to_string(),
+            ],
             max_security_level: Some(2),
             force_approval: false,
         }
@@ -140,7 +143,11 @@ pub fn evaluate_tool(
     // Check allowed tool kinds.
     if !sandbox.allowed_tool_kinds.is_empty() {
         let kind_str = tool_kind_str(tool_kind);
-        if !sandbox.allowed_tool_kinds.iter().any(|k| k == kind_str || k == "*") {
+        if !sandbox
+            .allowed_tool_kinds
+            .iter()
+            .any(|k| k == kind_str || k == "*")
+        {
             return SandboxVerdict::Block(format!(
                 "tool kind '{kind_str}' is not in sandbox allowed_tool_kinds"
             ));
@@ -187,7 +194,8 @@ impl ChannelSandboxStore {
             fs::create_dir_all(parent)
                 .with_context(|| format!("failed to create {}", parent.display()))?;
         }
-        let raw = serde_json::to_string_pretty(self).context("failed to serialise sandbox store")?;
+        let raw =
+            serde_json::to_string_pretty(self).context("failed to serialise sandbox store")?;
         fs::write(path, raw).with_context(|| format!("failed to write {}", path.display()))
     }
 
@@ -211,12 +219,19 @@ impl ChannelSandboxStore {
         if self.policies.is_empty() {
             return "sandbox: no channel policies configured".to_string();
         }
-        let mut lines = vec![format!("sandbox: {} channel policy/policies", self.policies.len())];
+        let mut lines = vec![format!(
+            "sandbox: {} channel policy/policies",
+            self.policies.len()
+        )];
         let mut ids: Vec<&str> = self.policies.keys().map(String::as_str).collect();
         ids.sort();
         for id in ids {
             let p = &self.policies[id];
-            let label = if p.label.is_empty() { id } else { p.label.as_str() };
+            let label = if p.label.is_empty() {
+                id
+            } else {
+                p.label.as_str()
+            };
             let kinds = if p.allowed_tool_kinds.is_empty() {
                 "all kinds".to_string()
             } else {
@@ -226,7 +241,11 @@ impl ChannelSandboxStore {
                 .max_security_level
                 .map(|l| format!("max-level={l}"))
                 .unwrap_or_else(|| "no level cap".to_string());
-            let approval = if p.force_approval { " force-approval" } else { "" };
+            let approval = if p.force_approval {
+                " force-approval"
+            } else {
+                ""
+            };
             lines.push(format!("  {id} ({label}): {kinds} {level}{approval}"));
         }
         lines.join("\n")
@@ -256,8 +275,12 @@ pub fn check_channel_tool(
 }
 
 fn glob_match(pattern: &str, value: &str) -> bool {
-    if pattern == "*" { return true; }
-    if !pattern.contains('*') { return pattern == value; }
+    if pattern == "*" {
+        return true;
+    }
+    if !pattern.contains('*') {
+        return pattern == value;
+    }
     if let Some(prefix) = pattern.strip_suffix('*') {
         return value.starts_with(prefix);
     }
@@ -268,7 +291,9 @@ fn glob_match(pattern: &str, value: &str) -> bool {
     let mut remaining = value;
     for (i, part) in parts.iter().enumerate() {
         if i == 0 {
-            if !remaining.starts_with(part) { return false; }
+            if !remaining.starts_with(part) {
+                return false;
+            }
             remaining = &remaining[part.len()..];
         } else if i == parts.len() - 1 {
             return remaining.ends_with(part);
@@ -287,7 +312,9 @@ mod tests {
     use super::*;
     use crate::tools::ToolKind;
 
-    fn tool(kind: ToolKind, level: u8) -> (ToolKind, u8) { (kind, level) }
+    fn tool(kind: ToolKind, level: u8) -> (ToolKind, u8) {
+        (kind, level)
+    }
 
     #[test]
     fn strict_sandbox_blocks_shell_tools() {

@@ -24,8 +24,18 @@ pub(super) fn initialize(store: &SqliteSessionStore) -> Result<()> {
     )?;
     ensure_table_column(&connection, "opportunities", "goal_id", "TEXT")?;
     ensure_table_column(&connection, "approval_requests", "payload_json", "TEXT")?;
-    ensure_table_column(&connection, "hot_memories", "memory_type", "TEXT NOT NULL DEFAULT 'episodic'")?;
-    ensure_table_column(&connection, "cold_memories", "memory_type", "TEXT NOT NULL DEFAULT 'episodic'")?;
+    ensure_table_column(
+        &connection,
+        "hot_memories",
+        "memory_type",
+        "TEXT NOT NULL DEFAULT 'episodic'",
+    )?;
+    ensure_table_column(
+        &connection,
+        "cold_memories",
+        "memory_type",
+        "TEXT NOT NULL DEFAULT 'episodic'",
+    )?;
 
     connection
         .execute(

@@ -117,6 +117,8 @@ fn parse_direction(s: &str) -> Result<LinkDirection> {
         "outbound" | "out" => Ok(LinkDirection::Outbound),
         "inbound" | "in" => Ok(LinkDirection::Inbound),
         "bidirectional" | "both" => Ok(LinkDirection::Bidirectional),
-        other => anyhow::bail!("unknown direction '{other}'; use outbound, inbound, or bidirectional"),
+        other => {
+            anyhow::bail!("unknown direction '{other}'; use outbound, inbound, or bidirectional")
+        }
     }
 }
