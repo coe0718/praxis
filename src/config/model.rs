@@ -68,6 +68,13 @@ pub struct AgentConfig {
     /// context windows.  Only applied when talking to the Claude provider.
     #[serde(default)]
     pub prompt_caching: bool,
+    /// Cap the number of tool calls the agent may make in a single session.
+    /// `None` means unlimited.  Set by the `lite` profile (default: 5).
+    #[serde(default)]
+    pub max_session_tool_calls: Option<usize>,
+    /// When true, the agent may not spawn sub-agents.  Set by the `lite` profile.
+    #[serde(default)]
+    pub disable_sub_agents: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -134,6 +141,8 @@ impl AppConfig {
                 local_first_fallback: false,
                 freeze_on_model_regression: false,
                 prompt_caching: false,
+                max_session_tool_calls: None,
+                disable_sub_agents: false,
             },
             context: ContextConfig::default(),
         }

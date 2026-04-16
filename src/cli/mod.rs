@@ -10,10 +10,12 @@ pub(crate) mod core;
 mod delegation;
 #[cfg(feature = "discord")]
 mod discord;
+mod evolution;
 mod forensics;
 mod git;
 mod hands;
 mod heartbeat;
+mod hooks;
 mod learning;
 mod oauth;
 mod serve;
@@ -23,6 +25,7 @@ mod telegram;
 mod tools;
 #[cfg(feature = "tui")]
 mod tui;
+mod sandbox;
 mod vault;
 mod vscode;
 mod watchdog;
@@ -81,7 +84,10 @@ pub enum Commands {
     Brief(brief::BriefArgs),
     Daemon(daemon::DaemonArgs),
     Delegation(delegation::DelegationArgs),
+    Evolve(evolution::EvolveArgs),
     Hands(hands::HandsArgs),
+    Hooks(hooks::HooksArgs),
+    Sandbox(sandbox::SandboxArgs),
     Vault(vault::VaultArgs),
 }
 
@@ -225,7 +231,10 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::Brief(args) => brief::handle_brief(cli.data_dir, args),
         Commands::Daemon(args) => daemon::handle_daemon(cli.data_dir, args),
         Commands::Delegation(args) => delegation::handle_delegation(cli.data_dir, args),
+        Commands::Evolve(args) => evolution::handle_evolve(cli.data_dir, args),
         Commands::Hands(args) => hands::handle_hands(cli.data_dir, args),
+        Commands::Hooks(args) => hooks::handle_hooks(cli.data_dir, args),
+        Commands::Sandbox(args) => sandbox::handle_sandbox(cli.data_dir, args),
         Commands::Vault(args) => vault::handle_vault(cli.data_dir, args),
     }
 }

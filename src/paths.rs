@@ -91,6 +91,14 @@ pub struct PraxisPaths {
     pub vault_file: PathBuf,
     /// Daemon PID file — written when the daemon starts, removed on clean exit.
     pub daemon_pid_file: PathBuf,
+    /// Hook definitions — shell scripts bound to runtime events (`hooks.toml`).
+    pub hooks_file: PathBuf,
+    /// Per-channel sandbox policies (`channel_sandbox.json`).
+    pub sandbox_file: PathBuf,
+    /// Meta-evolution proposal log (`evolution.jsonl`).
+    pub evolution_file: PathBuf,
+    /// Human-readable evolution doc regenerated from the log (`SELF_EVOLUTION.md`).
+    pub self_evolution_file: PathBuf,
 }
 
 pub fn detect_platform() -> Platform {
@@ -211,6 +219,10 @@ impl PraxisPaths {
             score_file: data_dir.join("score.jsonl"),
             vault_file: data_dir.join("vault.toml"),
             daemon_pid_file: data_dir.join("daemon.pid"),
+            hooks_file: data_dir.join("hooks.toml"),
+            sandbox_file: data_dir.join("channel_sandbox.json"),
+            evolution_file: data_dir.join("evolution.jsonl"),
+            self_evolution_file: data_dir.join("SELF_EVOLUTION.md"),
             benchmarks_dir,
             data_dir,
         }

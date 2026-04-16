@@ -19,6 +19,15 @@ pub struct ExecutionProfile {
     pub local_first_fallback: Option<bool>,
     #[serde(default)]
     pub context_ceiling_pct: Option<f32>,
+    /// Override the context window token budget for this profile.
+    #[serde(default)]
+    pub context_window_tokens: Option<usize>,
+    /// Cap the number of tool calls per session (useful for lite/low-power installs).
+    #[serde(default)]
+    pub max_session_tool_calls: Option<usize>,
+    /// Prevent sub-agent spawning entirely when true.
+    #[serde(default)]
+    pub disable_sub_agents: Option<bool>,
 }
 
 impl Default for ProfileSettings {
@@ -29,6 +38,15 @@ impl Default for ProfileSettings {
                 profile("budget", Some("router"), Some(true), Some(0.65)),
                 profile("offline", Some("ollama"), Some(true), Some(0.55)),
                 profile("deterministic", Some("stub"), Some(false), Some(0.30)),
+                ExecutionProfile {
+                    name: "lite".to_string(),
+                    backend_override: None,
+                    local_first_fallback: Some(false),
+                    context_ceiling_pct: Some(0.50),
+                    context_window_tokens: Some(6_000),
+                    max_session_tool_calls: Some(5),
+                    disable_sub_agents: Some(true),
+                },
             ],
         }
     }
@@ -76,6 +94,15 @@ impl ProfileSettings {
         if let Some(ceiling) = profile.context_ceiling_pct {
             adjusted.agent.context_ceiling_pct = ceiling;
         }
+        if let Some(tokens) = profile.context_window_tokens {
+            adjusted.context.window_tokens = tokens;
+        }
+        if let Some(max_calls) = profile.max_session_tool_calls {
+            adjusted.agent.max_session_tool_calls = Some(max_calls);
+        }
+        if let Some(disable) = profile.disable_sub_agents {
+            adjusted.agent.disable_sub_agents = disable;
+        }
         adjusted.validate()?;
         Ok(adjusted)
     }
@@ -121,6 +148,9 @@ fn profile(
         backend_override: backend_override.map(ToString::to_string),
         local_first_fallback,
         context_ceiling_pct,
+        context_window_tokens: None,
+        max_session_tool_calls: None,
+        disable_sub_agents: None,
     }
 }
 
