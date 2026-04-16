@@ -4,6 +4,8 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::{paths::PraxisPaths, storage::{AnatomyStore, SqliteSessionStore}};
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NewAnatomyEntry {
     pub path: String,
@@ -70,4 +72,69 @@ fn estimate_tokens(content: &str) -> i64 {
     } else {
         chars.div_ceil(4) as i64
     }
+}
+
+/// Scan identity and tool files for changes since their last indexed
+/// `last_modified_at` and re-index any that have been updated on disk.
+///
+/// Returns the number of entries that were refreshed.
+///
+/// This is designed to run during idle / maintenance windows rather than
+/// blocking an active session.  It does nothing for files that do not yet
+/// exist (they will be indexed on first read through the normal path).
+pub fn refresh_stale_anatomy(paths: &PraxisPaths) -> Result<usize> {
+    let store = SqliteSessionStore::new(paths.database_file.clone());
+    let mut refreshed = 0usize;
+
+    // Build the candidate set: identity files + any .md/.toml files in tools/
+    let mut candidates: Vec<std::path::PathBuf> = paths.identity_files();
+
+    if paths.tools_dir.is_dir() {
+        if let Ok(entries) = fs::read_dir(&paths.tools_dir) {
+            for entry in entries.flatten() {
+                let p = entry.path();
+                if p.extension().map_or(false, |ext| ext == "toml" || ext == "json") {
+                    candidates.push(p);
+                }
+            }
+        }
+    }
+
+    for candidate in &candidates {
+        if !candidate.exists() {
+            continue;
+        }
+        let disk_modified = match modified_at(candidate) {
+            Ok(ts) => ts,
+            Err(_) => continue,
+        };
+
+        // Check if the stored entry is already up-to-date.
+        let needs_refresh = match store.anatomy_last_modified(candidate) {
+            Ok(Some(stored)) => stored != disk_modified,
+            Ok(None) => true, // never indexed
+            Err(_) => true,   // index unreadable — refresh anyway
+        };
+
+        if !needs_refresh {
+            continue;
+        }
+
+        let content = match fs::read_to_string(candidate) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+
+        let entry = build_entry(candidate, &content, Vec::new())?;
+        if let Err(e) = store.upsert_anatomy_entry(&entry) {
+            log::warn!(
+                "anatomy refresh: failed to upsert {}: {e}",
+                candidate.display()
+            );
+            continue;
+        }
+        refreshed += 1;
+    }
+
+    Ok(refreshed)
 }

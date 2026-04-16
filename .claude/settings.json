@@ -6,7 +6,8 @@
       "Bash(grep -n \"fn execute_request\\\\|pub fn execute\" /home/coemedia/Documents/code/praxis/src/tools/*.rs)",
       "WebSearch",
       "Bash(cargo fmt *)",
-      "Bash(ls src/wakeup*)"
+      "Bash(ls src/wakeup*)",
+      "Bash(cargo check *)"
     ]
   }
 }

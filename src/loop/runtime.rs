@@ -5,6 +5,7 @@ use crate::{
     events::EventSink,
     forensics::record_snapshot,
     heartbeat::write_heartbeat,
+    hooks::{HookContext, HookRunner},
     identity::{GoalParser, IdentityPolicy},
     memory::{MemoryLinkStore, MemoryStore},
     paths::PraxisPaths,
@@ -139,11 +140,22 @@ where
         handler: fn(&Self, &mut SessionState) -> Result<()>,
         next_phase: SessionPhase,
     ) -> Result<()> {
+        let phase_name = state.current_phase.to_string();
+        let hooks = HookRunner::from_paths(self.paths);
+        let ctx = HookContext::new(
+            format!("phase.{phase_name}.start"),
+            self.paths.data_dir.clone(),
+        )
+        .with_phase(&phase_name);
+
+        // Interceptor hooks can abort a phase before it starts.
+        hooks.fire_interceptor(&format!("phase.{phase_name}.start"), &ctx, "*")?;
+
         self.emit(event_kind, detail)?;
         write_heartbeat(
             &self.paths.heartbeat_file,
             "praxis",
-            state.current_phase.to_string().as_str(),
+            phase_name.as_str(),
             detail,
             self.clock.now_utc(),
         )?;
@@ -159,12 +171,26 @@ where
             state,
             &format!("{event_kind}:complete"),
         )?;
+
+        // Observer hooks fire after the phase completes.
+        let ctx_end = HookContext::new(
+            format!("phase.{phase_name}.end"),
+            self.paths.data_dir.clone(),
+        )
+        .with_phase(&phase_name);
+        hooks.fire_observer(&format!("phase.{phase_name}.end"), &ctx_end, "*");
+
         state.mark_phase(next_phase, self.clock.now_utc());
         state.save(&self.paths.state_file)?;
         Ok(())
     }
 
     fn execute_reflect(&self, state: &mut SessionState) -> Result<()> {
+        let hooks = HookRunner::from_paths(self.paths);
+        let ctx = HookContext::new("session.start_reflect", self.paths.data_dir.clone())
+            .with_phase("reflect");
+        hooks.fire_interceptor("phase.reflect.start", &ctx, "*")?;
+
         self.emit("agent:reflect_start", "Recording the session outcome.")?;
         write_heartbeat(
             &self.paths.heartbeat_file,
@@ -192,6 +218,12 @@ where
         )?;
         record_snapshot(&self.paths.database_file, state, "agent:reflect_complete")?;
         state.save(&self.paths.state_file)?;
+
+        // session.end observer hooks — fire after all state is persisted.
+        let ctx_end = HookContext::new("session.end", self.paths.data_dir.clone())
+            .with_outcome(state.last_outcome.clone().unwrap_or_else(|| "idle".to_string()));
+        hooks.fire_observer("session.end", &ctx_end, "*");
+
         Ok(())
     }
 }

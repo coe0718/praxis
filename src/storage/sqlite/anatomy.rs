@@ -1,5 +1,7 @@
+use std::path::Path;
+
 use anyhow::{Context, Result};
-use rusqlite::params;
+use rusqlite::{OptionalExtension, params};
 
 use crate::{anatomy::NewAnatomyEntry, storage::AnatomyStore};
 
@@ -38,5 +40,17 @@ impl AnatomyStore for SqliteSessionStore {
         connection
             .query_row("SELECT COUNT(*) FROM anatomy_index", [], |row| row.get(0))
             .context("failed to count anatomy entries")
+    }
+
+    fn anatomy_last_modified(&self, path: &Path) -> Result<Option<String>> {
+        let connection = self.connect()?;
+        connection
+            .query_row(
+                "SELECT last_modified_at FROM anatomy_index WHERE path = ?1",
+                params![path.display().to_string()],
+                |row| row.get(0),
+            )
+            .optional()
+            .context("failed to query anatomy last_modified_at")
     }
 }
