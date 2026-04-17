@@ -28,8 +28,8 @@ No Cloudflare Workers or AWS Lambda entry point. Nothing exists.
 ### Discord / Slack — Inbound Routing
 `src/messaging/discord.rs` and `src/messaging/slack.rs` handle outbound send/webhook. Neither has an inbound polling loop or command router equivalent to Telegram's. The dashboard webhook stubs (`/src/dashboard/server.rs` `:139`, `:185`) parse nothing.
 
-### MCP Integration
-`src/mcp/server.rs` has a `dispatch()` function that accepts JSON-RPC but never touches the tool registry. No tool listing, no resource definitions, no MCP client for consuming external servers. The `/mcp` route is registered in the dashboard but effectively does nothing useful.
+### ~~MCP Integration~~ ✓ DONE
+`src/mcp/server.rs` is fully wired. `tools/list` returns all registered Praxis tools with per-kind input schemas (shell tools expose `args`, HTTP tools expose `params`). `tools/call` creates a real `NewApprovalRequest` in SQLite and returns the approval ID — operators approve via `praxis approve <id>` before the next agent cycle executes it. `resources/list` now uses `PraxisPaths` fields with correct filenames. MCP client (`src/mcp/client.rs`) can consume external MCP servers over HTTP.
 
 ### Full Rollout Canaries
 `src/canary.rs` records pass/fail per model and can freeze remote routes. Missing: automated promotion on sustained success, automated rollback trigger from heartbeat or watchdog, and gradual traffic shifting. All canary actions are currently manual.
