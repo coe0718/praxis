@@ -7,7 +7,9 @@
       "WebSearch",
       "Bash(cargo fmt *)",
       "Bash(ls src/wakeup*)",
-      "Bash(cargo check *)"
+      "Bash(cargo check *)",
+      "Bash(awk '{print $NF}')",
+      "Bash(grep -E \"\\\\.rs$\")"
     ]
   }
 }
