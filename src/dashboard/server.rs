@@ -22,7 +22,7 @@ use crate::{
     mcp::{server::dispatch, types::JsonRpcRequest},
     paths::PraxisPaths,
     report::build_status_report,
-    wakeup::{WakeIntent, WakePriority, request_wake},
+    wakeup::{WakeIntent, request_wake},
 };
 
 // ── API response types ─────────────────────────────────────────────────────────

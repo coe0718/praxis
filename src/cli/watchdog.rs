@@ -1,4 +1,4 @@
-use std::{fs, io::Write, path::PathBuf, process::Command};
+use std::{fs, path::PathBuf, process::Command};
 
 use anyhow::{Context, Result, bail};
 use chrono::Utc;

@@ -53,8 +53,8 @@ fn router_falls_back_to_openai_and_reports_provider_usage() {
         .success()
         .stdout(predicate::str::contains("backend: router"))
         .stdout(predicate::str::contains("last_provider: openai"))
-        .stdout(predicate::str::contains("attempts=4"))
-        .stdout(predicate::str::contains("failures=2"));
+        .stdout(predicate::str::contains("attempts=6"))
+        .stdout(predicate::str::contains("failures=3"));
 }
 
 #[test]

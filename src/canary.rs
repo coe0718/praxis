@@ -472,6 +472,7 @@ mod tests {
             checked_at: "2026-04-04T00:00:00Z".to_string(),
             summary: "failed".to_string(),
             eval_failures: 1,
+            consecutive_passes: 0,
         });
         ledger.replace(ModelCanaryRecord {
             provider: "claude".to_string(),
@@ -480,6 +481,7 @@ mod tests {
             checked_at: "2026-04-04T01:00:00Z".to_string(),
             summary: "passed".to_string(),
             eval_failures: 0,
+            consecutive_passes: 0,
         });
 
         assert_eq!(ledger.records.len(), 1);
