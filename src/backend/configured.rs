@@ -1,6 +1,7 @@
 use anyhow::{Result, bail};
 
 use crate::{
+    canary::RouteWeightStore,
     config::AppConfig,
     identity::Goal,
     paths::PraxisPaths,
@@ -38,6 +39,8 @@ pub struct RouterBackend {
     local_first_fallback: bool,
     prompt_caching: bool,
     canary_gate: CanaryGate,
+    /// Dynamic weights from canary automation. Loaded once at construction time.
+    route_weights: RouteWeightStore,
 }
 
 impl ConfiguredBackend {
@@ -51,6 +54,8 @@ impl ConfiguredBackend {
                 local_first_fallback: config.agent.local_first_fallback,
                 prompt_caching: config.agent.prompt_caching,
                 canary_gate,
+                route_weights: RouteWeightStore::load_or_default(&paths.route_weights_file)
+                    .unwrap_or_default(),
             }),
             provider => Self::Single(SingleBackend {
                 route: route_for(provider, config, &settings)?,
@@ -175,8 +180,19 @@ impl RouterBackend {
     ///   2. Routes with no class assigned (unclassed = any)
     ///   3. All remaining routes as last-resort fallbacks
     ///
-    /// Within each bucket, local-first ordering is applied when the flag is set.
+    /// Within each bucket, routes are sorted by effective weight (static weight × dynamic
+    /// weight from canary automation) in descending order.  Routes with effective weight
+    /// 0.0 are moved to the back so they act as final fallbacks rather than being dropped
+    /// entirely (freeze / canary gate handles full exclusion).
+    ///
+    /// Local-first ordering is applied within the top bucket when the flag is set.
     fn routes_for_class(&self, class: Option<&RouteClass>, phase: &str) -> Vec<ProviderRoute> {
+        let effective_weight = |route: &ProviderRoute| -> f64 {
+            let static_w = route.weight.unwrap_or(1.0).clamp(0.0, 1.0);
+            let dynamic_w = self.route_weights.get(&route.provider, &route.model);
+            static_w * dynamic_w
+        };
+
         let mut matched: Vec<ProviderRoute> = Vec::new();
         let mut unclassed: Vec<ProviderRoute> = Vec::new();
         let mut rest: Vec<ProviderRoute> = Vec::new();
@@ -188,6 +204,18 @@ impl RouterBackend {
                 _ => rest.push(route.clone()),
             }
         }
+
+        let sort_by_weight = |routes: &mut Vec<ProviderRoute>| {
+            routes.sort_by(|a, b| {
+                effective_weight(b)
+                    .partial_cmp(&effective_weight(a))
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+        };
+
+        sort_by_weight(&mut matched);
+        sort_by_weight(&mut unclassed);
+        sort_by_weight(&mut rest);
 
         let mut ordered = matched;
         ordered.extend(unclassed);

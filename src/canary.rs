@@ -77,6 +77,53 @@ impl CanaryFreezeState {
     }
 }
 
+/// Dynamic per-route traffic weights adjusted by canary automation.
+///
+/// Weight is a `f64` in `[0.0, 1.0]`.  1.0 = full traffic; 0.0 = no traffic
+/// (equivalent to frozen).  Persisted as `canary_weights.json`.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct RouteWeightStore {
+    /// `"provider/model"` → weight (0.0 – 1.0)
+    #[serde(default)]
+    pub weights: std::collections::BTreeMap<String, f64>,
+}
+
+impl RouteWeightStore {
+    pub fn load_or_default(path: &Path) -> Result<Self> {
+        if !path.exists() {
+            return Ok(Self::default());
+        }
+        let raw = fs::read_to_string(path)
+            .with_context(|| format!("failed to read {}", path.display()))?;
+        serde_json::from_str(&raw).with_context(|| format!("invalid JSON in {}", path.display()))
+    }
+
+    pub fn save(&self, path: &Path) -> Result<()> {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)
+                .with_context(|| format!("failed to create {}", parent.display()))?;
+        }
+        let raw =
+            serde_json::to_string_pretty(self).context("failed to serialize route weights")?;
+        fs::write(path, raw).with_context(|| format!("failed to write {}", path.display()))
+    }
+
+    pub fn get(&self, provider: &str, model: &str) -> f64 {
+        let key = format!("{provider}/{model}");
+        self.weights.get(&key).copied().unwrap_or(1.0)
+    }
+
+    pub fn set(&mut self, provider: &str, model: &str, weight: f64) {
+        let key = format!("{provider}/{model}");
+        let clamped = weight.clamp(0.0, 1.0);
+        if (clamped - 1.0).abs() < f64::EPSILON {
+            self.weights.remove(&key);
+        } else {
+            self.weights.insert(key, clamped);
+        }
+    }
+}
+
 /// Actions taken by canary automation after a run.
 #[derive(Debug, Default)]
 pub struct CanaryAutomation {
@@ -84,27 +131,41 @@ pub struct CanaryAutomation {
     pub promoted: Vec<String>,
     /// Routes frozen after failing (triggers rollback).
     pub rolled_back: Vec<String>,
+    /// Routes with weight reduced due to sustained failures.
+    pub weight_reduced: Vec<(String, f64)>,
+    /// Routes with weight increased due to consecutive passes.
+    pub weight_increased: Vec<(String, f64)>,
 }
 
 /// Consecutive passes required before a previously-frozen route is promoted.
 const PROMOTION_THRESHOLD: u32 = 3;
 
-/// Apply promotion and rollback automation based on the latest canary ledger.
+/// Weight step applied per consecutive failure before full freeze.
+const WEIGHT_STEP_DOWN: f64 = 0.25;
+/// Weight step applied per consecutive pass during recovery.
+const WEIGHT_STEP_UP: f64 = 0.125;
+
+/// Apply promotion, rollback, and gradual traffic-shifting based on the latest canary ledger.
 ///
-/// - Routes that just failed (consecutive_passes reset to 0 from >0) are frozen.
-/// - Routes that reached `PROMOTION_THRESHOLD` consecutive passes are unfrozen.
+/// - Failing routes lose `WEIGHT_STEP_DOWN` traffic weight per run (floored at 0.0 = no traffic).
+/// - A fresh failure after a passing streak also triggers a full freeze (immediate rollback).
+/// - Passing routes gain `WEIGHT_STEP_UP` weight per run (capped at 1.0 = full traffic).
+/// - Routes that reach `PROMOTION_THRESHOLD` consecutive passes are fully unfrozen and restored to 1.0.
 pub fn apply_automation(
     ledger: &ModelCanaryLedger,
     freeze_path: &Path,
+    weights_path: &Path,
     prev_ledger: &ModelCanaryLedger,
 ) -> Result<CanaryAutomation> {
     let mut freeze = CanaryFreezeState::load_or_default(freeze_path)?;
+    let mut weights = RouteWeightStore::load_or_default(weights_path)?;
     let mut automation = CanaryAutomation::default();
+    let mut freeze_dirty = false;
+    let mut weights_dirty = false;
 
     for record in &ledger.records {
         let key = CanaryFreezeState::key(&record.provider, &record.model);
 
-        // Find previous consecutive_passes for this route.
         let prev_passes = prev_ledger
             .records
             .iter()
@@ -118,21 +179,50 @@ pub fn apply_automation(
                     && freeze.is_frozen(&record.provider, &record.model)
                 {
                     freeze.unfreeze(&record.provider, &record.model);
+                    weights.set(&record.provider, &record.model, 1.0);
+                    freeze_dirty = true;
+                    weights_dirty = true;
                     automation.promoted.push(key);
+                } else if !freeze.is_frozen(&record.provider, &record.model) {
+                    let current = weights.get(&record.provider, &record.model);
+                    if current < 1.0 {
+                        let next = (current + WEIGHT_STEP_UP).min(1.0);
+                        weights.set(&record.provider, &record.model, next);
+                        weights_dirty = true;
+                        automation.weight_increased.push((key, next));
+                    }
                 }
             }
             CanaryStatus::Failed => {
-                // Rollback if it was passing before (consecutive_passes just reset to 0).
+                // Full rollback: fresh failure after a passing streak.
                 if prev_passes > 0 && !freeze.is_frozen(&record.provider, &record.model) {
                     freeze.freeze(&record.provider, &record.model);
+                    weights.set(&record.provider, &record.model, 0.0);
+                    freeze_dirty = true;
+                    weights_dirty = true;
                     automation.rolled_back.push(key);
+                } else if !freeze.is_frozen(&record.provider, &record.model) {
+                    // Gradual reduction: lower weight without a full freeze yet.
+                    let current = weights.get(&record.provider, &record.model);
+                    let next = (current - WEIGHT_STEP_DOWN).max(0.0);
+                    weights.set(&record.provider, &record.model, next);
+                    weights_dirty = true;
+                    automation.weight_reduced.push((key, next));
+                    // Auto-freeze when weight hits zero.
+                    if next == 0.0 {
+                        freeze.freeze(&record.provider, &record.model);
+                        freeze_dirty = true;
+                    }
                 }
             }
         }
     }
 
-    if !automation.promoted.is_empty() || !automation.rolled_back.is_empty() {
+    if freeze_dirty {
         freeze.save(freeze_path)?;
+    }
+    if weights_dirty {
+        weights.save(weights_path)?;
     }
 
     Ok(automation)
@@ -245,13 +335,24 @@ pub fn run_canaries(
 
     ledger.save(&paths.model_canary_file)?;
 
-    match apply_automation(&ledger, &paths.canary_freeze_file, &prev_ledger) {
+    match apply_automation(
+        &ledger,
+        &paths.canary_freeze_file,
+        &paths.route_weights_file,
+        &prev_ledger,
+    ) {
         Ok(automation) => {
             for route in &automation.promoted {
                 log::info!("canary: promoted {route} (>={PROMOTION_THRESHOLD} consecutive passes)");
             }
             for route in &automation.rolled_back {
                 log::warn!("canary: rolled back {route} (fresh failure after passing streak)");
+            }
+            for (route, w) in &automation.weight_reduced {
+                log::warn!("canary: reduced weight for {route} to {w:.2}");
+            }
+            for (route, w) in &automation.weight_increased {
+                log::info!("canary: increased weight for {route} to {w:.2}");
             }
         }
         Err(e) => log::warn!("canary automation failed: {e}"),

@@ -48,6 +48,10 @@ pub struct ProviderRoute {
     pub input_cost_per_million_usd: Option<f64>,
     #[serde(default)]
     pub output_cost_per_million_usd: Option<f64>,
+    /// Static traffic weight (0.0 = disabled, 1.0 = full). Overridden at runtime
+    /// by canary automation via `canary_weights.json`. Defaults to 1.0 when absent.
+    #[serde(default)]
+    pub weight: Option<f64>,
 }
 
 impl Default for ProviderSettings {
@@ -161,6 +165,7 @@ impl ProviderRoute {
             class: None,
             input_cost_per_million_usd: None,
             output_cost_per_million_usd: None,
+            weight: None,
         }
     }
 

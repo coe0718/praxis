@@ -7,6 +7,7 @@ use crate::{
     boundaries::{BoundaryReviewState, review_prompt},
     events::read_events_since,
     memory::MemoryStore,
+    oauth::{GmailClient, OAuthTokenStore},
     paths::PraxisPaths,
     storage::{ApprovalStatus, ApprovalStore, SqliteSessionStore},
 };
@@ -50,6 +51,12 @@ pub fn generate_brief(paths: &PraxisPaths, now: DateTime<Utc>) -> Result<String>
     let events_section = recent_events_section(paths)?;
     if !events_section.is_empty() {
         sections.push(events_section);
+    }
+
+    // ── Gmail inbox ───────────────────────────────────────────────────────
+    let gmail_section = gmail_section(paths);
+    if !gmail_section.is_empty() {
+        sections.push(gmail_section);
     }
 
     // ── Journal excerpt ───────────────────────────────────────────────────
@@ -175,6 +182,38 @@ fn journal_excerpt_section(paths: &PraxisPaths) -> Result<String> {
         out.push_str(&format!("\n{}", line));
     }
     Ok(out)
+}
+
+fn gmail_section(paths: &PraxisPaths) -> String {
+    let store = OAuthTokenStore::new(&paths.data_dir);
+    let client = match GmailClient::from_store(&store) {
+        Ok(Some(c)) => c,
+        _ => return String::new(),
+    };
+    match client.list_recent(5) {
+        Ok(emails) if !emails.is_empty() => {
+            let mut out = "✉️  Unread emails:".to_string();
+            for e in &emails {
+                let from = if e.from.len() > 40 {
+                    format!("{}…", &e.from[..40])
+                } else {
+                    e.from.clone()
+                };
+                let subject = if e.subject.len() > 60 {
+                    format!("{}…", &e.subject[..60])
+                } else {
+                    e.subject.clone()
+                };
+                out.push_str(&format!("\n• {from}: {subject}"));
+            }
+            out
+        }
+        Ok(_) => String::new(),
+        Err(e) => {
+            log::debug!("gmail brief section failed: {e}");
+            String::new()
+        }
+    }
 }
 
 trait HourExt {

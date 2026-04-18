@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{collections::HashMap, fs, path::Path, time::Duration};
 
 use anyhow::{Context, Result, bail};
 use reqwest::blocking::Client;
@@ -139,4 +139,161 @@ impl SlackClient {
 
         Ok(parsed.ts.unwrap_or_default())
     }
+
+    /// Poll one or more watched channels for new messages since the last run.
+    ///
+    /// Requires `PRAXIS_SLACK_BOT_TOKEN` and `PRAXIS_SLACK_CHANNEL_IDS`
+    /// (comma-separated channel IDs or names, e.g. `C01234ABCD,C09876WXYZ`).
+    /// Optionally gate by `PRAXIS_SLACK_ALLOWED_USER_IDS`.
+    ///
+    /// Offset state is persisted to `state_path` (`slack_state.json`).
+    pub fn poll_once(
+        &self,
+        state_path: &Path,
+        allowed_user_ids: &[String],
+    ) -> Result<Vec<SlackPollMessage>> {
+        let token = self
+            .bot_token
+            .as_deref()
+            .context("PRAXIS_SLACK_BOT_TOKEN is required for polling")?;
+
+        let channel_ids = parse_slack_channel_ids()?;
+        let mut state = load_slack_state(state_path).unwrap_or_default();
+        let mut accepted = Vec::new();
+
+        for channel_id in &channel_ids {
+            let oldest = state.last_ts.get(channel_id).cloned();
+            let messages = self.fetch_history(token, channel_id, oldest.as_deref())?;
+
+            for msg in messages {
+                if msg.text.as_deref().unwrap_or("").trim().is_empty() {
+                    continue;
+                }
+                // Update per-channel offset.
+                let ts = msg.ts.clone();
+                let current = state.last_ts.get(channel_id).cloned().unwrap_or_default();
+                if ts > current {
+                    state.last_ts.insert(channel_id.clone(), ts.clone());
+                }
+
+                let user = msg.user.unwrap_or_default();
+                if !allowed_user_ids.is_empty() && !allowed_user_ids.iter().any(|a| a == &user) {
+                    continue;
+                }
+
+                accepted.push(SlackPollMessage {
+                    channel_id: channel_id.clone(),
+                    ts,
+                    user_id: user,
+                    text: msg.text.unwrap_or_default(),
+                });
+            }
+        }
+
+        save_slack_state(state_path, &state)?;
+        Ok(accepted)
+    }
+
+    fn fetch_history(
+        &self,
+        token: &str,
+        channel_id: &str,
+        oldest: Option<&str>,
+    ) -> Result<Vec<RawSlackMessage>> {
+        let mut req = self
+            .client
+            .get("https://slack.com/api/conversations.history")
+            .header("Authorization", format!("Bearer {token}"))
+            .query(&[("channel", channel_id), ("limit", "100")]);
+        if let Some(ts) = oldest {
+            req = req.query(&[("oldest", ts)]);
+        }
+        let resp = req
+            .send()
+            .context("failed to GET Slack conversations.history")?;
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body = resp.text().unwrap_or_default();
+            bail!("Slack conversations.history failed with {status}: {body}");
+        }
+        let envelope: SlackHistoryEnvelope = resp
+            .json()
+            .context("failed to parse Slack conversations.history")?;
+        if !envelope.ok {
+            bail!(
+                "Slack conversations.history error: {}",
+                envelope.error.as_deref().unwrap_or("unknown")
+            );
+        }
+        Ok(envelope.messages.unwrap_or_default())
+    }
+}
+
+/// A message received during a Slack poll cycle.
+#[derive(Debug, Clone)]
+pub struct SlackPollMessage {
+    pub channel_id: String,
+    pub ts: String,
+    pub user_id: String,
+    pub text: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawSlackMessage {
+    ts: String,
+    text: Option<String>,
+    user: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SlackHistoryEnvelope {
+    ok: bool,
+    error: Option<String>,
+    messages: Option<Vec<RawSlackMessage>>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+struct SlackPollState {
+    /// Last seen message timestamp per channel.
+    #[serde(default)]
+    last_ts: HashMap<String, String>,
+}
+
+fn parse_slack_channel_ids() -> Result<Vec<String>> {
+    let raw = std::env::var("PRAXIS_SLACK_CHANNEL_IDS")
+        .context("PRAXIS_SLACK_CHANNEL_IDS is required for Slack polling")?;
+    Ok(raw
+        .split(',')
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect())
+}
+
+pub fn parse_allowed_user_ids() -> Vec<String> {
+    std::env::var("PRAXIS_SLACK_ALLOWED_USER_IDS")
+        .map(|raw| {
+            raw.split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn load_slack_state(path: &Path) -> Result<SlackPollState> {
+    if !path.exists() {
+        return Ok(SlackPollState::default());
+    }
+    let raw =
+        fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))?;
+    serde_json::from_str(&raw).with_context(|| format!("invalid slack state in {}", path.display()))
+}
+
+fn save_slack_state(path: &Path, state: &SlackPollState) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("failed to create {}", parent.display()))?;
+    }
+    let raw = serde_json::to_string_pretty(state).context("failed to serialize slack state")?;
+    fs::write(path, raw).with_context(|| format!("failed to write {}", path.display()))
 }

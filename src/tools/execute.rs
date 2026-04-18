@@ -11,7 +11,10 @@ use anyhow::{Context, Result, bail};
 use reqwest::blocking::Client;
 
 use crate::{
-    oauth::OAuthTokenStore, paths::PraxisPaths, storage::StoredApprovalRequest, vault::Vault,
+    oauth::{GitHubClient, OAuthTokenStore},
+    paths::PraxisPaths,
+    storage::StoredApprovalRequest,
+    vault::Vault,
 };
 
 use super::{ToolKind, ToolManifest, policy::normalize_relative, request::parse_payload};
@@ -36,6 +39,8 @@ pub fn execute_request(
         "praxis-data-write" => append_text(paths, manifest, request),
         "file-read" => read_file(paths, manifest, request),
         "shell-exec" => exec_shell_command(paths, &vault, manifest, request),
+        "github-issues" => github_list_issues(paths, request),
+        "github-prs" => github_list_prs(paths, request),
         _ => match manifest.kind {
             ToolKind::Shell
                 if manifest
@@ -621,6 +626,98 @@ fn append_block(path: &Path, block: &str) -> Result<()> {
         .with_context(|| format!("failed to open {}", path.display()))?;
     write!(file, "{block}").with_context(|| format!("failed to append {}", path.display()))?;
     Ok(())
+}
+
+fn github_list_issues(
+    paths: &PraxisPaths,
+    request: &StoredApprovalRequest,
+) -> Result<ToolExecutionResult> {
+    let store = OAuthTokenStore::new(&paths.data_dir);
+    let client = GitHubClient::from_store(&store)?.ok_or_else(|| {
+        anyhow::anyhow!(
+            "github-issues: no valid GitHub OAuth token found — run 'praxis oauth login github'"
+        )
+    })?;
+
+    let payload = parse_payload(request.payload_json.as_deref())?;
+    let repo = payload
+        .params
+        .get("repo")
+        .map(|s| s.as_str())
+        .ok_or_else(|| anyhow::anyhow!("github-issues: 'repo' param required (e.g. owner/repo)"))?;
+
+    let (owner, repo_name) = repo
+        .split_once('/')
+        .ok_or_else(|| anyhow::anyhow!("github-issues: 'repo' must be 'owner/repo'"))?;
+
+    let issues = client.list_open_issues(owner, repo_name)?;
+    if issues.is_empty() {
+        return Ok(ToolExecutionResult {
+            summary: format!("github-issues: no open issues in {repo}"),
+        });
+    }
+
+    let lines: Vec<String> = issues
+        .iter()
+        .map(|i| {
+            let labels = if i.labels.is_empty() {
+                String::new()
+            } else {
+                format!(" [{}]", i.labels.join(", "))
+            };
+            format!("#{}: {}{}", i.number, i.title, labels)
+        })
+        .collect();
+
+    Ok(ToolExecutionResult {
+        summary: format!(
+            "open issues in {repo} ({}):\n{}",
+            issues.len(),
+            lines.join("\n")
+        ),
+    })
+}
+
+fn github_list_prs(
+    paths: &PraxisPaths,
+    request: &StoredApprovalRequest,
+) -> Result<ToolExecutionResult> {
+    let store = OAuthTokenStore::new(&paths.data_dir);
+    let client = GitHubClient::from_store(&store)?.ok_or_else(|| {
+        anyhow::anyhow!(
+            "github-prs: no valid GitHub OAuth token found — run 'praxis oauth login github'"
+        )
+    })?;
+
+    let payload = parse_payload(request.payload_json.as_deref())?;
+    let repo = payload
+        .params
+        .get("repo")
+        .map(|s| s.as_str())
+        .ok_or_else(|| anyhow::anyhow!("github-prs: 'repo' param required (e.g. owner/repo)"))?;
+
+    let (owner, repo_name) = repo
+        .split_once('/')
+        .ok_or_else(|| anyhow::anyhow!("github-prs: 'repo' must be 'owner/repo'"))?;
+
+    let prs = client.list_open_prs(owner, repo_name)?;
+    if prs.is_empty() {
+        return Ok(ToolExecutionResult {
+            summary: format!("github-prs: no open PRs in {repo}"),
+        });
+    }
+
+    let lines: Vec<String> = prs
+        .iter()
+        .map(|p| {
+            let draft = if p.draft { " [draft]" } else { "" };
+            format!("#{}: {}{}", p.number, p.title, draft)
+        })
+        .collect();
+
+    Ok(ToolExecutionResult {
+        summary: format!("open PRs in {repo} ({}):\n{}", prs.len(), lines.join("\n")),
+    })
 }
 
 fn fallback_result(

@@ -31,6 +31,7 @@ pub fn default_route(provider: &str) -> ProviderRoute {
             class: None,
             input_cost_per_million_usd: None,
             output_cost_per_million_usd: None,
+            weight: None,
         })
 }
 

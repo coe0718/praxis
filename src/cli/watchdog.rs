@@ -1,7 +1,9 @@
-use std::{fs, path::PathBuf, process::Command};
+use std::{fs, io::Write, path::PathBuf, process::Command};
 
 use anyhow::{Context, Result, bail};
+use chrono::Utc;
 use clap::{Args, Subcommand};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     canary::{CanaryFreezeState, CanaryStatus, ModelCanaryLedger},
@@ -26,6 +28,21 @@ enum WatchdogCommand {
     Status,
     /// Check the agent heartbeat and optionally restart if stale.
     Check(WatchdogCheckArgs),
+    /// Check for a newer Praxis release and download it if available.
+    Update(WatchdogUpdateArgs),
+    /// Roll back to the previous binary saved by `watchdog update`.
+    Rollback,
+}
+
+#[derive(Debug, Args)]
+struct WatchdogUpdateArgs {
+    /// GitHub repository to check for releases (owner/repo).
+    #[arg(long, default_value = "coe0718/praxis")]
+    repo: String,
+
+    /// Apply the downloaded binary immediately without prompting.
+    #[arg(long)]
+    apply: bool,
 }
 
 #[derive(Debug, Args)]
@@ -62,6 +79,8 @@ pub(crate) fn handle_watchdog(
         WatchdogCommand::Uninstall => watchdog_uninstall(&paths),
         WatchdogCommand::Status => watchdog_status(&paths),
         WatchdogCommand::Check(a) => watchdog_check(&paths, a),
+        WatchdogCommand::Update(a) => watchdog_update(&paths, a),
+        WatchdogCommand::Rollback => watchdog_rollback(&paths),
     }
 }
 
@@ -136,6 +155,189 @@ fn freeze_failing_canaries_on_stall(paths: &PraxisPaths) -> String {
         newly_frozen.len(),
         newly_frozen.join(", ")
     )
+}
+
+// ---------------------------------------------------------------------------
+// Self-update
+// ---------------------------------------------------------------------------
+
+const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+#[derive(Debug, Serialize, Deserialize)]
+struct WatchdogUpdateRecord {
+    version: String,
+    applied_at: String,
+    backup_path: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct GitHubRelease {
+    tag_name: String,
+    assets: Vec<GitHubAsset>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GitHubAsset {
+    name: String,
+    browser_download_url: String,
+}
+
+fn watchdog_update(paths: &PraxisPaths, args: WatchdogUpdateArgs) -> Result<String> {
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .user_agent(format!("praxis/{CURRENT_VERSION}"))
+        .build()
+        .context("failed to build HTTP client")?;
+
+    let api_url = format!("https://api.github.com/repos/{}/releases/latest", args.repo);
+
+    let release: GitHubRelease = client
+        .get(&api_url)
+        .send()
+        .context("failed to fetch latest release from GitHub")?
+        .error_for_status()
+        .context("GitHub API returned an error")?
+        .json()
+        .context("failed to parse GitHub release JSON")?;
+
+    let latest = release.tag_name.trim_start_matches('v');
+
+    if latest == CURRENT_VERSION {
+        return Ok(format!(
+            "watchdog: already on latest version {CURRENT_VERSION}"
+        ));
+    }
+
+    // Find an asset matching the current platform.
+    let target = platform_asset_name();
+    let asset = release
+        .assets
+        .iter()
+        .find(|a| a.name.contains(target))
+        .with_context(|| {
+            format!(
+                "no asset matching '{target}' found in release {}",
+                release.tag_name
+            )
+        })?;
+
+    let download_url = &asset.browser_download_url;
+    let tmp_path = paths.data_dir.join(format!("praxis-{latest}.tmp"));
+
+    // Download to a temp file.
+    let mut resp = client
+        .get(download_url)
+        .send()
+        .context("failed to download release asset")?
+        .error_for_status()
+        .context("release asset download returned an error")?;
+
+    {
+        let mut f = fs::File::create(&tmp_path)
+            .with_context(|| format!("failed to create {}", tmp_path.display()))?;
+        std::io::copy(&mut resp, &mut f).context("failed to write downloaded binary")?;
+    }
+
+    // Make executable on Unix.
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&tmp_path, fs::Permissions::from_mode(0o755))
+            .context("failed to chmod downloaded binary")?;
+    }
+
+    if !args.apply {
+        return Ok(format!(
+            "watchdog: downloaded {latest} to {}\nRun with --apply to replace the current binary, or 'watchdog rollback' to undo.",
+            tmp_path.display()
+        ));
+    }
+
+    // Backup the current binary.
+    let current_exe = std::env::current_exe().context("failed to locate current binary")?;
+    fs::create_dir_all(&paths.backups_dir).context("failed to create backups directory")?;
+    let backup_path = paths.backups_dir.join("praxis.prev");
+    fs::copy(&current_exe, &backup_path).with_context(|| {
+        format!(
+            "failed to backup current binary to {}",
+            backup_path.display()
+        )
+    })?;
+
+    // Replace.
+    fs::copy(&tmp_path, &current_exe)
+        .with_context(|| format!("failed to replace binary at {}", current_exe.display()))?;
+    fs::remove_file(&tmp_path).ok();
+
+    // Record.
+    let record = WatchdogUpdateRecord {
+        version: latest.to_string(),
+        applied_at: Utc::now().to_rfc3339(),
+        backup_path: backup_path.to_string_lossy().to_string(),
+    };
+    let raw = serde_json::to_string_pretty(&record).context("failed to serialize update record")?;
+    fs::write(&paths.watchdog_update_file, raw)
+        .with_context(|| format!("failed to write {}", paths.watchdog_update_file.display()))?;
+
+    Ok(format!(
+        "watchdog: updated {CURRENT_VERSION} → {latest}\nbinary: {}\nbackup: {}",
+        current_exe.display(),
+        backup_path.display()
+    ))
+}
+
+fn watchdog_rollback(paths: &PraxisPaths) -> Result<String> {
+    if !paths.watchdog_update_file.exists() {
+        bail!("no update record found — nothing to roll back");
+    }
+
+    let raw =
+        fs::read_to_string(&paths.watchdog_update_file).context("failed to read update record")?;
+    let record: WatchdogUpdateRecord =
+        serde_json::from_str(&raw).context("invalid update record")?;
+
+    let backup = PathBuf::from(&record.backup_path);
+    if !backup.exists() {
+        bail!(
+            "backup binary not found at {} — cannot roll back",
+            backup.display()
+        );
+    }
+
+    let current_exe = std::env::current_exe().context("failed to locate current binary")?;
+    fs::copy(&backup, &current_exe)
+        .with_context(|| format!("failed to restore backup to {}", current_exe.display()))?;
+
+    fs::remove_file(&paths.watchdog_update_file).ok();
+
+    Ok(format!(
+        "watchdog: rolled back from {} to previous binary\nbinary: {}",
+        record.version,
+        current_exe.display()
+    ))
+}
+
+fn platform_asset_name() -> &'static str {
+    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    {
+        "linux-x86_64"
+    }
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    {
+        "linux-aarch64"
+    }
+    #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+    {
+        "macos-x86_64"
+    }
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    {
+        "macos-aarch64"
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+    {
+        "unknown"
+    }
 }
 
 // ---------------------------------------------------------------------------

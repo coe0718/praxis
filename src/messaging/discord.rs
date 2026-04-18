@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{collections::HashMap, fs, path::Path, time::Duration};
 
 use anyhow::{Context, Result, bail};
 use reqwest::blocking::Client;
@@ -144,4 +144,167 @@ impl DiscordClient {
             .json()
             .context("failed to parse Discord message response")
     }
+
+    /// Poll one or more watched channels for new messages since the last run.
+    ///
+    /// Requires `PRAXIS_DISCORD_BOT_TOKEN` and `PRAXIS_DISCORD_CHANNEL_IDS`
+    /// (comma-separated channel IDs).  Optionally gate by `PRAXIS_DISCORD_ALLOWED_USER_IDS`.
+    ///
+    /// Offset state is persisted to `state_path` (`discord_state.json`).
+    pub fn poll_once(
+        &self,
+        state_path: &Path,
+        allowed_user_ids: &[String],
+    ) -> Result<Vec<DiscordPollMessage>> {
+        let channel_ids = parse_channel_ids()?;
+        let token = self
+            .bot_token
+            .as_deref()
+            .context("PRAXIS_DISCORD_BOT_TOKEN is required for polling")?;
+
+        let mut state = load_discord_state(state_path).unwrap_or_default();
+        let mut accepted = Vec::new();
+
+        for channel_id in &channel_ids {
+            let after = state.last_message_ids.get(channel_id).cloned();
+            let messages = self.fetch_channel_messages(token, channel_id, after.as_deref())?;
+
+            for msg in messages {
+                if msg.content.trim().is_empty() {
+                    continue;
+                }
+                // Update the per-channel offset (Discord message IDs are snowflakes — lexically ordered).
+                let current_max = state
+                    .last_message_ids
+                    .get(channel_id)
+                    .cloned()
+                    .unwrap_or_else(|| "0".to_string());
+                if msg.id > current_max {
+                    state
+                        .last_message_ids
+                        .insert(channel_id.clone(), msg.id.clone());
+                }
+
+                let author_id = msg.author_id().unwrap_or_default();
+
+                // Gate by allowed user IDs if the list is non-empty.
+                if !allowed_user_ids.is_empty() && !allowed_user_ids.iter().any(|a| a == &author_id)
+                {
+                    continue;
+                }
+
+                accepted.push(DiscordPollMessage {
+                    channel_id: channel_id.clone(),
+                    message_id: msg.id,
+                    author_id,
+                    content: msg.content,
+                });
+            }
+        }
+
+        save_discord_state(state_path, &state)?;
+        Ok(accepted)
+    }
+
+    fn fetch_channel_messages(
+        &self,
+        token: &str,
+        channel_id: &str,
+        after: Option<&str>,
+    ) -> Result<Vec<RawDiscordMessage>> {
+        let url = format!("https://discord.com/api/v10/channels/{channel_id}/messages");
+        let mut req = self
+            .client
+            .get(&url)
+            .header("Authorization", format!("Bot {token}"))
+            .query(&[("limit", "100")]);
+        if let Some(after_id) = after {
+            req = req.query(&[("after", after_id)]);
+        }
+        let resp = req
+            .send()
+            .context("failed to GET Discord channel messages")?;
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body = resp.text().unwrap_or_default();
+            bail!("Discord channel messages GET failed with {status}: {body}");
+        }
+        resp.json::<Vec<RawDiscordMessage>>()
+            .context("failed to parse Discord channel messages")
+    }
+}
+
+/// A message received during a Discord poll cycle.
+#[derive(Debug, Clone)]
+pub struct DiscordPollMessage {
+    pub channel_id: String,
+    pub message_id: String,
+    pub author_id: String,
+    pub content: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawDiscordMessage {
+    id: String,
+    content: String,
+    #[serde(default)]
+    author: Option<RawDiscordAuthor>,
+}
+
+impl RawDiscordMessage {
+    fn author_id(&self) -> Option<String> {
+        self.author.as_ref().map(|a| a.id.clone())
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct RawDiscordAuthor {
+    id: String,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+struct DiscordPollState {
+    /// Last seen message ID per channel (Discord snowflakes are lexically ordered).
+    #[serde(default)]
+    last_message_ids: HashMap<String, String>,
+}
+
+fn parse_channel_ids() -> Result<Vec<String>> {
+    let raw = std::env::var("PRAXIS_DISCORD_CHANNEL_IDS")
+        .context("PRAXIS_DISCORD_CHANNEL_IDS is required for Discord polling")?;
+    Ok(raw
+        .split(',')
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect())
+}
+
+pub fn parse_allowed_user_ids() -> Vec<String> {
+    std::env::var("PRAXIS_DISCORD_ALLOWED_USER_IDS")
+        .map(|raw| {
+            raw.split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn load_discord_state(path: &Path) -> Result<DiscordPollState> {
+    if !path.exists() {
+        return Ok(DiscordPollState::default());
+    }
+    let raw =
+        fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))?;
+    serde_json::from_str(&raw)
+        .with_context(|| format!("invalid discord state in {}", path.display()))
+}
+
+fn save_discord_state(path: &Path, state: &DiscordPollState) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("failed to create {}", parent.display()))?;
+    }
+    let raw = serde_json::to_string_pretty(state).context("failed to serialize discord state")?;
+    fs::write(path, raw).with_context(|| format!("failed to write {}", path.display()))
 }

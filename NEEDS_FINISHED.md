@@ -25,14 +25,14 @@ No Cloudflare Workers or AWS Lambda entry point. Nothing exists.
 ### ~~Delegation (agent-to-agent work distribution)~~ ✓ DONE
 `src/delegation.rs` now includes `send_over_link()` (file-based: writes a `WakeIntent` to the remote agent's data_dir), `DelegatedTask`, and `drain_inbound_delegation()` (reads `delegation_queue.jsonl`). Act phase calls `try_delegate()` before the LLM finalize call — if an enabled outbound link permits the current task, it's sent and the session records outcome `delegated`. Orient drains `delegation_queue.jsonl` and converts each inbound task into a pending approval request. HTTP endpoints are not yet supported.
 
-### Discord / Slack — Inbound Routing
-`src/messaging/discord.rs` and `src/messaging/slack.rs` handle outbound send/webhook. Neither has an inbound polling loop or command router equivalent to Telegram's. The dashboard webhook stubs (`/src/dashboard/server.rs` `:139`, `:185`) parse nothing.
+### ~~Discord / Slack — Inbound Routing~~ ✓ DONE
+`DiscordClient::poll_once()` polls watched channels via `PRAXIS_DISCORD_CHANNEL_IDS` (REST `/messages?after=`), tracks offset in `discord_state.json`, and routes messages through `handle_discord_command()`. `SlackClient::poll_once()` uses `conversations.history` with `PRAXIS_SLACK_CHANNEL_IDS`, tracks timestamps in `slack_state.json`. Both feed into the same command vocabulary as Telegram (`/ask`, `/run`, `/approve`, `/goal`, etc.). `praxis discord poll-once` / `praxis discord run` and `praxis slack poll-once` / `praxis slack run` mirror the Telegram CLI. Webhook handlers in the dashboard already wired. Both gated by `PRAXIS_DISCORD_ALLOWED_USER_IDS` / `PRAXIS_SLACK_ALLOWED_USER_IDS`.
 
 ### ~~MCP Integration~~ ✓ DONE
 `src/mcp/server.rs` is fully wired. `tools/list` returns all registered Praxis tools with per-kind input schemas (shell tools expose `args`, HTTP tools expose `params`). `tools/call` creates a real `NewApprovalRequest` in SQLite and returns the approval ID — operators approve via `praxis approve <id>` before the next agent cycle executes it. `resources/list` now uses `PraxisPaths` fields with correct filenames. MCP client (`src/mcp/client.rs`) can consume external MCP servers over HTTP.
 
-### Full Rollout Canaries
-`src/canary.rs` now tracks `consecutive_passes` per record and runs `apply_automation()` after every `run_canaries()` call. Routes frozen after a fresh failure (rollback) and unfrozen after `PROMOTION_THRESHOLD=3` consecutive passes (promotion). Freeze state persisted in `canary_frozen.json`. `praxis watchdog check` also freezes failing routes when a heartbeat stall is detected. Missing: gradual traffic shifting (router weight adjustment) and HTTP-endpoint delegation.
+### ~~Full Rollout Canaries~~ ✓ DONE
+`RouteWeightStore` (`canary_weights.json`) tracks per-route weights (0.0–1.0). `apply_automation()` decrements weight by 0.25 per failing run, increments by 0.125 per passing run, auto-freezes at 0.0, promotes and restores to 1.0 after 3 consecutive passes. `RouterBackend` loads weights at construction, sorts routes within each class bucket by effective weight (static × dynamic) so degraded routes become fallbacks before full freeze. `praxis canary status` shows per-route weight. HTTP-endpoint delegation still pending.
 
 ### ~~Dashboard UI~~ ✓ DONE
 Full SPA rewrite in `src/dashboard/server.rs`. 24 API routes covering sessions, approvals (inline approve/reject), hot/cold memories (reinforce/forget/consolidate), tools, goals (add), identity file editor (8-file picker), canary status, heartbeat, scores, evolution proposals (inline approve), delegation links, config viewer, wake trigger, and manual run. Dark-themed frontend with sidebar nav, approval badge, SSE live event feed, toast notifications, auto-refresh, and hash-based routing. SSE stream and Prometheus endpoint preserved.
@@ -43,11 +43,11 @@ Implemented in `src/storage/sqlite/memory_consolidation.rs` and wired into `exec
 ### ~~Evolution — Agent-Driven Proposals~~ ✓ DONE
 Wired into `src/loop/reflect.rs`. `maybe_propose_evolution()` is now called after every non-trivial Reflect phase. Generates `Config` proposals for `review_failed`/`eval_failed` outcomes and `Identity` proposals when composite+follow-through scores are both below 0.5. Capped at 3 pending proposals, deduplicated by title prefix, and triggers `render_self_evolution_doc()` after each new proposal.
 
-### Watchdog / Auto-Update
-`src/cli/watchdog.rs` installs a systemd/launchd timer that calls `praxis run --once`. `praxis watchdog check` now reads `heartbeat.json`, reports stale/ok status, and spawns `praxis run --once` when `--restart` is passed. Missing: binary self-update and canary-driven binary promotion/rollback.
+### ~~Watchdog / Auto-Update~~ ✓ DONE
+`praxis watchdog update [--repo owner/repo] [--apply]` fetches the latest GitHub release, detects platform asset, downloads binary to a temp path, backs up current binary to `backups/praxis.prev`, and replaces in-place when `--apply` is given. Update record written to `watchdog_update.json`. `praxis watchdog rollback` restores the backup and removes the record. Without `--apply`, reports the latest version and download path for operator review.
 
-### OAuth — Integration into Agent Operations
-Device-flow auth for GitHub and Google works. Tokens are injected into shell and HTTP tool env vars. But no high-level agent-facing integrations exist (no Gmail reader, no GitHub API client in the loop). OAuth is infrastructure with no consumers beyond raw env injection.
+### ~~OAuth — Integration into Agent Operations~~ ✓ DONE
+`GmailClient` (`src/oauth/gmail.rs`) reads unread inbox via Google token and injects up to 5 email summaries into the morning brief when a valid Google OAuth token is present. `GitHubClient` (`src/oauth/github_client.rs`) lists open issues and PRs via GitHub token. `github-issues` and `github-prs` built-in tools wired into `execute_request()` — take a `repo` param (`owner/repo`) and return formatted lists. Both clients load from `OAuthTokenStore` and are silently skipped when no token is available.
 
 ### ~~Scoring / Irreplaceability~~ ✓ DONE
 Wired into `src/loop/reflect.rs`. `SessionScore::compute()` and `record_score()` are now called at the end of every Reflect phase. Score inputs are derived from session state (proactive wake, goal completion, tool invocations, resume count). Composite score is also attached to synthetic examples as `quality_score`.

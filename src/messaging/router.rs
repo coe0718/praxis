@@ -386,6 +386,38 @@ fn help_text() -> &'static str {
      /approve-sender <code> — approve an unknown chat by its pairing code"
 }
 
+/// Handle a command received from a Discord message.
+///
+/// Uses the same command vocabulary as Telegram, routed by channel_id
+/// (treated as the "conversation" identifier for activation gating).
+pub fn handle_discord_command(
+    data_dir: std::path::PathBuf,
+    channel_id: &str,
+    text: &str,
+) -> Result<String> {
+    // Discord uses channel IDs as conversation identifiers. Re-use all Telegram
+    // command logic; /activation changes are scoped to the channel.
+    let chat_id: i64 = channel_id.parse().unwrap_or(0);
+    handle_telegram_command(data_dir, chat_id, text)
+}
+
+/// Handle an event received from Slack.
+///
+/// Uses the same command vocabulary as Telegram, routed by channel_id.
+pub fn handle_slack_command(
+    data_dir: std::path::PathBuf,
+    channel_id: &str,
+    text: &str,
+) -> Result<String> {
+    let chat_id: i64 = channel_id
+        .chars()
+        .filter(|c| c.is_ascii_digit())
+        .collect::<String>()
+        .parse()
+        .unwrap_or(0);
+    handle_telegram_command(data_dir, chat_id, text)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{TelegramCommand, parse_telegram_command};

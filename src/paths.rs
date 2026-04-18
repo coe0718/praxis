@@ -101,10 +101,18 @@ pub struct PraxisPaths {
     pub sandbox_file: PathBuf,
     /// Canary freeze state — provider/model pairs frozen by automation (`canary_frozen.json`).
     pub canary_freeze_file: PathBuf,
+    /// Dynamic route weight overrides written by canary automation (`canary_weights.json`).
+    pub route_weights_file: PathBuf,
     /// Meta-evolution proposal log (`evolution.jsonl`).
     pub evolution_file: PathBuf,
     /// Human-readable evolution doc regenerated from the log (`SELF_EVOLUTION.md`).
     pub self_evolution_file: PathBuf,
+    /// Discord polling state — last seen message IDs per channel (`discord_state.json`).
+    pub discord_state_file: PathBuf,
+    /// Slack polling state — last seen message timestamps per channel (`slack_state.json`).
+    pub slack_state_file: PathBuf,
+    /// Watchdog self-update state — pending/applied binary update records (`watchdog_update.json`).
+    pub watchdog_update_file: PathBuf,
 }
 
 pub fn detect_platform() -> Platform {
@@ -230,8 +238,12 @@ impl PraxisPaths {
             hooks_file: data_dir.join("hooks.toml"),
             sandbox_file: data_dir.join("channel_sandbox.json"),
             canary_freeze_file: data_dir.join("canary_frozen.json"),
+            route_weights_file: data_dir.join("canary_weights.json"),
             evolution_file: data_dir.join("evolution.jsonl"),
             self_evolution_file: data_dir.join("SELF_EVOLUTION.md"),
+            discord_state_file: data_dir.join("discord_state.json"),
+            slack_state_file: data_dir.join("slack_state.json"),
+            watchdog_update_file: data_dir.join("watchdog_update.json"),
             benchmarks_dir,
             data_dir,
         }
