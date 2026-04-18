@@ -27,6 +27,93 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+/// A task received by this agent from a remote agent via the delegation queue.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DelegatedTask {
+    pub source: String,
+    pub task: String,
+    pub link_name: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+/// Write a task to a remote agent endpoint via a delegation link.
+///
+/// File-based endpoints (absolute paths or `~/…`) are supported: the task is
+/// written as a `WakeIntent` into `{endpoint}/delegation_queue.jsonl` so the
+/// remote instance picks it up during its next Orient phase.
+///
+/// HTTP endpoints are not yet supported.
+pub fn send_over_link(
+    link: &mut DelegationLink,
+    task: &str,
+    from: &str,
+    now: DateTime<Utc>,
+) -> Result<()> {
+    let endpoint = &link.endpoint;
+    if endpoint.starts_with('/') || endpoint.starts_with('~') {
+        let remote_dir = Path::new(endpoint.as_str());
+        let entry = DelegatedTask {
+            source: from.to_string(),
+            task: task.to_string(),
+            link_name: Some(link.name.clone()),
+            created_at: now,
+        };
+        let queue_path = remote_dir.join("delegation_queue.jsonl");
+        if let Some(parent) = queue_path.parent() {
+            fs::create_dir_all(parent)
+                .with_context(|| format!("failed to create {}", parent.display()))?;
+        }
+        let line = serde_json::to_string(&entry).context("failed to serialize delegated task")?;
+        let mut file = fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&queue_path)
+            .with_context(|| format!("failed to open {}", queue_path.display()))?;
+        use std::io::Write;
+        writeln!(file, "{line}")
+            .with_context(|| format!("failed to append to {}", queue_path.display()))?;
+    } else {
+        anyhow::bail!(
+            "HTTP delegation endpoints are not yet supported; use an absolute file path: {}",
+            endpoint
+        );
+    }
+    link.last_used_at = Some(now);
+    Ok(())
+}
+
+/// Read and clear all pending inbound delegation tasks from `delegation_queue.jsonl`.
+///
+/// Each entry is a JSON-encoded `DelegatedTask`. The queue file is truncated
+/// after reading so entries are processed exactly once.
+pub fn drain_inbound_delegation(queue_path: &Path) -> Result<Vec<DelegatedTask>> {
+    if !queue_path.exists() {
+        return Ok(Vec::new());
+    }
+    let raw = fs::read_to_string(queue_path)
+        .with_context(|| format!("failed to read {}", queue_path.display()))?;
+
+    let tasks: Vec<DelegatedTask> = raw
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .filter_map(|l| match serde_json::from_str::<DelegatedTask>(l) {
+            Ok(t) => Some(t),
+            Err(e) => {
+                log::warn!("skipping malformed delegation queue entry: {e}");
+                None
+            }
+        })
+        .collect();
+
+    if !tasks.is_empty() {
+        // Truncate — entries are consumed exactly once.
+        fs::write(queue_path, "")
+            .with_context(|| format!("failed to clear {}", queue_path.display()))?;
+    }
+
+    Ok(tasks)
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum LinkDirection {

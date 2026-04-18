@@ -3,7 +3,12 @@ use std::{fs, path::PathBuf, process::Command};
 use anyhow::{Context, Result, bail};
 use clap::{Args, Subcommand};
 
-use crate::paths::{PraxisPaths, default_data_dir};
+use crate::{
+    canary::{CanaryFreezeState, CanaryStatus, ModelCanaryLedger},
+    heartbeat::check_heartbeat,
+    paths::{PraxisPaths, default_data_dir},
+    time::SystemClock,
+};
 
 #[derive(Debug, Args)]
 pub struct WatchdogArgs {
@@ -19,6 +24,8 @@ enum WatchdogCommand {
     Uninstall,
     /// Show current watchdog service status.
     Status,
+    /// Check the agent heartbeat and optionally restart if stale.
+    Check(WatchdogCheckArgs),
 }
 
 #[derive(Debug, Args)]
@@ -32,6 +39,17 @@ struct WatchdogInstallArgs {
     user: Option<String>,
 }
 
+#[derive(Debug, Args)]
+struct WatchdogCheckArgs {
+    /// Maximum acceptable heartbeat age in seconds before the agent is considered stalled.
+    #[arg(long, default_value_t = 900)]
+    max_age_secs: i64,
+
+    /// Trigger a one-shot agent run if the heartbeat is stale.
+    #[arg(long)]
+    restart: bool,
+}
+
 pub(crate) fn handle_watchdog(
     data_dir_override: Option<PathBuf>,
     args: WatchdogArgs,
@@ -43,7 +61,81 @@ pub(crate) fn handle_watchdog(
         WatchdogCommand::Install(a) => watchdog_install(&paths, a),
         WatchdogCommand::Uninstall => watchdog_uninstall(&paths),
         WatchdogCommand::Status => watchdog_status(&paths),
+        WatchdogCommand::Check(a) => watchdog_check(&paths, a),
     }
+}
+
+// ---------------------------------------------------------------------------
+// Heartbeat check
+// ---------------------------------------------------------------------------
+
+fn watchdog_check(paths: &PraxisPaths, args: WatchdogCheckArgs) -> Result<String> {
+    let clock = SystemClock::from_env()?;
+
+    match check_heartbeat(&clock, &paths.heartbeat_file, args.max_age_secs) {
+        Ok(record) => Ok(format!(
+            "heartbeat: ok\nphase: {}\ndetail: {}\nupdated_at: {}\npid: {}",
+            record.phase, record.detail, record.updated_at, record.pid
+        )),
+        Err(e) => {
+            let stale_msg = format!("heartbeat: stale\nreason: {e}");
+            // Freeze any passing canary routes that may have caused the stall.
+            let canary_note = freeze_failing_canaries_on_stall(paths);
+
+            if !args.restart {
+                return Ok(format!("{stale_msg}{canary_note}"));
+            }
+
+            let exe = which_praxis()?;
+            let data_dir = paths.data_dir.to_string_lossy().to_string();
+            let child = Command::new(&exe)
+                .args(["--data-dir", &data_dir, "run", "--once"])
+                .spawn()
+                .with_context(|| format!("failed to spawn {exe}"))?;
+
+            Ok(format!(
+                "{stale_msg}{canary_note}\nrestart: spawned praxis run --once (pid {})",
+                child.id()
+            ))
+        }
+    }
+}
+
+/// On a detected agent stall, freeze canary routes that are currently failing.
+/// Returns a human-readable note (empty string if nothing was frozen).
+fn freeze_failing_canaries_on_stall(paths: &PraxisPaths) -> String {
+    let ledger = match ModelCanaryLedger::load_or_default(&paths.model_canary_file) {
+        Ok(l) => l,
+        Err(_) => return String::new(),
+    };
+    let mut freeze = match CanaryFreezeState::load_or_default(&paths.canary_freeze_file) {
+        Ok(f) => f,
+        Err(_) => return String::new(),
+    };
+
+    let mut newly_frozen = Vec::new();
+    for record in &ledger.records {
+        if record.status == CanaryStatus::Failed
+            && !freeze.is_frozen(&record.provider, &record.model)
+        {
+            freeze.freeze(&record.provider, &record.model);
+            newly_frozen.push(CanaryFreezeState::key(&record.provider, &record.model));
+        }
+    }
+
+    if newly_frozen.is_empty() {
+        return String::new();
+    }
+
+    if let Err(e) = freeze.save(&paths.canary_freeze_file) {
+        return format!("\ncanary: failed to write freeze state: {e}");
+    }
+
+    format!(
+        "\ncanary: frozen {} route(s) due to stall: {}",
+        newly_frozen.len(),
+        newly_frozen.join(", ")
+    )
 }
 
 // ---------------------------------------------------------------------------

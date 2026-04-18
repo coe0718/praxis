@@ -4,7 +4,7 @@ use anyhow::Result;
 use clap::{Args, Subcommand};
 
 use crate::{
-    canary::{ModelCanaryLedger, run_canaries},
+    canary::{CanaryFreezeState, ModelCanaryLedger, run_canaries},
     cli::core::load_initialized_config,
 };
 
@@ -56,21 +56,29 @@ fn run(data_dir_override: Option<PathBuf>, args: CanaryRunArgs) -> Result<String
 fn status(data_dir_override: Option<PathBuf>) -> Result<String> {
     let (config, paths) = load_initialized_config(data_dir_override)?;
     let ledger = ModelCanaryLedger::load_or_default(&paths.model_canary_file)?;
+    let freeze = CanaryFreezeState::load_or_default(&paths.canary_freeze_file)?;
     let mut lines = vec![format!(
         "freeze_on_model_regression: {}",
         config.agent.freeze_on_model_regression
     )];
+    if !freeze.frozen.is_empty() {
+        lines.push(format!(
+            "frozen: {}",
+            freeze.frozen.into_iter().collect::<Vec<_>>().join(", ")
+        ));
+    }
     if ledger.records.is_empty() {
         lines.push("canaries: none recorded".to_string());
         return Ok(lines.join("\n"));
     }
     for record in ledger.records {
         lines.push(format!(
-            "{} {} {} eval_failures={} {}",
+            "{} {} {} eval_failures={} consecutive_passes={} {}",
             record.provider,
             record.model,
             label(record.status),
             record.eval_failures,
+            record.consecutive_passes,
             record.checked_at
         ));
     }

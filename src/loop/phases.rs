@@ -9,7 +9,7 @@ use crate::{
     paths::PraxisPaths,
     state::SessionState,
     storage::{
-        AnatomyStore, ApprovalStore, DecisionReceiptStore, NewDecisionReceipt,
+        AnatomyStore, ApprovalStore, DecisionReceiptStore, NewApprovalRequest, NewDecisionReceipt,
         OperationalMemoryStore, ProviderUsageStore, QualityStore, SessionStore,
     },
     tools::{
@@ -59,6 +59,40 @@ where
         self.identity.validate(self.paths)?;
         self.tools.validate(self.paths)?;
         enforce_active_hand(self.paths, self.tools)?;
+
+        // Convert any inbound delegation tasks into approval requests so the
+        // operator reviews them before they run.
+        match crate::delegation::drain_inbound_delegation(&self.paths.delegation_queue_file) {
+            Ok(tasks) if !tasks.is_empty() => {
+                for task in &tasks {
+                    let req = NewApprovalRequest {
+                        tool_name: "shell-exec".to_string(),
+                        summary: format!("[delegated from {}] {}", task.source, task.task),
+                        requested_by: task
+                            .link_name
+                            .clone()
+                            .unwrap_or_else(|| "delegation".to_string()),
+                        write_paths: Vec::new(),
+                        payload_json: None,
+                        status: crate::storage::ApprovalStatus::Pending,
+                    };
+                    if let Err(e) = self.store.queue_approval(&req) {
+                        log::warn!("failed to queue delegated task as approval: {e}");
+                    }
+                }
+                if let Err(e) = self.emit(
+                    "agent:delegation_received",
+                    &format!(
+                        "{} inbound delegation task(s) queued for approval.",
+                        tasks.len()
+                    ),
+                ) {
+                    log::warn!("failed to emit delegation event: {e}");
+                }
+            }
+            Err(e) => log::warn!("failed to drain delegation queue: {e}"),
+            _ => {}
+        }
 
         if let Err(e) = crate::anatomy::refresh_stale_anatomy(self.paths) {
             log::warn!("anatomy refresh failed: {e}");
@@ -217,10 +251,43 @@ where
             return self.execute_tool_request(state, request_id);
         }
 
+        // Mid-session steering: a wake intent written after the session started
+        // redirects the current action without an LLM call.
+        if let Ok(Some(steer)) = crate::wakeup::consume_intent(&self.paths.data_dir) {
+            if let Some(task) = steer.task {
+                self.emit(
+                    "agent:steered",
+                    &format!("mid-session redirect from {}: {task}", steer.source),
+                )?;
+                state.last_outcome = Some("steered".to_string());
+                state.action_summary = Some(format!(
+                    "Session redirected by steering signal from {}: {task}",
+                    steer.source
+                ));
+                state.updated_at = self.clock.now_utc();
+                return Ok(());
+            }
+        }
+
+        // Outbound delegation: if an enabled link can carry this task, send it
+        // to the remote agent and mark the session as delegated.
         let summary = state
             .action_summary
             .clone()
             .unwrap_or_else(|| "No action was selected.".to_string());
+        let task_key = state
+            .selected_goal_title
+            .as_deref()
+            .unwrap_or(summary.as_str());
+        if let Some(delegated_to) =
+            self.try_delegate(state, task_key, &summary, self.clock.now_utc())?
+        {
+            state.last_outcome = Some("delegated".to_string());
+            state.action_summary = Some(delegated_to);
+            state.updated_at = self.clock.now_utc();
+            return Ok(());
+        }
+
         if self.block_for_usage_budget(state, UsageBudgetMode::Run)? {
             return Ok(());
         }
@@ -234,6 +301,42 @@ where
         state.action_summary = Some(output.summary);
         state.updated_at = self.clock.now_utc();
         Ok(())
+    }
+
+    fn try_delegate(
+        &self,
+        _state: &SessionState,
+        task_key: &str,
+        task_summary: &str,
+        now: chrono::DateTime<chrono::Utc>,
+    ) -> Result<Option<String>> {
+        let mut store =
+            crate::delegation::DelegationStore::load(&self.paths.delegation_links_file)?;
+        let available: Vec<String> = store
+            .available_outbound(task_key)
+            .into_iter()
+            .map(|l| l.name.clone())
+            .collect();
+        let Some(link_name) = available.into_iter().next() else {
+            return Ok(None);
+        };
+        if let Some(link) = store.links.get_mut(&link_name) {
+            crate::delegation::send_over_link(link, task_summary, "praxis", now)?;
+        }
+        store.acquire(&link_name);
+        store.save(&self.paths.delegation_links_file)?;
+        let endpoint = store
+            .links
+            .get(&link_name)
+            .map(|l| l.endpoint.as_str())
+            .unwrap_or("unknown");
+        self.emit(
+            "agent:delegated",
+            &format!("task delegated to {link_name} ({endpoint}): {task_summary}"),
+        )?;
+        Ok(Some(format!(
+            "Task delegated to {link_name}: {task_summary}"
+        )))
     }
 
     fn execute_tool_request(&self, state: &mut SessionState, request_id: i64) -> Result<()> {

@@ -83,6 +83,8 @@ pub struct PraxisPaths {
     pub system_anomalies_file: PathBuf,
     /// Configured inter-agent delegation links (`delegation_links.json`).
     pub delegation_links_file: PathBuf,
+    /// Inbound delegation task queue written by remote agents (`delegation_queue.jsonl`).
+    pub delegation_queue_file: PathBuf,
     /// Installed hand manifests — each `*.toml` describes a role bundle (`hands/`).
     pub hands_dir: PathBuf,
     /// Name of the currently active hand (`hands/active.txt`). Empty file = no active hand.
@@ -97,6 +99,8 @@ pub struct PraxisPaths {
     pub hooks_file: PathBuf,
     /// Per-channel sandbox policies (`channel_sandbox.json`).
     pub sandbox_file: PathBuf,
+    /// Canary freeze state — provider/model pairs frozen by automation (`canary_frozen.json`).
+    pub canary_freeze_file: PathBuf,
     /// Meta-evolution proposal log (`evolution.jsonl`).
     pub evolution_file: PathBuf,
     /// Human-readable evolution doc regenerated from the log (`SELF_EVOLUTION.md`).
@@ -217,6 +221,7 @@ impl PraxisPaths {
             operator_schedule_file: data_dir.join("operator_schedule.json"),
             system_anomalies_file: data_dir.join("system_anomalies.jsonl"),
             delegation_links_file: data_dir.join("delegation_links.json"),
+            delegation_queue_file: data_dir.join("delegation_queue.jsonl"),
             active_hand_file: data_dir.join("hands").join("active.txt"),
             hands_dir,
             score_file: data_dir.join("score.jsonl"),
@@ -224,6 +229,7 @@ impl PraxisPaths {
             daemon_pid_file: data_dir.join("daemon.pid"),
             hooks_file: data_dir.join("hooks.toml"),
             sandbox_file: data_dir.join("channel_sandbox.json"),
+            canary_freeze_file: data_dir.join("canary_frozen.json"),
             evolution_file: data_dir.join("evolution.jsonl"),
             self_evolution_file: data_dir.join("SELF_EVOLUTION.md"),
             benchmarks_dir,

@@ -28,6 +28,114 @@ pub struct ModelCanaryRecord {
     pub checked_at: String,
     pub summary: String,
     pub eval_failures: usize,
+    /// Running count of consecutive passes; reset to 0 on any failure.
+    #[serde(default)]
+    pub consecutive_passes: u32,
+}
+
+/// Routes to freeze after sustained failures; persisted as `canary_frozen.json`.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct CanaryFreezeState {
+    /// Set of `"provider/model"` strings that are currently frozen.
+    #[serde(default)]
+    pub frozen: std::collections::BTreeSet<String>,
+}
+
+impl CanaryFreezeState {
+    pub fn load_or_default(path: &Path) -> Result<Self> {
+        if !path.exists() {
+            return Ok(Self::default());
+        }
+        let raw = fs::read_to_string(path)
+            .with_context(|| format!("failed to read {}", path.display()))?;
+        serde_json::from_str(&raw).with_context(|| format!("invalid JSON in {}", path.display()))
+    }
+
+    pub fn save(&self, path: &Path) -> Result<()> {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)
+                .with_context(|| format!("failed to create {}", parent.display()))?;
+        }
+        let raw = serde_json::to_string_pretty(self).context("failed to serialize freeze state")?;
+        fs::write(path, raw).with_context(|| format!("failed to write {}", path.display()))
+    }
+
+    pub fn key(provider: &str, model: &str) -> String {
+        format!("{provider}/{model}")
+    }
+
+    pub fn is_frozen(&self, provider: &str, model: &str) -> bool {
+        self.frozen.contains(&Self::key(provider, model))
+    }
+
+    pub fn freeze(&mut self, provider: &str, model: &str) {
+        self.frozen.insert(Self::key(provider, model));
+    }
+
+    pub fn unfreeze(&mut self, provider: &str, model: &str) {
+        self.frozen.remove(&Self::key(provider, model));
+    }
+}
+
+/// Actions taken by canary automation after a run.
+#[derive(Debug, Default)]
+pub struct CanaryAutomation {
+    /// Routes promoted (unfrozen) after `PROMOTION_THRESHOLD` consecutive passes.
+    pub promoted: Vec<String>,
+    /// Routes frozen after failing (triggers rollback).
+    pub rolled_back: Vec<String>,
+}
+
+/// Consecutive passes required before a previously-frozen route is promoted.
+const PROMOTION_THRESHOLD: u32 = 3;
+
+/// Apply promotion and rollback automation based on the latest canary ledger.
+///
+/// - Routes that just failed (consecutive_passes reset to 0 from >0) are frozen.
+/// - Routes that reached `PROMOTION_THRESHOLD` consecutive passes are unfrozen.
+pub fn apply_automation(
+    ledger: &ModelCanaryLedger,
+    freeze_path: &Path,
+    prev_ledger: &ModelCanaryLedger,
+) -> Result<CanaryAutomation> {
+    let mut freeze = CanaryFreezeState::load_or_default(freeze_path)?;
+    let mut automation = CanaryAutomation::default();
+
+    for record in &ledger.records {
+        let key = CanaryFreezeState::key(&record.provider, &record.model);
+
+        // Find previous consecutive_passes for this route.
+        let prev_passes = prev_ledger
+            .records
+            .iter()
+            .find(|r| r.provider == record.provider && r.model == record.model)
+            .map(|r| r.consecutive_passes)
+            .unwrap_or(0);
+
+        match record.status {
+            CanaryStatus::Passed => {
+                if record.consecutive_passes >= PROMOTION_THRESHOLD
+                    && freeze.is_frozen(&record.provider, &record.model)
+                {
+                    freeze.unfreeze(&record.provider, &record.model);
+                    automation.promoted.push(key);
+                }
+            }
+            CanaryStatus::Failed => {
+                // Rollback if it was passing before (consecutive_passes just reset to 0).
+                if prev_passes > 0 && !freeze.is_frozen(&record.provider, &record.model) {
+                    freeze.freeze(&record.provider, &record.model);
+                    automation.rolled_back.push(key);
+                }
+            }
+        }
+    }
+
+    if !automation.promoted.is_empty() || !automation.rolled_back.is_empty() {
+        freeze.save(freeze_path)?;
+    }
+
+    Ok(automation)
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -87,7 +195,18 @@ impl ModelCanaryLedger {
         Ok(())
     }
 
-    pub fn replace(&mut self, record: ModelCanaryRecord) {
+    pub fn replace(&mut self, mut record: ModelCanaryRecord) {
+        // Carry forward the consecutive_passes counter.
+        let prev_passes = self
+            .records
+            .iter()
+            .find(|r| r.provider == record.provider && r.model == record.model)
+            .map(|r| r.consecutive_passes)
+            .unwrap_or(0);
+        record.consecutive_passes = match record.status {
+            CanaryStatus::Passed => prev_passes + 1,
+            CanaryStatus::Failed => 0,
+        };
         self.records.retain(|existing| {
             existing.provider != record.provider || existing.model != record.model
         });
@@ -114,7 +233,8 @@ pub fn run_canaries(
     provider: Option<&str>,
 ) -> Result<Vec<ModelCanaryRecord>> {
     let providers = target_providers(config, paths, provider)?;
-    let mut ledger = ModelCanaryLedger::load_or_default(&paths.model_canary_file)?;
+    let prev_ledger = ModelCanaryLedger::load_or_default(&paths.model_canary_file)?;
+    let mut ledger = prev_ledger.clone();
     let mut records = Vec::new();
 
     for provider in providers {
@@ -124,6 +244,19 @@ pub fn run_canaries(
     }
 
     ledger.save(&paths.model_canary_file)?;
+
+    match apply_automation(&ledger, &paths.canary_freeze_file, &prev_ledger) {
+        Ok(automation) => {
+            for route in &automation.promoted {
+                log::info!("canary: promoted {route} (>={PROMOTION_THRESHOLD} consecutive passes)");
+            }
+            for route in &automation.rolled_back {
+                log::warn!("canary: rolled back {route} (fresh failure after passing streak)");
+            }
+        }
+        Err(e) => log::warn!("canary automation failed: {e}"),
+    }
+
     Ok(records)
 }
 
@@ -207,6 +340,7 @@ fn run_provider_canary(
                     output.summary.chars().take(80).collect::<String>()
                 ),
                 eval_failures: failed,
+                consecutive_passes: 0, // will be updated by replace()
             })
         }
         Err(error) => Ok(ModelCanaryRecord {
@@ -216,6 +350,7 @@ fn run_provider_canary(
             checked_at,
             summary: format!("{} canary probe failed: {}", provider, error),
             eval_failures: 0,
+            consecutive_passes: 0, // will be updated by replace()
         }),
     }
 }
