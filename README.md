@@ -52,15 +52,15 @@ Shipped today:
 - Manifest-versioned state export/import plus human-readable audit export
 - Optional daily backup snapshots with retention pruning on top of manual export/import
 - `AGENTS.md` pattern capture with CLI support for future-run conventions and gotchas
+- AES-256-GCM at-rest encryption for `vault.toml` and `oauth_tokens.json` via a `master.key` generated on init
+- Automatic git state sync: every Reflect phase commits session state to the data-dir repo if one exists
 
 Not finished yet:
 
-- Broader tool execution beyond the first controlled data-write path
-- Full rollout canaries tied into watchdog-driven binary swaps and rollback automation
-- Full watchdog/auto-update process management beyond the new heartbeat backstop
-- Richer dashboard UI and additional messaging platforms
-- Automatic scheduled backup snapshots for long-lived state
-- Deeper memory consolidation, reinforcement, and longer-horizon calibration
+- Two-process watchdog daemon (binary swap automation; CLI update/rollback exists)
+- Zero-LLM deterministic mode (StubBackend exists but no rule-based logic path)
+- Voice transcript streaming (Whisper integration)
+- Serverless/edge entry point (Cloudflare Workers / AWS Lambda)
 
 ## Quick Start
 

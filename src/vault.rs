@@ -79,25 +79,32 @@ pub struct Vault {
 
 impl Vault {
     /// Load the vault from `path`.  Returns an empty vault if the file does
-    /// not exist.
+    /// not exist.  Transparently decrypts if a `master.key` exists next to it.
     pub fn load(path: &Path) -> Result<Self> {
         match fs::read_to_string(path) {
             Ok(raw) => {
-                toml::from_str(&raw).with_context(|| format!("invalid vault at {}", path.display()))
+                let content = crate::crypto::maybe_decrypt(path, &raw)
+                    .with_context(|| format!("failed to decrypt vault at {}", path.display()))?;
+                toml::from_str(&content)
+                    .with_context(|| format!("invalid vault at {}", path.display()))
             }
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Self::default()),
             Err(e) => Err(e).with_context(|| format!("failed to read vault {}", path.display())),
         }
     }
 
-    /// Persist the vault to `path` (for initialisation / key rotation).
+    /// Persist the vault to `path`.  Transparently encrypts if a `master.key`
+    /// exists next to it.
     pub fn save(&self, path: &Path) -> Result<()> {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)
                 .with_context(|| format!("failed to create {}", parent.display()))?;
         }
         let raw = toml::to_string_pretty(self).context("failed to serialise vault")?;
-        fs::write(path, raw).with_context(|| format!("failed to write vault {}", path.display()))
+        let content = crate::crypto::maybe_encrypt(path, &raw)
+            .with_context(|| format!("failed to encrypt vault at {}", path.display()))?;
+        fs::write(path, content)
+            .with_context(|| format!("failed to write vault {}", path.display()))
     }
 
     /// Resolve a named secret.

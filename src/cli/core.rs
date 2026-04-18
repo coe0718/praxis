@@ -56,6 +56,9 @@ pub(crate) fn handle_init(data_dir_override: Option<PathBuf>, args: InitArgs) ->
     let store = SqliteSessionStore::new(paths.database_file.clone());
     store.initialize()?;
 
+    crate::crypto::load_or_generate_key(&paths.master_key_file)
+        .context("failed to initialise at-rest encryption key")?;
+
     let identity = LocalIdentityPolicy;
     identity.ensure_foundation(&paths, &config, now)?;
     FileToolRegistry.ensure_foundation(&paths)?;

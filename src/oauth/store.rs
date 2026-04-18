@@ -53,7 +53,9 @@ impl OAuthTokenStore {
         }
         let raw = fs::read_to_string(&self.path)
             .with_context(|| format!("failed to read {}", self.path.display()))?;
-        serde_json::from_str(&raw)
+        let content = crate::crypto::maybe_decrypt(&self.path, &raw)
+            .with_context(|| format!("failed to decrypt {}", self.path.display()))?;
+        serde_json::from_str(&content)
             .with_context(|| format!("invalid oauth tokens in {}", self.path.display()))
     }
 
@@ -79,7 +81,9 @@ impl OAuthTokenStore {
     fn write(&self, tokens: &HashMap<String, OAuthToken>) -> Result<()> {
         let raw =
             serde_json::to_string_pretty(tokens).context("failed to serialize oauth tokens")?;
-        fs::write(&self.path, raw)
+        let content = crate::crypto::maybe_encrypt(&self.path, &raw)
+            .with_context(|| format!("failed to encrypt {}", self.path.display()))?;
+        fs::write(&self.path, content)
             .with_context(|| format!("failed to write {}", self.path.display()))
     }
 }

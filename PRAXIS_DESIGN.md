@@ -83,7 +83,7 @@ Providers are broader than raw model vendors. A Praxis provider may be a direct 
 | Config | `toml` (praxis.toml) |
 | Auth (webhook HMAC) | `hmac` + `sha2` |
 | TUI | `ratatui` + `crossterm` |
-| Crypto | `ed25519-dalek` (tool manifest signing) |
+| Crypto | `aes-gcm` (at-rest encryption), `ed25519-dalek` (tool manifest signing) |
 | Scheduling | `tokio-cron-scheduler` |
 
 Single binary distribution. Docker support via `docker-compose.yml`. Runs on Linux, macOS, Raspberry Pi.
@@ -1198,15 +1198,15 @@ Status values are intentionally rough:
 |---|---|---|---|
 | 1 | Implemented | Agent loop skeleton | `src/loop/`, `src/scheduler/` |
 | 2 | Implemented | Context budget + anatomy index | `src/context/`, `src/loop/orient.rs` |
-| 3 | In progress | Memory + operational memory | `src/memory/`, `src/analytics/` |
-| 4 | In progress | Tools system | `src/tools/`, `src/agents/` |
-| 5 | In progress | Identity policy | `src/identity/`, `PROPOSALS.md` workflow |
-| 6 | Implemented | SSE event streaming | `src/dashboard/`, `src/analytics/receipts.rs` |
-| 7 | In progress | Messaging layer | `src/messaging/` |
+| 3 | Implemented | Memory + operational memory | `src/memory/`, `src/storage/` |
+| 4 | Implemented | Tools system | `src/tools/` |
+| 5 | Implemented | Identity policy | `src/identity/`, `PROPOSALS.md` workflow |
+| 6 | Implemented | SSE event streaming | `src/dashboard/`, `src/storage/` |
+| 7 | Implemented | Messaging layer | `src/messaging/` (Telegram, Discord, Slack) |
 | 8 | Implemented | Quality system | `src/quality/`, `goals/criteria/` |
-| 9 | In progress | Analytics + observability + forensics | `src/analytics/`, `src/forensics/`, `src/tui/`, `docs/` |
-| 10 | In progress | Trust + opportunity + learning runtime | `src/quality/`, `src/analytics/`, `src/memory/`, `src/learning/` |
-| 11 | Planned | Watchdog + auto-update | `src/watchdog/`, `scripts/install.sh` |
+| 9 | Implemented | Analytics + observability + forensics | `src/score.rs`, `src/forensics/`, `src/tui/` |
+| 10 | Implemented | Trust + opportunity + learning runtime | `src/learning/`, `src/canary.rs`, `src/speculative/` |
+| 11 | In progress | Watchdog + auto-update | `src/cli/watchdog.rs` (CLI; two-process daemon planned) |
 
 This table is intentionally coupled to the repository structure. If the module layout changes, the build order should be updated in the same pull request.
 
@@ -1235,6 +1235,11 @@ Move items upward as they ship:
 - **NanoClaw** — credential vault proxying and per-context-group memory/filesystem isolation.
 - **OpenFang** — `Hand` capability packages; WASM dual-metered sandboxing; secret zeroization; and GCRA rate limiting.
 - **GoClaw** — evaluate loop; explicit delegation links and handoff; quality gates; prompt caching; credential scrubbing; lane-based scheduling; and env-var auto-onboarding.
+
+### Completed (current)
+
+- **At-rest encryption** — `src/crypto.rs` wraps AES-256-GCM with a `master.key` generated on `praxis init` (600 perms, git-ignored). `maybe_encrypt` / `maybe_decrypt` transparently encrypt `vault.toml` and `oauth_tokens.json` on write and decrypt on read. Files without a `master.key` silently fall back to plaintext for backward compatibility. Magic prefix `PRAXISENC1:` distinguishes encrypted from plaintext blobs.
+- **Automatic git state sync** — `cli::git::auto_commit()` is called at the end of every Reflect phase. If `data_dir/.git` exists, all state changes are staged and committed with an auto-generated timestamped message. Silently no-ops when no git repo is present.
 
 ### Completed
 
@@ -1294,26 +1299,6 @@ Move items upward as they ship:
 - **Morning brief** — `praxis brief` and Telegram `/brief` now aggregate active goals, top hot memories, pending approvals, boundary review status, recent events, and a journal excerpt into a single operator-facing summary sized for a Telegram message.
 - **Sender pairing** — unknown Telegram chat IDs now trigger a 6-digit one-time pairing code instead of a silent drop; the code is delivered to the operator's primary chat, the first message is queued, and all further input from the unknown chat is held until the operator sends `/approve-sender <code>`.
 
-### Adopt Soon
-
-- `Completed` **Capability benchmarking** — add recurring capability tests and operator-specific replay/eval sessions to measure usefulness over time.
-- `Completed` **Thin provider adapter layer** — keep providers on a Praxis-owned `reqwest` trait with OpenAI-compatible plus Anthropic-native adapters, adapter-local auth handling, runtime failover, and rule-based routing.
-- `Completed` **SOUL / IDENTITY split** — add an immutable `SOUL.md` anchor alongside an evolving `IDENTITY.md`, backed by a structured operator model instead of relying only on `PATTERNS.md`.
-- `Completed` **Progressive skill loading and synthesis** — load skill metadata first, pull full docs on demand, and let Reflect draft reusable skills after complex successful work.
-- `Completed` **Interactive and automatic compaction** — support explicit `/compact` plus threshold-triggered in-session compression as separate mechanisms.
-- `Completed` **Formal evaluate loop and quality gates** — make generator/evaluator review loops and deterministic pre-delivery checks first-class runtime primitives.
-- `Completed` **Heartbeat / message-bus separation** — keep liveness and proactive wake logic distinct from transport/event distribution.
-- `Completed` **Typing indicators and activation modes** — improve messaging UX in shared channels without forcing a single global listen policy.
-- `Completed` **Prompt caching and env-first onboarding** — reduce cost on long sessions and make container or CI installs self-configure when credentials already exist.
-- `Completed` **Speculative execution** — compare multiple rehearsed branches before committing to the safest or highest-yield act plan.
-- `Completed` **Wave execution** — group dependency-aware sub-agent work into parallel waves instead of spawning parallelism ad hoc.
-- `Completed` **Context-rot prevention** — make "fit work into clean context windows" a structural rule, not just a good habit.
-- `Completed` **Wake-on-intent** — support approved interrupt-style wakes alongside scheduled sessions.
-- `Completed` **Reviewer cost guardrails** — keep reviewer context and token ceilings explicit so mandatory review stays affordable.
-- `Completed` **Relational memory layer** — typed `MemoryLink` edges (`caused_by`, `related_to`, `contradicts`, `user_preference`, `follow_up`) stored in SQLite; top hot memories expand through links during context load.
-- `Completed` **Operator reinforcement commands** — `/memories`, `/reinforce <id>`, `/forget <id>`, `/link <from> <type> <to>` Telegram commands for direct memory management.
-- `Completed` **Config sensitivity split** — `security.toml` (gitignored) holds sensitive overrides such as security level; applied on top of committable `praxis.toml` at startup.
-- `Completed` **Decision receipts** — every Decide phase writes a structured audit record (reason code, goal, chosen action, context sources, confidence) to a `decision_receipts` SQLite table; recent receipts surface in context; `/decisions` Telegram command for operator review.
 
 ### Future / Optional
 
@@ -1322,13 +1307,23 @@ Move items upward as they ship:
 - **Community tool registry improvements** — include compatibility metadata, usage examples, and read-only community discovery.
 - **Workflow-provider integrations** — add first-class adapters for external orchestrators when operators want Praxis to sit above an existing automation stack.
 - **Local multimodal processing** — optional on-device transcription, captioning, or light image understanding for privacy-preserving installs.
-- **Per-channel sandboxing** — let the main operator surface run with fuller host access while non-main channels default to narrower isolated sandboxes.
 - **Meta-evolution workflow** — let Praxis propose changes to the framework itself via `SELF_EVOLUTION.md`, with heavy approval gating.
 - **Auto-maintained docs** — let Praxis keep public docs and examples current as capabilities mature.
 - **Lite mode** — reduce sub-agent usage, tighten budgets, and simplify behavior for Raspberry Pi or low-power installs.
 - **Anonymous learning exchange** — possibly allow instances to publish sanitized, non-personal learnings to a shared registry later, but only with strong privacy guarantees.
 - **WASM tool runtime** — support ultra-sandboxed community tools without granting broad local execution, ideally with explicit metering and a watchdog against runaway code.
 - **Local multimodal and local model bundles** — optional heavy extras for privacy-first or travel/offline deployments.
+- **Social runtime** — optional scheduled outward-facing posting or status sharing on behalf of the operator.
+- **Property-based and fuzz testing** — apply proptest to core data structures and fuzz security-critical components like tool manifest parsing and approval queues.
+- **Database connection pooling** — evaluate r2d2 or similar for concurrent SQLite access when async parallelism increases.
+- **Plugin / extension architecture** — make backends, stores, and adapters more pluggable via stable trait objects so third-party extensions can be compiled separately.
+- **Multi-node / distributed mode** — coordination layer for multiple Praxis instances against shared goals with conflict resolution and work partitioning.
+- **Zero-LLM deterministic mode** — rule-based orient/decide path that skips all backend calls; useful for offline CI smoke tests and guaranteed fallback when providers are unavailable.
+- **Voice transcript streaming** — pipe real-time speech-to-text (Whisper or equivalent) into the ask and run entry points.
+- **Serverless / edge entry point** — minimal stateless Praxis handler compatible with Cloudflare Workers or AWS Lambda.
+- **PRD/story-mode dev runtime** — developer-focused operating mode that works from explicit story state and stop signals.
+- **Dedicated TUI launcher** — separate headless/SSH-first TUI artifact instead of a mode flag.
+- **Two-process watchdog daemon** — `praxis-watchdog` binary that owns the cron schedule, monitors the main process, and handles binary swaps during the sleep window.
 
 ### Completed (Wave 4)
 
@@ -1350,23 +1345,10 @@ Move items upward as they ship:
 - **Adaptive scheduling** — `wakeup::schedule::OperatorSchedule` maintains a 24-slot UTC hourly activity histogram; quiet-hour detection activates after 20 samples; `next_preferred_wake_time()` skips detected quiet hours when choosing the next session window.
 - **Prometheus / metrics export** — `/metrics` HTTP endpoint on the dashboard server emits Prometheus text-format gauges: hot/cold memory counts, pending approvals, heartbeat age, and session count; no external SDK required.
 - **Cargo feature modularity** — `tui` (ratatui + crossterm), `discord`, and `slack` are now optional Cargo features (all enabled by default); `--no-default-features` produces a leaner binary without the terminal UI or messaging adapters.
-- **Social runtime** — optional scheduled outward-facing posting or status sharing on behalf of the operator.
-- **Property-based and fuzz testing** — apply proptest to core data structures (memory, context budget, goal parsing) and fuzz security-critical components like tool manifest parsing and approval queues.
-- **Database connection pooling** — evaluate r2d2 or similar for concurrent access patterns if Praxis ever runs multiple threads or async tasks against SQLite simultaneously.
-- **Hot-path performance profiling** — profile clone-heavy paths (context loading, provider request building) under realistic session loads and cache or reduce copies where it matters.
-- **Public API documentation** — add doc examples to the major public traits (AgentBackend, MemoryStore, ToolRegistry) so the library surface is self-documenting.
-- **Plugin / extension architecture** — make backends, stores, and adapters more pluggable via stable trait objects so third-party extensions can be compiled separately.
-- **Multi-node / distributed mode** — design a coordination layer for running multiple Praxis instances against shared goals, with conflict resolution and work partitioning.
-- **Security fuzzing** — fuzz the tool manifest parser, approval queue, and boundary enforcement for robustness against malformed or adversarial input.
-- **Zero-LLM deterministic mode** — a rule-based operating mode (flagged in `profiles.toml`) that skips all backend calls and uses static decision logic; enables offline maintenance passes, cost-free CI smoke tests, and a guaranteed fallback when providers are unavailable.
-- **Git-backed state sync** — optional `praxis git-push` that commits SQLite exports and markdown state files to a git remote, giving operators an immutable audit trail and easy rollback of any session's effects.
-- **MCP (Model Context Protocol) native integration** — register Praxis tools and skills as MCP-native resources so other agents and editors can consume them without custom adapters, and let Praxis consume third-party MCP servers as first-class tool sources.
-- **Discord and Slack adapters** — extend `src/messaging/` to cover Discord and Slack with the same activation-mode and typing-indicator model as Telegram, reaching operators on their primary platforms.
-- **Voice transcript streaming** — pipe real-time speech-to-text (Whisper or equivalent) into the ask and run entry points so operators can interact hands-free from a Pi or mobile device.
-- **Serverless / edge entry point** — a minimal stateless Praxis handler compatible with Cloudflare Workers or AWS Lambda for low-frequency, on-demand runs without a persistent process.
-- **VS Code ops surface** — lightweight editor integration for status, current goal, and safe run triggers.
-- **PRD/story-mode dev runtime** — an optional developer-focused operating mode that works from explicit story state and stop signals.
-- **Dedicated TUI launcher** — package a separate headless/SSH-first TUI artifact instead of only exposing terminal UI as a subcommand.
+- **Git-backed state sync** — now automatic: `cli::git::auto_commit()` runs at the end of every Reflect phase. See Completed (current).
+- **MCP (Model Context Protocol) native integration** — register Praxis tools and skills as MCP-native resources so other agents and editors can consume them without custom adapters, and let Praxis consume third-party MCP servers as first-class tool sources. ✓
+- **Discord and Slack adapters** — `praxis discord poll` and `praxis slack poll` with full command routing. ✓
+- **VS Code ops surface** — `praxis vscode status/tasks/open`. ✓
 
 ---
 

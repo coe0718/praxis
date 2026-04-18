@@ -277,6 +277,9 @@ where
         );
         hooks.fire_observer("session.end", &ctx_end, "*");
 
+        // Commit all state changes to the data-dir git repo (if one exists).
+        crate::cli::git::auto_commit(self.paths);
+
         Ok(())
     }
 }

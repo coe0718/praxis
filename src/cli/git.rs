@@ -50,6 +50,7 @@ struct GitPushArgs {
 
 const GITIGNORE: &str = "\
 # Praxis — secrets and ephemeral state never go into git
+master.key
 oauth_tokens.json
 security.toml
 *.lock
@@ -191,4 +192,16 @@ fn run_git(dir: &Path, args: &[&str]) -> Result<String> {
 fn auto_commit_message() -> String {
     let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ");
     format!("chore: praxis state sync {now}")
+}
+
+/// Silently commit all state changes in `data_dir` if it is a git repository.
+///
+/// Called automatically at the end of every Reflect phase.  Non-fatal: any
+/// git failure (nothing to commit, no remote, etc.) is silently ignored.
+pub(crate) fn auto_commit(paths: &PraxisPaths) {
+    if !paths.data_dir.join(".git").exists() {
+        return;
+    }
+    let _ = run_git(&paths.data_dir, &["add", "-A"]);
+    let _ = run_git(&paths.data_dir, &["commit", "-m", &auto_commit_message()]);
 }

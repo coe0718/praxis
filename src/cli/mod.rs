@@ -12,7 +12,7 @@ mod delegation;
 mod discord;
 mod evolution;
 mod forensics;
-mod git;
+pub(crate) mod git;
 mod hands;
 mod heartbeat;
 mod hooks;

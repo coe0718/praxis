@@ -85,10 +85,3 @@ Wired into `src/loop/runtime.rs::execute_reflect()`. `try_send_morning_brief()` 
 ### ~~Sub-Agent Steering~~ ✓ DONE
 Act phase now checks for a newly-arrived `wake_intent.json` before calling the LLM. If a wake intent with a `task` arrives mid-session, the action is redirected without an LLM call and the session records outcome `steered` with an `agent:steered` event.
 
----
-
-## NOT BROKEN, BUT NOTED
-
-- **Vault** credentials are stored at `vault.toml` with `600` permissions but are not encrypted at rest.
-- **OAuth tokens** in `oauth_tokens.json` are also plaintext on disk.
-- **Git-backed state sync** (`src/cli/git.rs`) is a generic git CLI wrapper, not automatic commit-on-session-end. Labelled as a future feature in design docs; no confusion, just documenting.

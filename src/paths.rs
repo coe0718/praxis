@@ -113,6 +113,9 @@ pub struct PraxisPaths {
     pub slack_state_file: PathBuf,
     /// Watchdog self-update state — pending/applied binary update records (`watchdog_update.json`).
     pub watchdog_update_file: PathBuf,
+    /// AES-256 master key for at-rest encryption of vault and OAuth tokens (`master.key`).
+    /// Generated once on `praxis init`; must be excluded from version control.
+    pub master_key_file: PathBuf,
 }
 
 pub fn detect_platform() -> Platform {
@@ -244,6 +247,7 @@ impl PraxisPaths {
             discord_state_file: data_dir.join("discord_state.json"),
             slack_state_file: data_dir.join("slack_state.json"),
             watchdog_update_file: data_dir.join("watchdog_update.json"),
+            master_key_file: data_dir.join("master.key"),
             benchmarks_dir,
             data_dir,
         }

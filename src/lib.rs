@@ -12,6 +12,7 @@ pub mod canary;
 pub mod cli;
 pub mod config;
 pub mod context;
+pub mod crypto;
 pub mod daemon;
 pub mod dashboard;
 pub mod delegation;
