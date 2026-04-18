@@ -70,8 +70,8 @@ Wired into `src/loop/reflect.rs`. `SystemSnapshot::capture()` and `record_snapsh
 ### ~~Vault (Credential Store)~~ ✓ DONE
 Wired into `src/tools/execute.rs`. The vault is loaded at the start of every `execute_request()`. Shell tools (including `shell-exec`) receive all vault secrets as `VAULT_<NAME>` env vars. HTTP tool headers and endpoint URLs have `$VAULT{name}` placeholders substituted with resolved values. Vault load failure is non-fatal (falls back to empty vault so env-var-only setups are unaffected).
 
-### Speculative Execution
-`src/speculative/mod.rs` stores trial execution records. The Act phase has no branching logic. No rehearsal automation exists. Nothing calls into speculative at runtime.
+### ~~Speculative Execution~~ ✓ DONE
+Wired into `src/loop/phases.rs::act()`. Before `finalize_action()`, `run_speculative()` generates a conservative alternative branch via a second `plan_action()` call with a context hint. Both branches are scored by `select_branch()` (from `src/speculative/mod.rs`) against goal/task keywords (success criteria) and hardcoded destructive-operation phrases (trust constraints). The higher-scoring branch's plan text is forwarded to `finalize_action()`. Emits `agent:speculative_branch_selected` with the rationale on every Act phase that reaches this point.
 
 ### ~~Learning / Opportunity Mining~~ ✓ DONE
 Wired into `src/loop/runtime.rs::execute_reflect()`. `learning::run_once()` is now called automatically after every session, with daily/weekly throttles enforced internally. New opportunities emit `agent:learning_opportunities_found` events.

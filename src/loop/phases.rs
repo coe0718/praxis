@@ -7,6 +7,7 @@ use crate::{
     hands::HandStore,
     memory::{MemoryLinkStore, MemoryStore},
     paths::PraxisPaths,
+    speculative::{SpeculativeBranch, select_branch},
     state::SessionState,
     storage::{
         AnatomyStore, ApprovalStore, DecisionReceiptStore, NewApprovalRequest, NewDecisionReceipt,
@@ -291,6 +292,11 @@ where
         if self.block_for_usage_budget(state, UsageBudgetMode::Run)? {
             return Ok(());
         }
+
+        // Speculative execution: rehearse an alternative approach and pick the
+        // higher-scoring branch before committing to finalize_action.
+        let summary = self.run_speculative(&summary, state)?;
+
         let output = self.backend.finalize_action(
             &summary,
             super::reflect::selected_goal(state).as_ref(),
@@ -301,6 +307,66 @@ where
         state.action_summary = Some(output.summary);
         state.updated_at = self.clock.now_utc();
         Ok(())
+    }
+
+    /// Generate a conservative alternative plan branch and return whichever
+    /// branch scores higher against the current goal/task keywords.
+    fn run_speculative(&self, primary_summary: &str, state: &mut SessionState) -> Result<String> {
+        let alt_context = state.rendered_context.as_deref().map(|ctx| {
+            format!(
+                "{ctx}\n\n[Speculative branch: consider a more conservative, reversible approach.]"
+            )
+        });
+
+        let goal = super::reflect::selected_goal(state);
+        let alt_output = match self.backend.plan_action(
+            goal.as_ref(),
+            state.requested_task.as_deref(),
+            alt_context.as_deref(),
+        ) {
+            Ok(o) => o,
+            Err(e) => {
+                log::warn!("speculative branch-b generation failed: {e}");
+                return Ok(primary_summary.to_string());
+            }
+        };
+        state.provider_attempts.extend(alt_output.attempts);
+
+        let branch_a = SpeculativeBranch::new("branch-a", "primary approach", primary_summary);
+        let branch_b =
+            SpeculativeBranch::new("branch-b", "conservative alternative", &alt_output.summary);
+
+        let success_criteria = speculative_keywords(
+            state
+                .selected_goal_title
+                .as_deref()
+                .or(state.requested_task.as_deref())
+                .unwrap_or(""),
+        );
+        let trust_constraints = vec![
+            "force push".to_string(),
+            "delete production".to_string(),
+            "drop table".to_string(),
+            "rm -rf".to_string(),
+            "truncate".to_string(),
+            "--no-verify".to_string(),
+            "hard reset".to_string(),
+            "--force".to_string(),
+        ];
+
+        let Some(result) = select_branch(
+            vec![branch_a, branch_b],
+            &success_criteria,
+            &trust_constraints,
+        ) else {
+            return Ok(primary_summary.to_string());
+        };
+
+        if let Err(e) = self.emit("agent:speculative_branch_selected", &result.rationale) {
+            log::warn!("failed to emit speculative event: {e}");
+        }
+
+        Ok(result.winner.plan_text)
     }
 
     fn try_delegate(
@@ -443,6 +509,22 @@ pub(super) fn invocation_key(
         request.write_paths.join(","),
         request.payload_json.as_deref().unwrap_or("")
     )
+}
+
+/// Extract meaningful keywords from a goal title or task string to use as
+/// speculative success criteria. Filters out short stop-words.
+fn speculative_keywords(text: &str) -> Vec<String> {
+    const MIN_LEN: usize = 4;
+    const STOP: &[&str] = &[
+        "with", "from", "that", "this", "have", "will", "been", "into", "when", "then", "also",
+    ];
+    text.split_whitespace()
+        .map(|w| {
+            w.trim_matches(|c: char| !c.is_alphanumeric())
+                .to_lowercase()
+        })
+        .filter(|w| w.len() >= MIN_LEN && !STOP.contains(&w.as_str()))
+        .collect()
 }
 
 /// Load the active hand (if any) and validate required tools are registered.
