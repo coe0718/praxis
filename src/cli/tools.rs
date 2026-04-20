@@ -120,6 +120,7 @@ fn handle_register(data_dir_override: Option<PathBuf>, args: RegisterToolArgs) -
         method: None,
         headers: Vec::new(),
         body: None,
+        allowed_vault_keys: None,
     };
 
     let path = FileToolRegistry.register(&paths, &manifest)?;

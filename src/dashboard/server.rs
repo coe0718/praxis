@@ -4,7 +4,7 @@ use anyhow::Result;
 use axum::{
     Router,
     extract::{Request, State},
-    http::{StatusCode, header},
+    http::{HeaderValue, StatusCode, header},
     middleware::Next,
     response::Response,
     routing::{delete, get, post},
@@ -54,6 +54,18 @@ pub(super) fn api_error(e: impl std::fmt::Display) -> (StatusCode, &'static str)
     (StatusCode::INTERNAL_SERVER_ERROR, "internal server error")
 }
 
+pub(super) async fn add_security_headers(request: Request, next: Next) -> Response {
+    let mut response = next.run(request).await;
+    response.headers_mut().insert(
+        header::CONTENT_SECURITY_POLICY,
+        HeaderValue::from_static(
+            "default-src 'self'; script-src 'self' 'unsafe-inline'; \
+             style-src 'self' 'unsafe-inline'; connect-src 'self'",
+        ),
+    );
+    response
+}
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
 pub async fn serve_dashboard(data_dir: PathBuf, host: String, port: u16) -> Result<()> {
@@ -63,13 +75,17 @@ pub async fn serve_dashboard(data_dir: PathBuf, host: String, port: u16) -> Resu
     }
     let state = DashboardState { data_dir, token };
 
+    // SSE stream is read-only and exempt from auth — EventSource API cannot send headers.
+    let public_routes = Router::new()
+        .route("/events", get(routes_events::events_sse))
+        .with_state(state.clone());
+
     let app = Router::new()
         .route("/", get(routes_events::index))
         .route("/status", get(routes_events::status_text))
         .route("/health", get(routes_events::health))
         .route("/metrics", get(routes_events::prometheus_metrics))
         .route("/events/recent", get(routes_events::recent_events))
-        .route("/events", get(routes_events::events_sse))
         .route("/mcp", post(routes_events::mcp_endpoint))
         // Core
         .route("/api/summary", get(routes_core::api_summary))
@@ -167,6 +183,12 @@ pub async fn serve_dashboard(data_dir: PathBuf, host: String, port: u16) -> Resu
             require_auth,
         ))
         .with_state(state);
+
+    let app = Router::new()
+        .merge(public_routes)
+        .merge(app)
+        .layer(axum::middleware::from_fn(add_security_headers));
+
     let listener = tokio::net::TcpListener::bind(format!("{host}:{port}")).await?;
     log::info!("dashboard: listening on http://{host}:{port}");
     axum::serve(listener, app).await?;

@@ -113,7 +113,13 @@ function ApprovalCard({ a }: { a: Approval }) {
                 Payload
               </p>
               <pre className="text-xs font-mono bg-slate-50 dark:bg-slate-800 rounded-lg p-3 overflow-x-auto text-slate-700 dark:text-slate-300">
-                {JSON.stringify(JSON.parse(a.payload_json), null, 2)}
+                {(() => {
+                  try {
+                    return JSON.stringify(JSON.parse(a.payload_json), null, 2)
+                  } catch {
+                    return a.payload_json
+                  }
+                })()}
               </pre>
             </div>
           )}

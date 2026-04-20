@@ -1,8 +1,8 @@
 const getBaseUrl = (): string =>
-  localStorage.getItem('praxis_base_url') ?? ''
+  sessionStorage.getItem('praxis_base_url') ?? ''
 
 const getToken = (): string | null =>
-  localStorage.getItem('praxis_token')
+  sessionStorage.getItem('praxis_token')
 
 function headers(): HeadersInit {
   const token = getToken()

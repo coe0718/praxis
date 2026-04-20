@@ -137,6 +137,7 @@ fn default_manifests() -> Vec<ToolManifest> {
             method: None,
             headers: Vec::new(),
             body: None,
+            allowed_vault_keys: None,
         },
         ToolManifest {
             name: "praxis-data-write".to_string(),
@@ -160,6 +161,7 @@ fn default_manifests() -> Vec<ToolManifest> {
             method: None,
             headers: Vec::new(),
             body: None,
+            allowed_vault_keys: None,
         },
         ToolManifest {
             name: "file-read".to_string(),
@@ -177,6 +179,7 @@ fn default_manifests() -> Vec<ToolManifest> {
             method: None,
             headers: Vec::new(),
             body: None,
+            allowed_vault_keys: None,
         },
         ToolManifest {
             name: "git-query".to_string(),
@@ -194,6 +197,7 @@ fn default_manifests() -> Vec<ToolManifest> {
             method: None,
             headers: Vec::new(),
             body: None,
+            allowed_vault_keys: None,
         },
         ToolManifest {
             name: "shell-exec".to_string(),
@@ -211,6 +215,7 @@ fn default_manifests() -> Vec<ToolManifest> {
             method: None,
             headers: Vec::new(),
             body: None,
+            allowed_vault_keys: None,
         },
         ToolManifest {
             name: "web-fetch".to_string(),
@@ -228,6 +233,7 @@ fn default_manifests() -> Vec<ToolManifest> {
             method: Some("GET".to_string()),
             headers: Vec::new(),
             body: None,
+            allowed_vault_keys: None,
         },
     ]
 }

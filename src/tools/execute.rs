@@ -121,8 +121,15 @@ fn run_shell(
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
 
-    // Inject vault secrets as VAULT_<NAME> env vars.
+    // Inject vault secrets as VAULT_<NAME> env vars, filtered by allowed_vault_keys if set.
     for (name, entry) in &vault.secrets {
+        if manifest
+            .allowed_vault_keys
+            .as_ref()
+            .is_some_and(|allowed| !allowed.contains(name))
+        {
+            continue;
+        }
         if let Some(value) = entry.resolve().ok().flatten() {
             let key = format!("VAULT_{}", name.to_ascii_uppercase().replace('-', "_"));
             cmd.env(key, value);
@@ -456,8 +463,15 @@ fn exec_shell_command(
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
 
-    // Inject vault secrets as VAULT_<NAME> env vars.
+    // Inject vault secrets as VAULT_<NAME> env vars, filtered by allowed_vault_keys if set.
     for (name, entry) in &vault.secrets {
+        if manifest
+            .allowed_vault_keys
+            .as_ref()
+            .is_some_and(|allowed| !allowed.contains(name))
+        {
+            continue;
+        }
         if let Some(value) = entry.resolve().ok().flatten() {
             let key = format!("VAULT_{}", name.to_ascii_uppercase().replace('-', "_"));
             cmd.env(key, value);

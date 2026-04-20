@@ -48,6 +48,10 @@ pub struct ToolManifest {
     /// Static JSON body template. Payload params substitute `{param}` markers.
     #[serde(default)]
     pub body: Option<String>,
+    /// If set, only these vault key names are injected as VAULT_* env vars.
+    /// Absent means all keys (backwards-compatible); empty vec means none.
+    #[serde(default)]
+    pub allowed_vault_keys: Option<Vec<String>>,
 }
 
 impl ToolManifest {

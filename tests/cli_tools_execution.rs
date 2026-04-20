@@ -32,6 +32,7 @@ fn write_manifest() -> ToolManifest {
         method: None,
         headers: Vec::new(),
         body: None,
+        allowed_vault_keys: None,
     }
 }
 

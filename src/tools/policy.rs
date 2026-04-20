@@ -204,6 +204,7 @@ mod tests {
             method: None,
             headers: Vec::new(),
             body: None,
+            allowed_vault_keys: None,
         }
     }
 
