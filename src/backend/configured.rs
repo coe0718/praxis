@@ -20,7 +20,7 @@ use super::{
 
 pub enum ConfiguredBackend {
     Stub(StubBackend),
-    Single(SingleBackend),
+    Single(Box<SingleBackend>),
     Router(RouterBackend),
 }
 
@@ -57,7 +57,7 @@ impl ConfiguredBackend {
                 route_weights: RouteWeightStore::load_or_default(&paths.route_weights_file)
                     .unwrap_or_default(),
             }),
-            provider => Self::Single(SingleBackend {
+            provider => Self::Single(Box::new(SingleBackend {
                 route: route_for(provider, config, &settings)?,
                 local_route: settings
                     .first_for("ollama")
@@ -65,7 +65,7 @@ impl ConfiguredBackend {
                 local_first_fallback: config.agent.local_first_fallback,
                 prompt_caching: config.agent.prompt_caching,
                 canary_gate,
-            }),
+            })),
         })
     }
 

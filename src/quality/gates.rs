@@ -48,6 +48,7 @@ impl GatePipeline {
     }
 
     /// Add a gate to the end of the pipeline.
+    #[allow(clippy::should_implement_trait)]
     pub fn add(mut self, gate: impl QualityGate + 'static) -> Self {
         self.gates.push(Box::new(gate));
         self

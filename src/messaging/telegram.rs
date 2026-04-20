@@ -220,7 +220,7 @@ fn save_offset(path: &Path, last_update_id: i64) -> Result<()> {
 }
 
 fn has_mention_entity(entities: &Option<Vec<TelegramMessageEntity>>) -> bool {
-    entities.as_deref().map_or(false, |ents| {
+    entities.as_deref().is_some_and(|ents| {
         ents.iter()
             .any(|e| e.r#type == "mention" || e.r#type == "text_mention")
     })

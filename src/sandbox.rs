@@ -36,7 +36,7 @@ use crate::{paths::PraxisPaths, tools::ToolKind};
 // ── Policy ─────────────────────────────────────────────────────────────────────
 
 /// A named restriction policy for a channel or delegation link.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ChannelSandbox {
     /// Human-readable label for display.
     #[serde(default)]
@@ -55,18 +55,6 @@ pub struct ChannelSandbox {
     /// global policy would auto-approve it.
     #[serde(default)]
     pub force_approval: bool,
-}
-
-impl Default for ChannelSandbox {
-    fn default() -> Self {
-        Self {
-            label: String::new(),
-            allowed_tool_kinds: Vec::new(),
-            denied_tool_name_patterns: Vec::new(),
-            max_security_level: None,
-            force_approval: false,
-        }
-    }
 }
 
 impl ChannelSandbox {
@@ -123,12 +111,12 @@ pub fn evaluate_tool(
     required_level: u8,
 ) -> SandboxVerdict {
     // Check security level cap.
-    if let Some(max) = sandbox.max_security_level {
-        if required_level > max {
-            return SandboxVerdict::Block(format!(
-                "tool '{tool_name}' requires level {required_level} but sandbox caps at {max}"
-            ));
-        }
+    if let Some(max) = sandbox.max_security_level
+        && required_level > max
+    {
+        return SandboxVerdict::Block(format!(
+            "tool '{tool_name}' requires level {required_level} but sandbox caps at {max}"
+        ));
     }
 
     // Check denied tool name patterns.

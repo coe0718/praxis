@@ -87,8 +87,7 @@ fn run_shell(
     let timeout_secs = manifest
         .timeout_secs
         .unwrap_or(DEFAULT_TIMEOUT_SECS)
-        .max(1)
-        .min(300);
+        .clamp(1, 300);
 
     // Parse any extra arguments from the structured payload.
     let payload = parse_payload(request.payload_json.as_deref())?;
@@ -229,8 +228,7 @@ fn run_http(
     let timeout_secs = manifest
         .timeout_secs
         .unwrap_or(DEFAULT_TIMEOUT_SECS)
-        .max(1)
-        .min(120);
+        .clamp(1, 120);
 
     let payload = parse_payload(request.payload_json.as_deref())?;
 
@@ -332,10 +330,10 @@ fn substitute_vault(template: &str, vault: &Vault) -> String {
     // Iterate over known secret names and substitute any $VAULT{name} occurrences.
     for name in vault.secrets.keys() {
         let placeholder = format!("$VAULT{{{name}}}");
-        if result.contains(&placeholder) {
-            if let Some(value) = vault.resolve_optional(name) {
-                result = result.replace(&placeholder, &value);
-            }
+        if result.contains(&placeholder)
+            && let Some(value) = vault.resolve_optional(name)
+        {
+            result = result.replace(&placeholder, &value);
         }
     }
     result
@@ -401,13 +399,13 @@ fn read_file(
         })?
     };
 
-    if let Ok(meta) = fs::symlink_metadata(&full_path) {
-        if meta.file_type().is_symlink() {
-            anyhow::bail!(
-                "file-read refuses to follow symlink at {}",
-                full_path.display()
-            );
-        }
+    if let Ok(meta) = fs::symlink_metadata(&full_path)
+        && meta.file_type().is_symlink()
+    {
+        anyhow::bail!(
+            "file-read refuses to follow symlink at {}",
+            full_path.display()
+        );
     }
 
     let content =
@@ -449,8 +447,7 @@ fn exec_shell_command(
     let timeout_secs = manifest
         .timeout_secs
         .unwrap_or(DEFAULT_TIMEOUT_SECS)
-        .max(1)
-        .min(300);
+        .clamp(1, 300);
 
     log::info!(
         "executing shell-exec (timeout {}s): {}",

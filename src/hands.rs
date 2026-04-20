@@ -143,7 +143,7 @@ impl HandStore {
             .flatten()
         {
             let path = entry.path();
-            if path.extension().map_or(false, |e| e == "toml") {
+            if path.extension().is_some_and(|e| e == "toml") {
                 match HandManifest::load(&path) {
                     Ok(manifest) => hands.push(manifest),
                     Err(e) => log::warn!("skipping invalid hand manifest {}: {e}", path.display()),

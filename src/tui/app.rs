@@ -113,12 +113,12 @@ pub fn run_tui(data_dir: PathBuf) -> Result<()> {
         terminal.draw(|frame| render(frame, &state))?;
 
         let timeout = TICK_MS.saturating_sub(last_tick.elapsed().as_millis() as u64);
-        if event::poll(Duration::from_millis(timeout))? {
-            if let Event::Key(key) = event::read()? {
-                match (key.code, key.modifiers) {
-                    (KeyCode::Char('q'), _) | (KeyCode::Char('c'), KeyModifiers::CONTROL) => break,
-                    _ => {}
-                }
+        if event::poll(Duration::from_millis(timeout))?
+            && let Event::Key(key) = event::read()?
+        {
+            match (key.code, key.modifiers) {
+                (KeyCode::Char('q'), _) | (KeyCode::Char('c'), KeyModifiers::CONTROL) => break,
+                _ => {}
             }
         }
 

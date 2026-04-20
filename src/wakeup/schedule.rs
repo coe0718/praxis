@@ -21,7 +21,7 @@ const MIN_SAMPLES: u64 = 20;
 const QUIET_THRESHOLD_PCT: f64 = 0.10;
 
 /// Operator interaction histogram by UTC hour.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct OperatorSchedule {
     /// Interaction counts per UTC hour (indices 0-23).
     #[serde(default)]
@@ -29,15 +29,6 @@ pub struct OperatorSchedule {
     /// Total recorded interactions.
     #[serde(default)]
     pub total_samples: u64,
-}
-
-impl Default for OperatorSchedule {
-    fn default() -> Self {
-        Self {
-            hourly_counts: [0; 24],
-            total_samples: 0,
-        }
-    }
 }
 
 impl OperatorSchedule {

@@ -206,13 +206,13 @@ pub(super) async fn webhook_slack(
         let challenge = body.challenge.as_deref().unwrap_or("");
         return (StatusCode::OK, Json(json!({ "challenge": challenge }))).into_response();
     }
-    if body.event_type == "event_callback" {
-        if let Some(event) = &body.event {
-            let text = event.text.as_deref().unwrap_or("slack event").to_string();
-            let intent = WakeIntent::new(&text, "slack").with_task(text.clone());
-            if let Err(e) = request_wake(&state.data_dir, &intent) {
-                log::warn!("slack webhook: {e}");
-            }
+    if body.event_type == "event_callback"
+        && let Some(event) = &body.event
+    {
+        let text = event.text.as_deref().unwrap_or("slack event").to_string();
+        let intent = WakeIntent::new(&text, "slack").with_task(text.clone());
+        if let Err(e) = request_wake(&state.data_dir, &intent) {
+            log::warn!("slack webhook: {e}");
         }
     }
     (StatusCode::OK, Json(json!({ "ok": true }))).into_response()

@@ -11,7 +11,8 @@
       "Bash(awk '{print $NF}')",
       "Bash(grep -E \"\\\\.rs$\")",
       "Bash(echo \"exit: $?\")",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(npx tsc *)"
     ]
   }
 }

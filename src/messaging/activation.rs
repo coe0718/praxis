@@ -12,21 +12,16 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
 /// How Praxis responds to inbound messages in a given conversation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ActivationMode {
     /// Respond only when directly mentioned (`@praxis` or equivalent).
+    #[default]
     MentionOnly,
     /// Respond only within the originating thread, not to new top-level posts.
     ThreadOnly,
     /// Respond to every message in the conversation.
     AlwaysListening,
-}
-
-impl Default for ActivationMode {
-    fn default() -> Self {
-        Self::MentionOnly
-    }
 }
 
 impl std::fmt::Display for ActivationMode {

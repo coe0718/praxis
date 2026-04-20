@@ -35,10 +35,10 @@ impl HandoffNote {
         now: DateTime<Utc>,
     ) -> Self {
         let mut key_facts = Vec::new();
-        if let Some(summary) = action_summary {
-            if !summary.is_empty() {
-                key_facts.push(summary.to_string());
-            }
+        if let Some(summary) = action_summary
+            && !summary.is_empty()
+        {
+            key_facts.push(summary.to_string());
         }
         Self {
             goal,

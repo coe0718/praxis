@@ -121,7 +121,7 @@ fn handle_tools_call(paths: &PraxisPaths, request: &JsonRpcRequest) -> JsonRpcRe
         .get("params")
         .map(|p| serde_json::to_string(p).unwrap_or_default())
         .or_else(|| {
-            if args.as_object().map_or(true, |o| o.is_empty()) {
+            if args.as_object().is_none_or(|o| o.is_empty()) {
                 None
             } else {
                 serde_json::to_string(&args).ok()

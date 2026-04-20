@@ -43,11 +43,11 @@ impl SystemSnapshot {
         let process_rss_mb = read_process_rss_mb();
         let data_dir_mb = dir_size_mb(data_dir);
 
-        let is_anomaly = load_avg_1m.map_or(false, |l| l > 4.0)
-            || process_rss_mb.map_or(false, |r| r > 512)
+        let is_anomaly = load_avg_1m.is_some_and(|l| l > 4.0)
+            || process_rss_mb.is_some_and(|r| r > 512)
             || session_outcome
                 .as_deref()
-                .map_or(false, |o| o.contains("fail") || o.contains("error"));
+                .is_some_and(|o| o.contains("fail") || o.contains("error"));
 
         Self {
             recorded_at: Utc::now(),
@@ -136,10 +136,10 @@ fn read_process_rss_mb() -> Option<u64> {
 fn dir_size_mb(path: &Path) -> Option<u64> {
     let mut total = 0u64;
     for entry in fs::read_dir(path).ok()?.flatten() {
-        if let Ok(meta) = entry.metadata() {
-            if meta.is_file() {
-                total += meta.len();
-            }
+        if let Ok(meta) = entry.metadata()
+            && meta.is_file()
+        {
+            total += meta.len();
         }
     }
     Some(total / (1024 * 1024))

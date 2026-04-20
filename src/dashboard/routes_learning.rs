@@ -54,7 +54,7 @@ pub(super) async fn api_learning_note(
         return (StatusCode::BAD_REQUEST, "text is required").into_response();
     }
     let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
-    let now = match SystemClock::from_env().and_then(|c| Ok(c.now_utc())) {
+    let now = match SystemClock::from_env().map(|c| c.now_utc()) {
         Ok(t) => t,
         Err(e) => return api_error(e).into_response(),
     };
@@ -80,7 +80,7 @@ pub(super) async fn api_learning_run(State(state): State<DashboardState>) -> imp
     if let Err(e) = store.initialize() {
         return api_error(e).into_response();
     }
-    let now = match SystemClock::from_env().and_then(|c| Ok(c.now_utc())) {
+    let now = match SystemClock::from_env().map(|c| c.now_utc()) {
         Ok(t) => t,
         Err(e) => return api_error(e).into_response(),
     };
@@ -111,7 +111,7 @@ pub(super) async fn api_learning_accept(
     if let Err(e) = store.initialize() {
         return api_error(e).into_response();
     }
-    let now = match SystemClock::from_env().and_then(|c| Ok(c.now_utc())) {
+    let now = match SystemClock::from_env().map(|c| c.now_utc()) {
         Ok(t) => t,
         Err(e) => return api_error(e).into_response(),
     };
@@ -143,7 +143,7 @@ pub(super) async fn api_learning_dismiss(
     if let Err(e) = store.initialize() {
         return api_error(e).into_response();
     }
-    let now = match SystemClock::from_env().and_then(|c| Ok(c.now_utc())) {
+    let now = match SystemClock::from_env().map(|c| c.now_utc()) {
         Ok(t) => t,
         Err(e) => return api_error(e).into_response(),
     };

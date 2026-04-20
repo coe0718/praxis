@@ -92,15 +92,15 @@ pub fn refresh_stale_anatomy(paths: &PraxisPaths) -> Result<usize> {
     // Build the candidate set: identity files + any .md/.toml files in tools/
     let mut candidates: Vec<std::path::PathBuf> = paths.identity_files();
 
-    if paths.tools_dir.is_dir() {
-        if let Ok(entries) = fs::read_dir(&paths.tools_dir) {
-            for entry in entries.flatten() {
-                let p = entry.path();
-                if p.extension()
-                    .map_or(false, |ext| ext == "toml" || ext == "json")
-                {
-                    candidates.push(p);
-                }
+    if paths.tools_dir.is_dir()
+        && let Ok(entries) = fs::read_dir(&paths.tools_dir)
+    {
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.extension()
+                .is_some_and(|ext| ext == "toml" || ext == "json")
+            {
+                candidates.push(p);
             }
         }
     }

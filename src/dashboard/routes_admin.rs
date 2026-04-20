@@ -124,7 +124,7 @@ pub(super) async fn api_boundaries_list(State(state): State<DashboardState>) -> 
         time::{Clock, SystemClock},
     };
     let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
-    let now = match SystemClock::from_env().and_then(|c| Ok(c.now_utc())) {
+    let now = match SystemClock::from_env().map(|c| c.now_utc()) {
         Ok(t) => t,
         Err(e) => return api_error(e).into_response(),
     };
@@ -165,7 +165,7 @@ pub(super) async fn api_boundaries_confirm(
         time::{Clock, SystemClock},
     };
     let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
-    let now = match SystemClock::from_env().and_then(|c| Ok(c.now_utc())) {
+    let now = match SystemClock::from_env().map(|c| c.now_utc()) {
         Ok(t) => t,
         Err(e) => return api_error(e).into_response(),
     };

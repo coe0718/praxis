@@ -336,11 +336,11 @@ fn handle_decisions(data_dir: std::path::PathBuf) -> Result<String> {
             r.chosen_action.clone()
         };
         lines.push(format!(
-            "{:.0}%{}{}{} — {}",
+            "{:.0}%{}{} ({}) — {}",
             r.confidence * 100.0,
             goal,
             approval,
-            format!(" ({})", r.reason_code),
+            r.reason_code,
             action
         ));
     }

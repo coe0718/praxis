@@ -103,12 +103,10 @@ impl ProviderSettings {
                 .push(ProviderRoute::new("openai", "gpt-4o-mini", base.as_deref()));
         }
 
-        if !has_ollama {
-            if let Ok(host) = std::env::var("OLLAMA_HOST") {
-                settings
-                    .providers
-                    .push(ProviderRoute::new("ollama", "llama3.2", Some(&host)));
-            }
+        if !has_ollama && let Ok(host) = std::env::var("OLLAMA_HOST") {
+            settings
+                .providers
+                .push(ProviderRoute::new("ollama", "llama3.2", Some(&host)));
         }
 
         settings

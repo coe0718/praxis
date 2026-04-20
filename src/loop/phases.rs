@@ -254,20 +254,20 @@ where
 
         // Mid-session steering: a wake intent written after the session started
         // redirects the current action without an LLM call.
-        if let Ok(Some(steer)) = crate::wakeup::consume_intent(&self.paths.data_dir) {
-            if let Some(task) = steer.task {
-                self.emit(
-                    "agent:steered",
-                    &format!("mid-session redirect from {}: {task}", steer.source),
-                )?;
-                state.last_outcome = Some("steered".to_string());
-                state.action_summary = Some(format!(
-                    "Session redirected by steering signal from {}: {task}",
-                    steer.source
-                ));
-                state.updated_at = self.clock.now_utc();
-                return Ok(());
-            }
+        if let Ok(Some(steer)) = crate::wakeup::consume_intent(&self.paths.data_dir)
+            && let Some(task) = steer.task
+        {
+            self.emit(
+                "agent:steered",
+                &format!("mid-session redirect from {}: {task}", steer.source),
+            )?;
+            state.last_outcome = Some("steered".to_string());
+            state.action_summary = Some(format!(
+                "Session redirected by steering signal from {}: {task}",
+                steer.source
+            ));
+            state.updated_at = self.clock.now_utc();
+            return Ok(());
         }
 
         // Outbound delegation: if an enabled link can carry this task, send it
