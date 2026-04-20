@@ -1,4 +1,9 @@
-use axum::{Json, extract::{Path, State}, http::StatusCode, response::IntoResponse};
+use axum::{
+    Json,
+    extract::{Path, State},
+    http::StatusCode,
+    response::IntoResponse,
+};
 use serde_json::json;
 
 use crate::paths::PraxisPaths;
@@ -74,7 +79,8 @@ pub(super) async fn api_vault_set(
     let entry = match body.kind.as_str() {
         "literal" => {
             let Some(value) = body.value else {
-                return (StatusCode::BAD_REQUEST, "value required for literal kind").into_response();
+                return (StatusCode::BAD_REQUEST, "value required for literal kind")
+                    .into_response();
             };
             VaultEntry::Literal { value }
         }
@@ -82,7 +88,10 @@ pub(super) async fn api_vault_set(
             let Some(env) = body.env else {
                 return (StatusCode::BAD_REQUEST, "env required for env kind").into_response();
             };
-            VaultEntry::EnvVar { env, fallback: body.fallback }
+            VaultEntry::EnvVar {
+                env,
+                fallback: body.fallback,
+            }
         }
         _ => return (StatusCode::BAD_REQUEST, "kind must be 'literal' or 'env'").into_response(),
     };
@@ -183,13 +192,15 @@ pub(super) async fn api_forensics(State(state): State<DashboardState>) -> impl I
         Ok(snapshots) => {
             let rows: Vec<_> = snapshots
                 .iter()
-                .map(|s| json!({
-                    "recorded_at": s.recorded_at,
-                    "checkpoint": s.checkpoint,
-                    "phase": s.phase,
-                    "outcome": s.state.last_outcome,
-                    "session_id": s.session_id,
-                }))
+                .map(|s| {
+                    json!({
+                        "recorded_at": s.recorded_at,
+                        "checkpoint": s.checkpoint,
+                        "phase": s.phase,
+                        "outcome": s.state.last_outcome,
+                        "session_id": s.session_id,
+                    })
+                })
                 .collect();
             Json(json!({ "started_at": started_at, "snapshots": rows })).into_response()
         }

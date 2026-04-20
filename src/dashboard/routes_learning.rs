@@ -1,4 +1,9 @@
-use axum::{Json, extract::{Path, State}, http::StatusCode, response::IntoResponse};
+use axum::{
+    Json,
+    extract::{Path, State},
+    http::StatusCode,
+    response::IntoResponse,
+};
 use serde_json::json;
 
 use crate::paths::PraxisPaths;
@@ -18,9 +23,15 @@ pub(super) async fn api_learning_list(State(state): State<DashboardState>) -> im
     if let Err(e) = store.initialize() {
         return api_error(e).into_response();
     }
-    let pending = store.list_opportunities(OpportunityStatus::Pending, 50).unwrap_or_default();
-    let accepted = store.list_opportunities(OpportunityStatus::Accepted, 50).unwrap_or_default();
-    let dismissed = store.list_opportunities(OpportunityStatus::Dismissed, 50).unwrap_or_default();
+    let pending = store
+        .list_opportunities(OpportunityStatus::Pending, 50)
+        .unwrap_or_default();
+    let accepted = store
+        .list_opportunities(OpportunityStatus::Accepted, 50)
+        .unwrap_or_default();
+    let dismissed = store
+        .list_opportunities(OpportunityStatus::Dismissed, 50)
+        .unwrap_or_default();
     let latest_run = store.latest_learning_run().unwrap_or(None);
     Json(json!({
         "latest_run": latest_run,

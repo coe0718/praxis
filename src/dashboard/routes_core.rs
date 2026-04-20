@@ -1,10 +1,18 @@
-use axum::{Json, extract::{Path, State}, http::StatusCode, response::IntoResponse};
+use axum::{
+    Json,
+    extract::{Path, State},
+    http::StatusCode,
+    response::IntoResponse,
+};
 use serde_json::json;
 
 use crate::paths::PraxisPaths;
 
 use super::{
-    helpers::{append_goal, parse_goals_file, query_recent_sessions, read_jsonl_tail, resolve_identity_file},
+    helpers::{
+        append_goal, parse_goals_file, query_recent_sessions, read_jsonl_tail,
+        resolve_identity_file,
+    },
     server::{DashboardState, api_error},
     types::{AddGoalBody, WriteFileBody},
 };
@@ -151,7 +159,6 @@ pub(super) async fn api_canary(State(state): State<DashboardState>) -> impl Into
     let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
     let ledger = ModelCanaryLedger::load_or_default(&paths.model_canary_file)
         .unwrap_or_else(|_| ModelCanaryLedger { records: vec![] });
-    let freeze =
-        CanaryFreezeState::load_or_default(&paths.canary_freeze_file).unwrap_or_default();
+    let freeze = CanaryFreezeState::load_or_default(&paths.canary_freeze_file).unwrap_or_default();
     Json(json!({ "records": ledger.records, "frozen": freeze.frozen }))
 }

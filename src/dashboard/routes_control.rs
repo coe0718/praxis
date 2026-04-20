@@ -1,7 +1,15 @@
-use axum::{Json, extract::{Path, State}, http::StatusCode, response::IntoResponse};
+use axum::{
+    Json,
+    extract::{Path, State},
+    http::StatusCode,
+    response::IntoResponse,
+};
 use serde_json::json;
 
-use crate::{paths::PraxisPaths, wakeup::{WakeIntent, request_wake}};
+use crate::{
+    paths::PraxisPaths,
+    wakeup::{WakeIntent, request_wake},
+};
 
 use super::{
     server::{DashboardState, api_error},
@@ -33,7 +41,12 @@ pub(super) async fn api_run(
     use crate::cli::{RunArgs, core::handle_run};
     match handle_run(
         Some(state.data_dir.clone()),
-        RunArgs { once: true, force: true, task: body.task, profile: None },
+        RunArgs {
+            once: true,
+            force: true,
+            task: body.task,
+            profile: None,
+        },
     ) {
         Ok(summary) => Json(json!({ "outcome": summary })).into_response(),
         Err(e) => api_error(e).into_response(),

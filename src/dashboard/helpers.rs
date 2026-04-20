@@ -45,10 +45,18 @@ pub(super) fn parse_goals_file(path: &std::path::Path) -> anyhow::Result<Vec<Goa
             .or_else(|| trimmed.strip_prefix("- [X] "))
         {
             let (raw_id, title) = split_goal_id(rest);
-            goals.push(GoalRow { raw_id, title, completed: true });
+            goals.push(GoalRow {
+                raw_id,
+                title,
+                completed: true,
+            });
         } else if let Some(rest) = trimmed.strip_prefix("- [ ] ") {
             let (raw_id, title) = split_goal_id(rest);
-            goals.push(GoalRow { raw_id, title, completed: false });
+            goals.push(GoalRow {
+                raw_id,
+                title,
+                completed: false,
+            });
         }
     }
     Ok(goals)
@@ -81,10 +89,7 @@ pub(super) fn append_goal(path: &std::path::Path, description: &str) -> anyhow::
     Ok(goal_id)
 }
 
-pub(super) fn resolve_identity_file(
-    paths: &PraxisPaths,
-    name: &str,
-) -> Option<std::path::PathBuf> {
+pub(super) fn resolve_identity_file(paths: &PraxisPaths, name: &str) -> Option<std::path::PathBuf> {
     match name {
         "soul" => Some(paths.soul_file.clone()),
         "identity" => Some(paths.identity_file.clone()),

@@ -1,4 +1,9 @@
-use axum::{Json, extract::{Path, State}, http::StatusCode, response::IntoResponse};
+use axum::{
+    Json,
+    extract::{Path, State},
+    http::StatusCode,
+    response::IntoResponse,
+};
 use serde_json::json;
 
 use crate::paths::PraxisPaths;
@@ -64,7 +69,9 @@ pub(super) async fn api_memories_consolidate(
     let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
     let store = SqliteSessionStore::new(paths.database_file.clone());
     match store.consolidate_memories(Utc::now()) {
-        Ok(s) => Json(json!({ "consolidated": s.consolidated, "pruned": s.pruned })).into_response(),
+        Ok(s) => {
+            Json(json!({ "consolidated": s.consolidated, "pruned": s.pruned })).into_response()
+        }
         Err(e) => api_error(e).into_response(),
     }
 }

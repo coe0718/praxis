@@ -18,7 +18,9 @@ use crate::{
 use super::server::DashboardState;
 
 pub(super) async fn index() -> Html<&'static str> {
-    Html(r#"<!doctype html><html><body><p>Praxis — React UI served separately on port 5173</p></body></html>"#)
+    Html(
+        r#"<!doctype html><html><body><p>Praxis — React UI served separately on port 5173</p></body></html>"#,
+    )
 }
 
 pub(super) async fn status_text(State(state): State<DashboardState>) -> impl IntoResponse {
@@ -34,7 +36,13 @@ pub(super) async fn health(State(state): State<DashboardState>) -> impl IntoResp
 pub(super) async fn recent_events(State(state): State<DashboardState>) -> impl IntoResponse {
     let path = state.data_dir.join("events.jsonl");
     let events = read_events_since(&path, 0)
-        .map(|(items, _)| items.into_iter().rev().take(20).collect::<Vec<PraxisEvent>>())
+        .map(|(items, _)| {
+            items
+                .into_iter()
+                .rev()
+                .take(20)
+                .collect::<Vec<PraxisEvent>>()
+        })
         .unwrap_or_default();
     Json(events.into_iter().rev().collect::<Vec<_>>())
 }
@@ -96,17 +104,35 @@ fn collect_prometheus_metrics(paths: &PraxisPaths) -> String {
         };
     }
 
-    let hot_count = store.recent_hot_memories(10_000).map(|v| v.len()).unwrap_or(0);
-    gauge!("praxis_hot_memory_count", "Number of hot memories.", hot_count);
+    let hot_count = store
+        .recent_hot_memories(10_000)
+        .map(|v| v.len())
+        .unwrap_or(0);
+    gauge!(
+        "praxis_hot_memory_count",
+        "Number of hot memories.",
+        hot_count
+    );
 
-    let cold_count = store.strongest_cold_memories(10_000).map(|v| v.len()).unwrap_or(0);
-    gauge!("praxis_cold_memory_count", "Number of cold memories.", cold_count);
+    let cold_count = store
+        .strongest_cold_memories(10_000)
+        .map(|v| v.len())
+        .unwrap_or(0);
+    gauge!(
+        "praxis_cold_memory_count",
+        "Number of cold memories.",
+        cold_count
+    );
 
     let pending = store
         .list_approvals(Some(ApprovalStatus::Pending))
         .map(|v| v.len())
         .unwrap_or(0);
-    gauge!("praxis_approvals_pending", "Pending tool-approval requests.", pending);
+    gauge!(
+        "praxis_approvals_pending",
+        "Pending tool-approval requests.",
+        pending
+    );
 
     let heartbeat_age_secs: i64 = read_heartbeat(&paths.heartbeat_file)
         .ok()
@@ -116,7 +142,11 @@ fn collect_prometheus_metrics(paths: &PraxisPaths) -> String {
                 .map(|ts| (now - ts.with_timezone(&Utc)).num_seconds().max(0))
         })
         .unwrap_or(-1);
-    gauge!("praxis_heartbeat_age_seconds", "Seconds since last heartbeat (-1=never).", heartbeat_age_secs);
+    gauge!(
+        "praxis_heartbeat_age_seconds",
+        "Seconds since last heartbeat (-1=never).",
+        heartbeat_age_secs
+    );
 
     let session_count = store
         .last_session()
@@ -124,7 +154,11 @@ fn collect_prometheus_metrics(paths: &PraxisPaths) -> String {
         .flatten()
         .map(|s| s.id)
         .unwrap_or(0);
-    gauge!("praxis_sessions_total", "Total sessions (by last session ID).", session_count);
+    gauge!(
+        "praxis_sessions_total",
+        "Total sessions (by last session ID).",
+        session_count
+    );
 
     lines.push(String::new());
     lines.join("\n")
@@ -139,8 +173,14 @@ pub(super) async fn webhook_discord(
     if body.interaction_type == 1 {
         return (StatusCode::OK, Json(json!({ "type": 1 }))).into_response();
     }
-    let task = body.data.as_ref().and_then(|d| d.name.as_deref()).map(str::to_string);
-    let reason = task.clone().unwrap_or_else(|| "discord interaction".to_string());
+    let task = body
+        .data
+        .as_ref()
+        .and_then(|d| d.name.as_deref())
+        .map(str::to_string);
+    let reason = task
+        .clone()
+        .unwrap_or_else(|| "discord interaction".to_string());
     let mut intent = WakeIntent::new(&reason, "discord");
     if let Some(t) = task {
         intent = intent.with_task(t);
