@@ -4,7 +4,7 @@ mod archive;
 mod argus;
 mod boundaries;
 mod brief;
-mod canary;
+pub(crate) mod canary;
 pub(crate) mod core;
 mod daemon;
 mod delegation;

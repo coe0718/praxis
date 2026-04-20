@@ -113,8 +113,14 @@ pub(super) fn set_approval_status(
 pub(super) fn next_approved_request(
     store: &SqliteSessionStore,
 ) -> Result<Option<StoredApprovalRequest>> {
-    let connection = store.connect()?;
-    connection
+    let mut connection = store.connect()?;
+    // Use an IMMEDIATE transaction so concurrent callers cannot read the same
+    // approved row — the second caller blocks until this transaction commits,
+    // at which point the row is already 'claiming' and no longer matches.
+    let tx = connection
+        .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+        .context("failed to begin approval claim transaction")?;
+    let result = tx
         .query_row(
             "
             SELECT id, tool_name, summary, requested_by, write_paths, payload_json, status, status_note, created_at, updated_at
@@ -127,7 +133,16 @@ pub(super) fn next_approved_request(
             row_to_request,
         )
         .optional()
-        .context("failed to load next approved request")
+        .context("failed to load next approved request")?;
+    if let Some(ref req) = result {
+        tx.execute(
+            "UPDATE approval_requests SET status = 'claiming', updated_at = ?2 WHERE id = ?1",
+            params![req.id, Utc::now().to_rfc3339()],
+        )
+        .context("failed to claim approval request")?;
+    }
+    tx.commit().context("failed to commit approval claim")?;
+    Ok(result)
 }
 
 pub(super) fn mark_approval_consumed(store: &SqliteSessionStore, id: i64) -> Result<()> {

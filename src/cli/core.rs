@@ -95,6 +95,11 @@ pub(crate) fn handle_run(data_dir_override: Option<PathBuf>, args: RunArgs) -> R
     identity.validate(&paths)?;
     tools.validate(&paths)?;
 
+    let vault = crate::vault::Vault::load(&paths.vault_file).unwrap_or_default();
+    for warning in crate::vault::audit_literals(&vault) {
+        log::warn!("{warning}");
+    }
+
     let store = SqliteSessionStore::new(paths.database_file.clone());
     store.initialize()?;
     store.validate_schema()?;

@@ -264,8 +264,8 @@ pub fn check_channel_tool(
     let store = match ChannelSandboxStore::load(&paths.sandbox_file) {
         Ok(s) => s,
         Err(e) => {
-            log::warn!("sandbox: failed to load store: {e}");
-            return SandboxVerdict::Allow;
+            log::warn!("sandbox: failed to load store (fail-closed): {e}");
+            return SandboxVerdict::Block(format!("sandbox config unreadable: {e}"));
         }
     };
     match store.get(channel_id) {

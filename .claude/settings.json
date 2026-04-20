@@ -10,7 +10,8 @@
       "Bash(cargo check *)",
       "Bash(awk '{print $NF}')",
       "Bash(grep -E \"\\\\.rs$\")",
-      "Bash(echo \"exit: $?\")"
+      "Bash(echo \"exit: $?\")",
+      "Bash(npm run *)"
     ]
   }
 }

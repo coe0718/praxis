@@ -4,10 +4,11 @@ use anyhow::Result;
 use async_stream::stream;
 use axum::{
     Json, Router,
-    extract::{Path, State},
-    http::StatusCode,
-    response::{Html, IntoResponse, Sse, sse::Event},
-    routing::{get, post, put},
+    extract::{Path, Request, State},
+    http::{StatusCode, header},
+    middleware::Next,
+    response::{Html, IntoResponse, Response, Sse, sse::Event},
+    routing::{delete, get, post, put},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -81,17 +82,85 @@ struct WriteFileBody {
     content: String,
 }
 
+#[derive(Deserialize)]
+struct AskBody {
+    prompt: String,
+}
+
+#[derive(Deserialize)]
+struct BoundaryAddBody {
+    rule: String,
+}
+
+#[derive(Deserialize)]
+struct BoundaryConfirmBody {
+    note: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct LearningNoteBody {
+    text: String,
+}
+
+#[derive(Deserialize)]
+struct AgentsAddBody {
+    section: String,
+    note: String,
+}
+
+#[derive(Deserialize)]
+struct VaultSetBody {
+    name: String,
+    kind: String,
+    value: Option<String>,
+    env: Option<String>,
+    fallback: Option<String>,
+}
+
 // ── State ──────────────────────────────────────────────────────────────────────
 
 #[derive(Clone)]
 struct DashboardState {
     data_dir: PathBuf,
+    /// Bearer token required on all API requests.  `None` when
+    /// `PRAXIS_DASHBOARD_TOKEN` is unset — all requests are allowed but a
+    /// warning is logged at startup.
+    token: Option<String>,
 }
 
 // ── Router ─────────────────────────────────────────────────────────────────────
 
+async fn require_auth(
+    State(state): State<DashboardState>,
+    request: Request,
+    next: Next,
+) -> Response {
+    if let Some(ref expected) = state.token {
+        let auth_ok = request
+            .headers()
+            .get(header::AUTHORIZATION)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|s| s.strip_prefix("Bearer "))
+            .map(|t| t == expected)
+            .unwrap_or(false);
+        if !auth_ok {
+            return StatusCode::UNAUTHORIZED.into_response();
+        }
+    }
+    next.run(request).await
+}
+
+fn api_error(e: impl std::fmt::Display) -> (StatusCode, &'static str) {
+    log::error!("dashboard: {e}");
+    (StatusCode::INTERNAL_SERVER_ERROR, "internal server error")
+}
+
 pub async fn serve_dashboard(data_dir: PathBuf, host: String, port: u16) -> Result<()> {
-    let state = DashboardState { data_dir };
+    let token = std::env::var("PRAXIS_DASHBOARD_TOKEN").ok();
+    if token.is_none() {
+        log::warn!("dashboard: PRAXIS_DASHBOARD_TOKEN not set — all endpoints are unauthenticated");
+    }
+    let state = DashboardState { data_dir, token };
     let app = Router::new()
         // Dashboard SPA
         .route("/", get(index))
@@ -126,14 +195,34 @@ pub async fn serve_dashboard(data_dir: PathBuf, host: String, port: u16) -> Resu
         .route("/api/evolution/:id/approve", post(api_evolution_approve))
         .route("/api/delegation", get(api_delegation))
         .route("/api/wake", post(api_wake))
-        .route("/api/run", post(api_run));
+        .route("/api/run", post(api_run))
+        .route("/api/ask", post(api_ask))
+        .route("/api/boundaries", get(api_boundaries_list).post(api_boundaries_add))
+        .route("/api/boundaries/confirm", post(api_boundaries_confirm))
+        .route("/api/forensics", get(api_forensics))
+        .route("/api/argus", get(api_argus))
+        .route("/api/learning", get(api_learning_list))
+        .route("/api/learning/note", post(api_learning_note))
+        .route("/api/learning/run", post(api_learning_run))
+        .route("/api/learning/:id/accept", post(api_learning_accept))
+        .route("/api/learning/:id/dismiss", post(api_learning_dismiss))
+        .route("/api/agents", get(api_agents_view).post(api_agents_add))
+        .route("/api/canary/run", post(api_canary_run))
+        .route("/api/vault", get(api_vault_list).post(api_vault_set))
+        .route("/api/vault/:name", delete(api_vault_delete))
+        .route("/api/report", get(api_report));
 
     #[cfg(feature = "discord")]
     let app = app.route("/webhook/discord", post(webhook_discord));
     #[cfg(feature = "slack")]
     let app = app.route("/webhook/slack", post(webhook_slack));
 
-    let app = app.with_state(state);
+    let app = app
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            require_auth,
+        ))
+        .with_state(state);
     let listener = tokio::net::TcpListener::bind(format!("{host}:{port}")).await?;
     log::info!("dashboard: listening on http://{host}:{port}");
     axum::serve(listener, app).await?;
@@ -204,7 +293,7 @@ async fn api_summary(State(state): State<DashboardState>) -> impl IntoResponse {
         .and_then(|(config, paths)| build_status_report(&config, &paths))
     {
         Ok(report) => Json(serde_json::to_value(report).unwrap_or(json!({}))).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => api_error(e).into_response(),
     }
 }
 
@@ -212,7 +301,7 @@ async fn api_sessions(State(state): State<DashboardState>) -> impl IntoResponse 
     let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
     match query_recent_sessions(&paths.database_file, 50) {
         Ok(rows) => Json(rows).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => api_error(e).into_response(),
     }
 }
 
@@ -239,7 +328,7 @@ async fn api_approvals(State(state): State<DashboardState>) -> impl IntoResponse
                 .collect();
             Json(out).into_response()
         }
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => api_error(e).into_response(),
     }
 }
 
@@ -253,7 +342,7 @@ async fn api_approve(
     match store.set_approval_status(id, ApprovalStatus::Approved, None) {
         Ok(Some(r)) => Json(json!({ "id": r.id, "status": r.status.as_str() })).into_response(),
         Ok(None) => (StatusCode::NOT_FOUND, "approval not found").into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => api_error(e).into_response(),
     }
 }
 
@@ -264,7 +353,7 @@ async fn api_reject(State(state): State<DashboardState>, Path(id): Path<i64>) ->
     match store.set_approval_status(id, ApprovalStatus::Rejected, None) {
         Ok(Some(r)) => Json(json!({ "id": r.id, "status": r.status.as_str() })).into_response(),
         Ok(None) => (StatusCode::NOT_FOUND, "approval not found").into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => api_error(e).into_response(),
     }
 }
 
@@ -289,7 +378,7 @@ async fn api_memories_hot(State(state): State<DashboardState>) -> impl IntoRespo
                 .collect();
             Json(rows).into_response()
         }
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => api_error(e).into_response(),
     }
 }
 
@@ -314,7 +403,7 @@ async fn api_memories_cold(State(state): State<DashboardState>) -> impl IntoResp
                 .collect();
             Json(rows).into_response()
         }
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => api_error(e).into_response(),
     }
 }
 
@@ -328,7 +417,7 @@ async fn api_memories_consolidate(State(state): State<DashboardState>) -> impl I
         Ok(s) => {
             Json(json!({ "consolidated": s.consolidated, "pruned": s.pruned })).into_response()
         }
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => api_error(e).into_response(),
     }
 }
 
@@ -342,7 +431,7 @@ async fn api_memory_reinforce(
     let store = SqliteSessionStore::new(paths.database_file.clone());
     match store.boost_memory(id) {
         Ok(_) => Json(json!({ "id": id, "action": "reinforced" })).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => api_error(e).into_response(),
     }
 }
 
@@ -356,7 +445,7 @@ async fn api_memory_forget(
     let store = SqliteSessionStore::new(paths.database_file.clone());
     match store.forget_memory(id) {
         Ok(_) => Json(json!({ "id": id, "action": "forgotten" })).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => api_error(e).into_response(),
     }
 }
 
@@ -365,7 +454,7 @@ async fn api_tools(State(state): State<DashboardState>) -> impl IntoResponse {
     let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
     match FileToolRegistry.list(&paths) {
         Ok(tools) => Json(tools).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => api_error(e).into_response(),
     }
 }
 
@@ -373,7 +462,7 @@ async fn api_goals(State(state): State<DashboardState>) -> impl IntoResponse {
     let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
     match parse_goals_file(&paths.goals_file) {
         Ok(goals) => Json(goals).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => api_error(e).into_response(),
     }
 }
 
@@ -387,7 +476,7 @@ async fn api_goals_add(
     }
     match append_goal(&paths.goals_file, &body.description) {
         Ok(id) => Json(json!({ "id": id, "title": body.description })).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => api_error(e).into_response(),
     }
 }
 
@@ -410,7 +499,7 @@ async fn api_identity_read(
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
             Json(json!({ "file": file, "content": "", "writable": file != "soul" })).into_response()
         }
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => api_error(e).into_response(),
     }
 }
 
@@ -429,7 +518,7 @@ async fn api_identity_write(
     };
     match std::fs::write(&path, &body.content) {
         Ok(()) => Json(json!({ "file": file, "saved": true })).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => api_error(e).into_response(),
     }
 }
 
@@ -478,7 +567,7 @@ async fn api_score(State(state): State<DashboardState>) -> impl IntoResponse {
     let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
     match read_jsonl_tail(&paths.score_file, 30) {
         Ok(rows) => Json(rows).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => api_error(e).into_response(),
     }
 }
 
@@ -487,7 +576,7 @@ async fn api_evolution(State(state): State<DashboardState>) -> impl IntoResponse
     let store = crate::evolution::EvolutionStore::from_paths(&paths);
     match store.all() {
         Ok(proposals) => Json(proposals).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => api_error(e).into_response(),
     }
 }
 
@@ -502,7 +591,7 @@ async fn api_evolution_approve(
             Json(json!({ "id": id, "approved": true, "status": proposal.status.label() }))
                 .into_response()
         }
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => api_error(e).into_response(),
     }
 }
 
@@ -515,7 +604,7 @@ async fn api_delegation(State(state): State<DashboardState>) -> impl IntoRespons
             "active_counts": store.active_counts,
         }))
         .into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => api_error(e).into_response(),
     }
 }
 
@@ -533,7 +622,7 @@ async fn api_wake(
     }
     match request_wake(&state.data_dir, &intent) {
         Ok(()) => Json(json!({ "queued": true, "reason": reason })).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => api_error(e).into_response(),
     }
 }
 
@@ -553,7 +642,422 @@ async fn api_run(
         },
     ) {
         Ok(summary) => Json(json!({ "outcome": summary })).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => api_error(e).into_response(),
+    }
+}
+
+async fn api_ask(
+    State(state): State<DashboardState>,
+    Json(body): Json<AskBody>,
+) -> impl IntoResponse {
+    use crate::cli::{AskArgs, core::handle_ask};
+    if body.prompt.trim().is_empty() {
+        return (StatusCode::BAD_REQUEST, "prompt is required").into_response();
+    }
+    let data_dir = state.data_dir.clone();
+    let prompt = body.prompt.clone();
+    match handle_ask(
+        Some(data_dir),
+        AskArgs {
+            files: vec![],
+            attachment_policy: "reject".to_string(),
+            prompt: vec![prompt],
+        },
+    ) {
+        Ok(output) => Json(json!({ "output": output })).into_response(),
+        Err(e) => api_error(e).into_response(),
+    }
+}
+
+async fn api_boundaries_list(State(state): State<DashboardState>) -> impl IntoResponse {
+    use crate::{
+        boundaries::{BoundaryReviewState, list_boundaries, review_prompt},
+        time::{Clock, SystemClock},
+    };
+    let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
+    let now = match SystemClock::from_env().and_then(|c| Ok(c.now_utc())) {
+        Ok(t) => t,
+        Err(e) => return api_error(e).into_response(),
+    };
+    let state_val = BoundaryReviewState::load_or_default(&paths.boundary_review_file)
+        .unwrap_or_default();
+    let rules = list_boundaries(&paths.identity_file).unwrap_or_default();
+    Json(json!({
+        "rules": rules,
+        "review_due": state_val.review_due(now),
+        "last_confirmed_at": state_val.last_confirmed_at,
+        "last_note": state_val.last_note,
+        "review_prompt": review_prompt(&state_val, now),
+    }))
+    .into_response()
+}
+
+async fn api_boundaries_add(
+    State(state): State<DashboardState>,
+    Json(body): Json<BoundaryAddBody>,
+) -> impl IntoResponse {
+    use crate::boundaries::add_boundary;
+    if body.rule.trim().is_empty() {
+        return (StatusCode::BAD_REQUEST, "rule is required").into_response();
+    }
+    let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
+    match add_boundary(&paths.identity_file, body.rule.trim()) {
+        Ok(()) => Json(json!({ "added": true, "rule": body.rule })).into_response(),
+        Err(e) => api_error(e).into_response(),
+    }
+}
+
+async fn api_boundaries_confirm(
+    State(state): State<DashboardState>,
+    Json(body): Json<BoundaryConfirmBody>,
+) -> impl IntoResponse {
+    use crate::{
+        boundaries::confirm_review,
+        time::{Clock, SystemClock},
+    };
+    let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
+    let now = match SystemClock::from_env().and_then(|c| Ok(c.now_utc())) {
+        Ok(t) => t,
+        Err(e) => return api_error(e).into_response(),
+    };
+    match confirm_review(&paths.boundary_review_file, now, body.note.as_deref()) {
+        Ok(s) => Json(json!({
+            "confirmed": true,
+            "last_confirmed_at": s.last_confirmed_at,
+            "last_note": s.last_note,
+        }))
+        .into_response(),
+        Err(e) => api_error(e).into_response(),
+    }
+}
+
+async fn api_forensics(State(state): State<DashboardState>) -> impl IntoResponse {
+    use crate::forensics::{latest_started_at, load_snapshots};
+    let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
+    let started_at = match latest_started_at(&paths.database_file) {
+        Ok(Some(s)) => s,
+        Ok(None) => return Json(json!({ "snapshots": [] })).into_response(),
+        Err(e) => return api_error(e).into_response(),
+    };
+    match load_snapshots(&paths.database_file, &started_at) {
+        Ok(snapshots) => {
+            let rows: Vec<_> = snapshots
+                .iter()
+                .map(|s| {
+                    json!({
+                        "recorded_at": s.recorded_at,
+                        "checkpoint": s.checkpoint,
+                        "phase": s.phase,
+                        "outcome": s.state.last_outcome,
+                        "session_id": s.session_id,
+                    })
+                })
+                .collect();
+            Json(json!({ "started_at": started_at, "snapshots": rows })).into_response()
+        }
+        Err(e) => api_error(e).into_response(),
+    }
+}
+
+async fn api_argus(State(state): State<DashboardState>) -> impl IntoResponse {
+    use crate::argus::{analyze, render};
+    let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
+    match analyze(&paths.database_file, 20) {
+        Ok(report) => {
+            let text = render(&report);
+            Json(json!({
+                "review_failures": report.review_failures,
+                "eval_failures": report.eval_failures,
+                "drift_status": report.drift.status.as_str(),
+                "drift_recent_score": report.drift.recent_score,
+                "drift_baseline_score": report.drift.baseline_score,
+                "repeated_work": report.repeated_work.iter().map(|p| json!({
+                    "label": p.label,
+                    "sessions": p.sessions,
+                    "distinct_days": p.distinct_days,
+                    "latest_outcome": p.latest_outcome,
+                })).collect::<Vec<_>>(),
+                "token_hotspots": report.token_hotspots.iter().map(|(provider, model, tokens)| json!({
+                    "provider": provider,
+                    "model": model,
+                    "tokens": tokens,
+                })).collect::<Vec<_>>(),
+                "report_text": text,
+            }))
+            .into_response()
+        }
+        Err(e) => api_error(e).into_response(),
+    }
+}
+
+async fn api_learning_list(State(state): State<DashboardState>) -> impl IntoResponse {
+    use crate::{
+        learning::OpportunityStatus,
+        storage::{SessionStore, SqliteSessionStore},
+    };
+    let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
+    let store = SqliteSessionStore::new(paths.database_file.clone());
+    if let Err(e) = store.initialize() {
+        return api_error(e).into_response();
+    }
+    let pending = store
+        .list_opportunities(OpportunityStatus::Pending, 50)
+        .unwrap_or_default();
+    let accepted = store
+        .list_opportunities(OpportunityStatus::Accepted, 50)
+        .unwrap_or_default();
+    let dismissed = store
+        .list_opportunities(OpportunityStatus::Dismissed, 50)
+        .unwrap_or_default();
+    let latest_run = store.latest_learning_run().unwrap_or(None);
+    Json(json!({
+        "latest_run": latest_run,
+        "pending": pending,
+        "accepted": accepted,
+        "dismissed": dismissed,
+    }))
+    .into_response()
+}
+
+async fn api_learning_note(
+    State(state): State<DashboardState>,
+    Json(body): Json<LearningNoteBody>,
+) -> impl IntoResponse {
+    use crate::{
+        learning::append_note,
+        time::{Clock, SystemClock},
+    };
+    if body.text.trim().is_empty() {
+        return (StatusCode::BAD_REQUEST, "text is required").into_response();
+    }
+    let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
+    let now = match SystemClock::from_env().and_then(|c| Ok(c.now_utc())) {
+        Ok(t) => t,
+        Err(e) => return api_error(e).into_response(),
+    };
+    match append_note(&paths, &body.text, now) {
+        Ok(entry) => Json(json!({
+            "added": true,
+            "summary": entry.summary,
+            "appended_at": entry.appended_at,
+        }))
+        .into_response(),
+        Err(e) => api_error(e).into_response(),
+    }
+}
+
+async fn api_learning_run(State(state): State<DashboardState>) -> impl IntoResponse {
+    use crate::{
+        learning::run_once,
+        storage::{SessionStore, SqliteSessionStore},
+        time::{Clock, SystemClock},
+    };
+    let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
+    let store = SqliteSessionStore::new(paths.database_file.clone());
+    if let Err(e) = store.initialize() {
+        return api_error(e).into_response();
+    }
+    let now = match SystemClock::from_env().and_then(|c| Ok(c.now_utc())) {
+        Ok(t) => t,
+        Err(e) => return api_error(e).into_response(),
+    };
+    match run_once(&paths, &store, now) {
+        Ok(result) => Json(json!({
+            "processed_sources": result.processed_sources,
+            "changed_sources": result.changed_sources,
+            "opportunities_created": result.opportunities_created,
+            "throttle_reached": result.throttle_reached,
+            "notes": result.notes,
+        }))
+        .into_response(),
+        Err(e) => api_error(e).into_response(),
+    }
+}
+
+async fn api_learning_accept(
+    State(state): State<DashboardState>,
+    Path(id): Path<i64>,
+) -> impl IntoResponse {
+    use crate::{
+        learning::{OpportunityStatus, update_opportunity},
+        storage::{SessionStore, SqliteSessionStore},
+        time::{Clock, SystemClock},
+    };
+    let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
+    let store = SqliteSessionStore::new(paths.database_file.clone());
+    if let Err(e) = store.initialize() {
+        return api_error(e).into_response();
+    }
+    let now = match SystemClock::from_env().and_then(|c| Ok(c.now_utc())) {
+        Ok(t) => t,
+        Err(e) => return api_error(e).into_response(),
+    };
+    match update_opportunity(&paths, &store, id, OpportunityStatus::Accepted, now) {
+        Ok(Some(op)) => Json(json!({
+            "id": id,
+            "status": "accepted",
+            "opportunity": op.opportunity,
+            "promoted_goal_id": op.promoted_goal_id,
+            "created_goal": op.created_goal,
+        }))
+        .into_response(),
+        Ok(None) => (StatusCode::NOT_FOUND, "opportunity not found").into_response(),
+        Err(e) => api_error(e).into_response(),
+    }
+}
+
+async fn api_learning_dismiss(
+    State(state): State<DashboardState>,
+    Path(id): Path<i64>,
+) -> impl IntoResponse {
+    use crate::{
+        learning::{OpportunityStatus, update_opportunity},
+        storage::{SessionStore, SqliteSessionStore},
+        time::{Clock, SystemClock},
+    };
+    let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
+    let store = SqliteSessionStore::new(paths.database_file.clone());
+    if let Err(e) = store.initialize() {
+        return api_error(e).into_response();
+    }
+    let now = match SystemClock::from_env().and_then(|c| Ok(c.now_utc())) {
+        Ok(t) => t,
+        Err(e) => return api_error(e).into_response(),
+    };
+    match update_opportunity(&paths, &store, id, OpportunityStatus::Dismissed, now) {
+        Ok(Some(op)) => Json(json!({
+            "id": id,
+            "status": "dismissed",
+            "opportunity": op.opportunity,
+        }))
+        .into_response(),
+        Ok(None) => (StatusCode::NOT_FOUND, "opportunity not found").into_response(),
+        Err(e) => api_error(e).into_response(),
+    }
+}
+
+async fn api_agents_view(State(state): State<DashboardState>) -> impl IntoResponse {
+    let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
+    let content = std::fs::read_to_string(&paths.agents_file).unwrap_or_default();
+    Json(json!({ "content": content })).into_response()
+}
+
+async fn api_agents_add(
+    State(state): State<DashboardState>,
+    Json(body): Json<AgentsAddBody>,
+) -> impl IntoResponse {
+    if body.note.trim().is_empty() {
+        return (StatusCode::BAD_REQUEST, "note is required").into_response();
+    }
+    let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
+    let mut content = std::fs::read_to_string(&paths.agents_file).unwrap_or_default();
+    let section_header = format!("## {}", body.section);
+    if content.contains(&section_header) {
+        if let Some(pos) = content.find(&section_header) {
+            let end = content[pos..]
+                .find("\n## ")
+                .map(|i| pos + i)
+                .unwrap_or(content.len());
+            content.insert_str(end, &format!("\n- {}", body.note.trim()));
+        }
+    } else {
+        content.push_str(&format!("\n\n{section_header}\n\n- {}\n", body.note.trim()));
+    }
+    match std::fs::write(&paths.agents_file, &content) {
+        Ok(()) => Json(json!({ "added": true })).into_response(),
+        Err(e) => api_error(e).into_response(),
+    }
+}
+
+async fn api_canary_run(State(state): State<DashboardState>) -> impl IntoResponse {
+    use crate::cli::canary::{CanaryArgs, CanaryCommand, CanaryRunArgs, handle_canary};
+    match handle_canary(
+        Some(state.data_dir.clone()),
+        CanaryArgs {
+            command: CanaryCommand::Run(CanaryRunArgs { provider: None }),
+        },
+    ) {
+        Ok(output) => Json(json!({ "output": output })).into_response(),
+        Err(e) => api_error(e).into_response(),
+    }
+}
+
+async fn api_vault_list(State(state): State<DashboardState>) -> impl IntoResponse {
+    use crate::vault::{Vault, VaultEntry};
+    let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
+    let vault = Vault::load(&paths.vault_file).unwrap_or_default();
+    let entries: Vec<_> = vault
+        .secrets
+        .iter()
+        .map(|(name, entry)| match entry {
+            VaultEntry::Literal { .. } => json!({ "name": name, "kind": "literal" }),
+            VaultEntry::EnvVar { env, fallback } => json!({
+                "name": name,
+                "kind": "env",
+                "env": env,
+                "has_fallback": fallback.is_some(),
+            }),
+        })
+        .collect();
+    Json(json!({ "entries": entries })).into_response()
+}
+
+async fn api_vault_set(
+    State(state): State<DashboardState>,
+    Json(body): Json<VaultSetBody>,
+) -> impl IntoResponse {
+    use crate::vault::{Vault, VaultEntry};
+    if body.name.trim().is_empty() {
+        return (StatusCode::BAD_REQUEST, "name is required").into_response();
+    }
+    let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
+    let mut vault = Vault::load(&paths.vault_file).unwrap_or_default();
+    let entry = match body.kind.as_str() {
+        "literal" => {
+            let Some(value) = body.value else {
+                return (StatusCode::BAD_REQUEST, "value required for literal kind").into_response();
+            };
+            VaultEntry::Literal { value }
+        }
+        "env" => {
+            let Some(env) = body.env else {
+                return (StatusCode::BAD_REQUEST, "env required for env kind").into_response();
+            };
+            VaultEntry::EnvVar {
+                env,
+                fallback: body.fallback,
+            }
+        }
+        _ => return (StatusCode::BAD_REQUEST, "kind must be 'literal' or 'env'").into_response(),
+    };
+    vault.secrets.insert(body.name.trim().to_string(), entry);
+    match vault.save(&paths.vault_file) {
+        Ok(()) => Json(json!({ "saved": true, "name": body.name })).into_response(),
+        Err(e) => api_error(e).into_response(),
+    }
+}
+
+async fn api_vault_delete(
+    State(state): State<DashboardState>,
+    Path(name): Path<String>,
+) -> impl IntoResponse {
+    use crate::vault::Vault;
+    let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
+    let mut vault = Vault::load(&paths.vault_file).unwrap_or_default();
+    if vault.secrets.remove(&name).is_none() {
+        return (StatusCode::NOT_FOUND, "entry not found").into_response();
+    }
+    match vault.save(&paths.vault_file) {
+        Ok(()) => Json(json!({ "deleted": true, "name": name })).into_response(),
+        Err(e) => api_error(e).into_response(),
+    }
+}
+
+async fn api_report(State(state): State<DashboardState>) -> impl IntoResponse {
+    use crate::cli::core::handle_status;
+    match handle_status(Some(state.data_dir.clone())) {
+        Ok(text) => Json(json!({ "report": text })).into_response(),
+        Err(e) => api_error(e).into_response(),
     }
 }
 

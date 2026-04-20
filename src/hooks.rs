@@ -51,6 +51,7 @@
 use std::{
     collections::HashMap,
     fs,
+    io::Read as _,
     path::{Path, PathBuf},
     process::{Command, Stdio},
     time::Duration,
@@ -239,6 +240,9 @@ impl HookRunner {
     /// never propagated — they must not block the agent.
     pub fn fire_observer(&self, event: &str, ctx: &HookContext, filter: &str) {
         for hook in self.matching(event, HookKind::Observer, filter) {
+            if !validate_hook_script(&hook.script) {
+                continue;
+            }
             let env = ctx.to_env();
             let script = hook.script.clone();
             let timeout = Duration::from_secs(hook.timeout_secs);
@@ -267,6 +271,9 @@ impl HookRunner {
     /// Returns `Err` (aborting the event) if any interceptor exits non-zero.
     pub fn fire_interceptor(&self, event: &str, ctx: &HookContext, filter: &str) -> Result<()> {
         for hook in self.matching(event, HookKind::Interceptor, filter) {
+            if !validate_hook_script(&hook.script) {
+                continue;
+            }
             let env = ctx.to_env();
             let timeout = Duration::from_secs(hook.timeout_secs);
             let mut child = Command::new(&hook.script)
@@ -303,25 +310,22 @@ impl HookRunner {
         request_json: Option<&str>,
     ) -> ApprovalVerdict {
         for hook in self.matching("approval.before", HookKind::Approval, tool_name) {
+            if !validate_hook_script(&hook.script) {
+                continue;
+            }
             let mut env = ctx.to_env();
             if let Some(json) = request_json {
                 env.push(("PRAXIS_APPROVAL_JSON".into(), json.to_string()));
             }
             let timeout = Duration::from_secs(hook.timeout_secs);
-            let output = match Command::new(&hook.script)
+            let mut child = match Command::new(&hook.script)
                 .envs(env.iter().map(|(k, v)| (k.as_str(), v.as_str())))
                 .stdin(Stdio::null())
                 .stdout(Stdio::piped())
                 .stderr(Stdio::null())
                 .spawn()
             {
-                Ok(child) => match child.wait_with_output() {
-                    Ok(o) => o,
-                    Err(e) => {
-                        log::warn!("approval hook '{}' wait failed: {e}", hook.script.display());
-                        continue;
-                    }
-                },
+                Ok(c) => c,
                 Err(e) => {
                     log::warn!(
                         "approval hook '{}' spawn failed: {e}",
@@ -330,11 +334,21 @@ impl HookRunner {
                     continue;
                 }
             };
-
-            let _ = timeout; // timeout enforcement for approval hooks via wait_with_output
-            let stdout = String::from_utf8_lossy(&output.stdout)
-                .trim()
-                .to_lowercase();
+            // Drain stdout in a background thread so the pipe never blocks the
+            // process wait, then enforce the timeout on the process itself.
+            let mut stdout_handle = child.stdout.take().expect("stdout is piped");
+            let stdout_thread = std::thread::spawn(move || -> String {
+                let mut buf = String::new();
+                let _ = stdout_handle.read_to_string(&mut buf);
+                buf
+            });
+            if let Err(e) = wait_with_timeout(&mut child, timeout) {
+                log::warn!("approval hook '{}' timed out: {e}", hook.script.display());
+                let _ = stdout_thread.join();
+                continue;
+            }
+            let raw = stdout_thread.join().unwrap_or_default();
+            let stdout = raw.trim().to_lowercase();
             match stdout.as_str() {
                 "approve" => {
                     log::info!(
@@ -372,6 +386,24 @@ impl HookRunner {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+fn validate_hook_script(script: &Path) -> bool {
+    if !script.is_absolute() {
+        log::warn!(
+            "hooks: script '{}' must be an absolute path — skipping",
+            script.display()
+        );
+        return false;
+    }
+    if script.is_symlink() {
+        log::warn!(
+            "hooks: script '{}' is a symlink — skipping for security",
+            script.display()
+        );
+        return false;
+    }
+    true
+}
 
 fn wait_with_timeout(
     child: &mut std::process::Child,

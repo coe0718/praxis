@@ -216,6 +216,8 @@ pub struct StoredEvalSummary {
 pub enum ApprovalStatus {
     Pending,
     Approved,
+    /// Atomically claimed by the daemon loop; prevents double-execution.
+    Claiming,
     Rejected,
     Executed,
 }
@@ -225,6 +227,7 @@ impl ApprovalStatus {
         match self {
             ApprovalStatus::Pending => "pending",
             ApprovalStatus::Approved => "approved",
+            ApprovalStatus::Claiming => "claiming",
             ApprovalStatus::Rejected => "rejected",
             ApprovalStatus::Executed => "executed",
         }
@@ -234,6 +237,7 @@ impl ApprovalStatus {
         match value {
             "pending" => Ok(Self::Pending),
             "approved" => Ok(Self::Approved),
+            "claiming" => Ok(Self::Claiming),
             "rejected" => Ok(Self::Rejected),
             "executed" => Ok(Self::Executed),
             _ => Err(format!("unknown approval status {value}")),

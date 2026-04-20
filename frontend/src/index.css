@@ -1,0 +1,144 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --sidebar-w: 240px;
+  }
+
+  * {
+    @apply border-slate-200 dark:border-slate-700;
+  }
+
+  body {
+    @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 font-sans antialiased;
+  }
+
+  ::-webkit-scrollbar {
+    @apply w-1.5 h-1.5;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-300 dark:bg-slate-700 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-400 dark:bg-slate-600;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm;
+  }
+
+  .card-elevated {
+    @apply bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-md;
+  }
+
+  .input-base {
+    @apply w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700
+           bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100
+           placeholder-slate-400 dark:placeholder-slate-500
+           focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500
+           transition-colors;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg
+           bg-brand-600 hover:bg-brand-700 text-white
+           focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2
+           dark:focus:ring-offset-slate-900
+           transition-all disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg
+           bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700
+           text-slate-700 dark:text-slate-300
+           border border-slate-200 dark:border-slate-700
+           focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2
+           dark:focus:ring-offset-slate-900
+           transition-all disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg
+           bg-red-600 hover:bg-red-700 text-white
+           focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2
+           dark:focus:ring-offset-slate-900
+           transition-all disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg
+           hover:bg-slate-100 dark:hover:bg-slate-800
+           text-slate-600 dark:text-slate-400
+           transition-all disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-success {
+    @apply inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg
+           bg-emerald-600 hover:bg-emerald-700 text-white
+           transition-all disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full;
+  }
+
+  .page-header {
+    @apply mb-6 flex items-center justify-between;
+  }
+
+  .page-title {
+    @apply text-xl font-semibold text-slate-900 dark:text-slate-100;
+  }
+
+  .page-subtitle {
+    @apply text-sm text-slate-500 dark:text-slate-400 mt-0.5;
+  }
+
+  .section-title {
+    @apply text-sm font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-3;
+  }
+
+  .stat-value {
+    @apply text-2xl font-bold text-slate-900 dark:text-white;
+  }
+
+  .stat-label {
+    @apply text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider;
+  }
+
+  .mono {
+    @apply font-mono text-xs;
+  }
+
+  .live-dot {
+    @apply w-2 h-2 rounded-full bg-emerald-500 animate-pulse-slow;
+  }
+}
+
+/* Prism-like code blocks */
+.prose-dark pre {
+  @apply bg-slate-800 text-slate-100 rounded-lg p-4 text-xs overflow-x-auto font-mono;
+}
+
+/* Smooth page transitions */
+.page-enter {
+  animation: fadeIn 0.15s ease-out;
+}
+
+/* Custom range input */
+input[type='range'] {
+  @apply accent-brand-500;
+}
+
+/* Textarea auto-resize hint */
+textarea {
+  resize: vertical;
+  min-height: 80px;
+}

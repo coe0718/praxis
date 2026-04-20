@@ -26,6 +26,21 @@ const NONCE_HEX_LEN: usize = 24; // 12 bytes × 2
 /// if the file does not yet exist.
 pub fn load_or_generate_key(path: &Path) -> Result<[u8; 32]> {
     if path.exists() {
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            if let Ok(meta) = fs::metadata(path) {
+                let mode = meta.permissions().mode() & 0o777;
+                if mode != 0o600 {
+                    log::warn!(
+                        "master key at {} has permissions {:04o} — run: chmod 600 {}",
+                        path.display(),
+                        mode,
+                        path.display()
+                    );
+                }
+            }
+        }
         let raw = fs::read(path)
             .with_context(|| format!("failed to read master key {}", path.display()))?;
         if raw.len() != 32 {

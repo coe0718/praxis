@@ -48,8 +48,11 @@ impl SqliteSessionStore {
                 .with_context(|| format!("failed to create {}", parent.display()))?;
         }
 
-        Connection::open(&self.path)
-            .with_context(|| format!("failed to open SQLite database {}", self.path.display()))
+        let conn = Connection::open(&self.path)
+            .with_context(|| format!("failed to open SQLite database {}", self.path.display()))?;
+        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;")
+            .context("failed to configure SQLite WAL mode")?;
+        Ok(conn)
     }
 }
 
