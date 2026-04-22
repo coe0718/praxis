@@ -91,6 +91,10 @@ impl TelegramBot {
     ///
     /// `pairing_path` points to `sender_pairing.json`.  Messages from unknown
     /// chats trigger a one-time code flow rather than being silently dropped.
+    ///
+    /// # Concurrency
+    /// This method uses an advisory lock file to prevent concurrent poll cycles
+    /// from replaying or losing messages.
     pub fn poll_once(
         &self,
         state_path: &Path,
@@ -98,6 +102,7 @@ impl TelegramBot {
         bus: &dyn MessageBus,
         activation: &ActivationStore,
     ) -> Result<Vec<TelegramMessage>> {
+        let _lock = acquire_poll_lock(state_path)?;
         let offset = load_offset(state_path).unwrap_or(0);
         let updates = self.fetch_updates(offset + 1)?;
         let next_offset = updates
@@ -210,13 +215,63 @@ fn load_offset(path: &Path) -> Result<i64> {
 }
 
 fn save_offset(path: &Path, last_update_id: i64) -> Result<()> {
+    // Prevent lost updates from concurrent poll_once calls: never overwrite
+    // a higher or equal offset that another process may have already saved.
+    if let Ok(current) = load_offset(path) {
+        if last_update_id <= current {
+            return Ok(());
+        }
+    }
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)
             .with_context(|| format!("failed to create {}", parent.display()))?;
     }
     let state = TelegramState { last_update_id };
     let raw = serde_json::to_string_pretty(&state).context("failed to serialize Telegram state")?;
-    fs::write(path, raw).with_context(|| format!("failed to write {}", path.display()))
+    let temp_path = path.with_extension("tmp");
+    fs::write(&temp_path, raw)
+        .with_context(|| format!("failed to write {}", temp_path.display()))?;
+    fs::rename(&temp_path, path)
+        .with_context(|| format!("failed to rename {} to {}", temp_path.display(), path.display()))
+}
+
+/// Advisory lock file to prevent concurrent `poll_once` calls.
+/// Uses `create_new` for atomic creation.  If a stale lock (older than 5 min)
+/// is found it is removed and re-acquired.
+struct PollLock {
+    path: std::path::PathBuf,
+}
+
+impl Drop for PollLock {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.path);
+    }
+}
+
+fn acquire_poll_lock(state_path: &Path) -> Result<PollLock> {
+    let lock_path = state_path.with_extension("lock");
+    // If a lock exists and is stale, remove it.
+    if let Ok(meta) = fs::metadata(&lock_path) {
+        if let Ok(modified) = meta.modified() {
+            if std::time::SystemTime::now()
+                .duration_since(modified)
+                .unwrap_or_default()
+                > Duration::from_secs(300)
+            {
+                let _ = fs::remove_file(&lock_path);
+            }
+        }
+    }
+    match fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&lock_path)
+    {
+        Ok(_) => Ok(PollLock { path: lock_path }),
+        Err(e) => anyhow::bail!(
+            "another Telegram poll is already in progress (lock file exists): {e}"
+        ),
+    }
 }
 
 fn has_mention_entity(entities: &Option<Vec<TelegramMessageEntity>>) -> bool {

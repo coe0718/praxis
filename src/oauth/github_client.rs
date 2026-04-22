@@ -31,13 +31,18 @@ pub struct PrSummary {
 }
 
 impl GitHubClient {
-    /// Load from the OAuth token store. Returns `None` when no GitHub token is stored.
+    /// Load from the OAuth token store. Returns `None` when no GitHub token is stored
+    /// or when the token is expired (GitHub device flow does not support refresh).
     pub fn from_store(store: &OAuthTokenStore) -> Result<Option<Self>> {
         let token = match store.get("github")? {
             Some(t) => t,
             None => return Ok(None),
         };
-        if token.is_expired() {
+        if token.is_expired() || token.needs_refresh() {
+            log::warn!(
+                "github: token is expired but GitHub device flow does not support refresh — \
+                 run `praxis oauth login github` to re-authorize"
+            );
             return Ok(None);
         }
         Ok(Some(Self {

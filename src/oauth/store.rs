@@ -64,7 +64,7 @@ impl OAuthTokenStore {
     }
 
     pub fn save(&self, token: &OAuthToken) -> Result<()> {
-        let mut tokens = self.load().unwrap_or_default();
+        let mut tokens = self.load()?;
         tokens.insert(token.provider.clone(), token.clone());
         self.write(&tokens)
     }

@@ -25,13 +25,43 @@ pub struct EmailSummary {
 
 impl GmailClient {
     /// Load from the OAuth token store. Returns `None` when no Google token is stored.
+    /// Automatically refreshes an expired or nearly-expired token if a refresh token is available.
     pub fn from_store(store: &OAuthTokenStore) -> Result<Option<Self>> {
-        let token = match store.get("google")? {
+        let mut token = match store.get("google")? {
             Some(t) => t,
             None => return Ok(None),
         };
-        if token.is_expired() {
-            return Ok(None);
+        if token.needs_refresh() {
+            match super::google::GoogleOAuth::from_env() {
+                Ok(oauth) => {
+                    match oauth.refresh(&token) {
+                        Ok(new_token) => {
+                            if let Err(e) = store.save(&new_token) {
+                                log::warn!("failed to save refreshed google token: {e}");
+                            }
+                            token = new_token;
+                        }
+                        Err(e) => {
+                            log::warn!("google token refresh failed: {e}");
+                            if token.is_expired() {
+                                anyhow::bail!(
+                                    "Google OAuth token is expired and refresh failed — \
+                                     run `praxis oauth login google` to re-authenticate"
+                                );
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    log::warn!("google oauth env vars missing, cannot refresh: {e}");
+                    if token.is_expired() {
+                        anyhow::bail!(
+                            "Google OAuth token is expired and cannot be refreshed — \
+                             run `praxis oauth login google` to re-authenticate"
+                        );
+                    }
+                }
+            }
         }
         Ok(Some(Self {
             client: Client::builder()

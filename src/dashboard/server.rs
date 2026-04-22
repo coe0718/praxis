@@ -23,6 +23,12 @@ pub(super) struct DashboardState {
     /// `PRAXIS_DASHBOARD_TOKEN` is unset — all requests are allowed but a
     /// warning is logged at startup.
     pub token: Option<String>,
+    /// Discord application public key — required to verify ED25519
+    /// signatures on incoming webhook interactions.
+    pub discord_public_key: Option<String>,
+    /// Slack signing secret — required to verify HMAC-SHA256 signatures
+    /// on incoming Events API webhooks.
+    pub slack_signing_secret: Option<String>,
 }
 
 // ── Auth middleware ───────────────────────────────────────────────────────────
@@ -59,8 +65,7 @@ pub(super) async fn add_security_headers(request: Request, next: Next) -> Respon
     response.headers_mut().insert(
         header::CONTENT_SECURITY_POLICY,
         HeaderValue::from_static(
-            "default-src 'self'; script-src 'self' 'unsafe-inline'; \
-             style-src 'self' 'unsafe-inline'; connect-src 'self'",
+            "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'",
         ),
     );
     response
@@ -73,7 +78,24 @@ pub async fn serve_dashboard(data_dir: PathBuf, host: String, port: u16) -> Resu
     if token.is_none() {
         log::warn!("dashboard: PRAXIS_DASHBOARD_TOKEN not set — all endpoints are unauthenticated");
     }
-    let state = DashboardState { data_dir, token };
+    let discord_public_key = std::env::var("PRAXIS_DISCORD_PUBLIC_KEY").ok();
+    let slack_signing_secret = std::env::var("PRAXIS_SLACK_SIGNING_SECRET").ok();
+
+    #[cfg(feature = "discord")]
+    if discord_public_key.is_none() {
+        log::warn!("dashboard: PRAXIS_DISCORD_PUBLIC_KEY not set — Discord webhooks will be rejected");
+    }
+    #[cfg(feature = "slack")]
+    if slack_signing_secret.is_none() {
+        log::warn!("dashboard: PRAXIS_SLACK_SIGNING_SECRET not set — Slack webhooks will be rejected");
+    }
+
+    let state = DashboardState {
+        data_dir,
+        token,
+        discord_public_key,
+        slack_signing_secret,
+    };
 
     // SSE stream is read-only and exempt from auth — EventSource API cannot send headers.
     // Webhook routes are also public — Discord/Slack send webhooks without bearer tokens.

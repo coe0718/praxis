@@ -261,6 +261,9 @@ pub(crate) fn load_initialized_config(
     // Apply sensitive overrides from `security.toml` (gitignored, operator-only).
     let security = SecurityOverrides::load_or_default(&paths.security_file)?;
     if let Some(level) = security.level {
+        if !(1..=4).contains(&level) {
+            bail!("security override level must be between 1 and 4, got {level}");
+        }
         config.security.level = level;
     }
 

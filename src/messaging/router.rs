@@ -99,7 +99,7 @@ pub fn parse_telegram_command(text: &str) -> TelegramCommand {
 /// activation mode changes can be scoped to the correct conversation.
 pub fn handle_telegram_command(
     data_dir: std::path::PathBuf,
-    chat_id: i64,
+    chat_id: &str,
     text: &str,
 ) -> Result<String> {
     match parse_telegram_command(text) {
@@ -200,12 +200,12 @@ fn append_boundary(data_dir: std::path::PathBuf, rule: &str) -> Result<String> {
     Ok(format!("boundary: added\nrule: {rule}"))
 }
 
-fn handle_activation(data_dir: std::path::PathBuf, chat_id: i64, mode_str: &str) -> Result<String> {
+fn handle_activation(data_dir: std::path::PathBuf, chat_id: &str, mode_str: &str) -> Result<String> {
     let paths = PraxisPaths::for_data_dir(data_dir);
     let mut store = ActivationStore::load(&paths.activation_file)?;
 
     if mode_str.is_empty() {
-        let current = store.get(&chat_id.to_string());
+        let current = store.get(chat_id);
         return Ok(format!("activation: {current}"));
     }
 
@@ -397,8 +397,7 @@ pub fn handle_discord_command(
 ) -> Result<String> {
     // Discord uses channel IDs as conversation identifiers. Re-use all Telegram
     // command logic; /activation changes are scoped to the channel.
-    let chat_id: i64 = channel_id.parse().unwrap_or(0);
-    handle_telegram_command(data_dir, chat_id, text)
+    handle_telegram_command(data_dir, channel_id, text)
 }
 
 /// Handle an event received from Slack.
@@ -409,13 +408,7 @@ pub fn handle_slack_command(
     channel_id: &str,
     text: &str,
 ) -> Result<String> {
-    let chat_id: i64 = channel_id
-        .chars()
-        .filter(|c| c.is_ascii_digit())
-        .collect::<String>()
-        .parse()
-        .unwrap_or(0);
-    handle_telegram_command(data_dir, chat_id, text)
+    handle_telegram_command(data_dir, channel_id, text)
 }
 
 #[cfg(test)]

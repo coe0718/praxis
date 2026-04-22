@@ -3,8 +3,9 @@ use std::{convert::Infallible, time::Duration};
 use async_stream::stream;
 use axum::{
     Json,
+    body::Bytes,
     extract::{Query, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     response::{Html, IntoResponse, Response, Sse, sse::Event},
 };
 use serde::Deserialize;
@@ -184,8 +185,67 @@ fn collect_prometheus_metrics(paths: &PraxisPaths) -> String {
 #[cfg(feature = "discord")]
 pub(super) async fn webhook_discord(
     State(state): State<DashboardState>,
-    Json(body): Json<crate::messaging::discord::DiscordInteraction>,
+    headers: HeaderMap,
+    body: Bytes,
 ) -> impl IntoResponse {
+    use ed25519_dalek::{Signature, VerifyingKey, Verifier};
+
+    // Fail closed: require the public key to be configured.
+    let public_key_hex = match state.discord_public_key.as_deref() {
+        Some(key) => key,
+        None => {
+            log::error!("discord webhook rejected: PRAXIS_DISCORD_PUBLIC_KEY not configured");
+            return StatusCode::UNAUTHORIZED.into_response();
+        }
+    };
+
+    let signature_hex = match headers.get("X-Signature-Ed25519").and_then(|v| v.to_str().ok()) {
+        Some(s) => s,
+        None => return StatusCode::UNAUTHORIZED.into_response(),
+    };
+    let timestamp = match headers.get("X-Signature-Timestamp").and_then(|v| v.to_str().ok()) {
+        Some(s) => s,
+        None => return StatusCode::UNAUTHORIZED.into_response(),
+    };
+
+    // Verify ED25519 signature: sign(timestamp || body) with app public key.
+    let verifying_key = match hex::decode(public_key_hex)
+        .ok()
+        .and_then(|bytes| <[u8; 32]>::try_from(bytes).ok())
+        .map(|bytes| VerifyingKey::from_bytes(&bytes))
+    {
+        Some(Ok(pk)) => pk,
+        _ => {
+            log::error!("discord webhook rejected: invalid public key");
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    };
+
+    let sig_bytes = match hex::decode(signature_hex) {
+        Ok(b) => b,
+        Err(_) => return StatusCode::UNAUTHORIZED.into_response(),
+    };
+    let signature = match Signature::try_from(sig_bytes.as_slice()) {
+        Ok(s) => s,
+        Err(_) => return StatusCode::UNAUTHORIZED.into_response(),
+    };
+
+    let mut message = Vec::with_capacity(timestamp.len() + body.len());
+    message.extend_from_slice(timestamp.as_bytes());
+    message.extend_from_slice(&body);
+
+    if verifying_key.verify(&message, &signature).is_err() {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+
+    let body: crate::messaging::discord::DiscordInteraction = match serde_json::from_slice(&body) {
+        Ok(b) => b,
+        Err(e) => {
+            log::warn!("discord webhook: invalid JSON body: {e}");
+            return StatusCode::BAD_REQUEST.into_response();
+        }
+    };
+
     use crate::wakeup::{WakeIntent, request_wake};
     if body.interaction_type == 1 {
         return (StatusCode::OK, Json(json!({ "type": 1 }))).into_response();
@@ -216,8 +276,75 @@ pub(super) async fn webhook_discord(
 #[cfg(feature = "slack")]
 pub(super) async fn webhook_slack(
     State(state): State<DashboardState>,
-    Json(body): Json<crate::messaging::slack::SlackEvent>,
+    headers: HeaderMap,
+    body: Bytes,
 ) -> impl IntoResponse {
+    use hmac::{Hmac, Mac};
+    use sha2::Sha256;
+
+    // Fail closed: require the signing secret to be configured.
+    let signing_secret = match state.slack_signing_secret.as_deref() {
+        Some(secret) => secret,
+        None => {
+            log::error!("slack webhook rejected: PRAXIS_SLACK_SIGNING_SECRET not configured");
+            return StatusCode::UNAUTHORIZED.into_response();
+        }
+    };
+
+    let signature = match headers.get("X-Slack-Signature").and_then(|v| v.to_str().ok()) {
+        Some(s) => s,
+        None => return StatusCode::UNAUTHORIZED.into_response(),
+    };
+    let timestamp = match headers.get("X-Slack-Request-Timestamp").and_then(|v| v.to_str().ok()) {
+        Some(s) => s,
+        None => return StatusCode::UNAUTHORIZED.into_response(),
+    };
+
+    // Reject requests older than 5 minutes to prevent replay attacks.
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let ts = timestamp.parse::<u64>().unwrap_or(0);
+    if ts + 300 < now {
+        log::warn!("slack webhook rejected: timestamp too old");
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+
+    // Verify HMAC-SHA256 signature: v0=<hex(hmac_sha256("v0:timestamp:body", secret))>.
+    let signature_hex = match signature.strip_prefix("v0=") {
+        Some(h) => h,
+        None => {
+            log::warn!("slack webhook rejected: invalid signature format");
+            return StatusCode::UNAUTHORIZED.into_response();
+        }
+    };
+    let signature_bytes = match hex::decode(signature_hex) {
+        Ok(b) => b,
+        Err(_) => return StatusCode::UNAUTHORIZED.into_response(),
+    };
+
+    let basestring = format!("v0:{timestamp}:");
+    type HmacSha256 = Hmac<Sha256>;
+    let mut mac = match HmacSha256::new_from_slice(signing_secret.as_bytes()) {
+        Ok(m) => m,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
+    mac.update(basestring.as_bytes());
+    mac.update(&body);
+    if mac.verify_slice(&signature_bytes).is_err() {
+        log::warn!("slack webhook rejected: signature mismatch");
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+
+    let body: crate::messaging::slack::SlackEvent = match serde_json::from_slice(&body) {
+        Ok(b) => b,
+        Err(e) => {
+            log::warn!("slack webhook: invalid JSON body: {e}");
+            return StatusCode::BAD_REQUEST.into_response();
+        }
+    };
+
     use crate::wakeup::{WakeIntent, request_wake};
     if body.event_type == "url_verification" {
         let challenge = body.challenge.as_deref().unwrap_or("");
