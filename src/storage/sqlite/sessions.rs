@@ -9,14 +9,14 @@ pub(super) fn record_session(
     store: &SqliteSessionStore,
     record: &SessionRecord,
 ) -> Result<StoredSession> {
-    let connection = store.connect()?;
-    let session_num = next_session_number(&connection, record.day)?;
+    let mut connection = store.connect()?;
+    let tx = connection.transaction().context("failed to begin session recording transaction")?;
+    let session_num = next_session_number_tx(&tx, record.day)?;
     let started_at = record.started_at.to_rfc3339();
     let ended_at = record.ended_at.to_rfc3339();
 
-    connection
-        .execute(
-            "
+    tx.execute(
+        "
             INSERT INTO sessions (
                 day, session_num, started_at, ended_at, phase_durations, outcome,
                 selected_goal_id, selected_goal_title, selected_task, action_summary,
@@ -24,24 +24,27 @@ pub(super) fn record_session(
             )
             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
             ",
-            params![
-                record.day,
-                session_num,
-                started_at,
-                ended_at,
-                record.phase_durations_json,
-                record.outcome,
-                record.selected_goal_id,
-                record.selected_goal_title,
-                record.selected_task,
-                record.action_summary,
-                record.repeated_reads_avoided,
-            ],
-        )
-        .context("failed to insert session row")?;
+        params![
+            record.day,
+            session_num,
+            started_at,
+            ended_at,
+            record.phase_durations_json,
+            record.outcome,
+            record.selected_goal_id,
+            record.selected_goal_title,
+            record.selected_task,
+            record.action_summary,
+            record.repeated_reads_avoided,
+        ],
+    )
+    .context("failed to insert session row")?;
+
+    let id = tx.last_insert_rowid();
+    tx.commit().context("failed to commit session recording transaction")?;
 
     Ok(StoredSession {
-        id: connection.last_insert_rowid(),
+        id,
         day: record.day,
         session_num,
         started_at,
@@ -89,7 +92,7 @@ pub(super) fn last_session(store: &SqliteSessionStore) -> Result<Option<StoredSe
         .context("failed to load the most recent session")
 }
 
-fn next_session_number(connection: &rusqlite::Connection, day: i64) -> Result<i64> {
+fn next_session_number_tx(connection: &rusqlite::Transaction<'_>, day: i64) -> Result<i64> {
     connection
         .query_row(
             "SELECT COALESCE(MAX(session_num), 0) + 1 FROM sessions WHERE day = ?1",

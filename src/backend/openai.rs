@@ -59,8 +59,9 @@ pub(super) fn execute(
     if !response.status().is_success() {
         let status = response.status();
         let body = response.text().unwrap_or_default();
+        let safe_body = body.chars().take(200).collect::<String>();
         bail!(
-            "provider {} request failed with {status}: {body}",
+            "provider {} request failed with {status}: {safe_body}",
             route.provider
         );
     }

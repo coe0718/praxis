@@ -99,7 +99,8 @@ impl SlackClient {
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().unwrap_or_default();
-            bail!("Slack webhook POST failed with {status}: {body}");
+            let safe_body = body.chars().take(200).collect::<String>();
+            bail!("Slack webhook POST failed with {status}: {safe_body}");
         }
 
         Ok(())
@@ -123,7 +124,8 @@ impl SlackClient {
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().unwrap_or_default();
-            bail!("Slack chat.postMessage failed with {status}: {body}");
+            let safe_body = body.chars().take(200).collect::<String>();
+            bail!("Slack chat.postMessage failed with {status}: {safe_body}");
         }
 
         let parsed: SlackApiResponse = response
@@ -214,7 +216,8 @@ impl SlackClient {
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().unwrap_or_default();
-            bail!("Slack conversations.history failed with {status}: {body}");
+            let safe_body = body.chars().take(200).collect::<String>();
+            bail!("Slack conversations.history failed with {status}: {safe_body}");
         }
         let envelope: SlackHistoryEnvelope = resp
             .json()

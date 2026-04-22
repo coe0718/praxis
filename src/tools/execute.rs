@@ -22,7 +22,8 @@ use super::{ToolKind, ToolManifest, policy::normalize_relative, request::parse_p
 const DEFAULT_TIMEOUT_SECS: u64 = 30;
 
 /// Shell metacharacters that enable command injection when passed to `bash -c`.
-const DANGEROUS_SHELL_CHARS: &[char] = &[';', '|', '&', '`', '$', '(', ')', '<', '>'];
+const DANGEROUS_SHELL_CHARS: &[char] = &[';', '|', '&', '`', '$', '(', ')', '<', '>', '\n', '\r', '\\'];
+const MAX_OUTPUT_BYTES: usize = 1024 * 1024; // 1 MB cap on command output
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ToolExecutionResult {
@@ -182,8 +183,10 @@ fn run_shell(
         .wait_with_output()
         .with_context(|| format!("failed to collect output of shell tool {}", manifest.name))?;
 
-    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    let stdout_bytes = &output.stdout[..output.stdout.len().min(MAX_OUTPUT_BYTES)];
+    let stderr_bytes = &output.stderr[..output.stderr.len().min(MAX_OUTPUT_BYTES)];
+    let stdout = String::from_utf8_lossy(stdout_bytes).trim().to_string();
+    let stderr = String::from_utf8_lossy(stderr_bytes).trim().to_string();
 
     if !output.status.success() {
         let code = output.status.code().unwrap_or(-1);
@@ -250,6 +253,14 @@ fn run_http(
 
     log::info!("executing http tool {} {} {}", manifest.name, method, url);
 
+    if is_ssrf_blocked(&url) {
+        bail!(
+            "http tool {} targets a blocked internal/private address: {}",
+            manifest.name,
+            url.chars().take(80).collect::<String>()
+        );
+    }
+
     let client = Client::builder()
         .timeout(Duration::from_secs(timeout_secs))
         .build()
@@ -272,10 +283,17 @@ fn run_http(
         }
     }
 
-    // Inject OAuth tokens.
+    // Inject OAuth tokens, filtered by allowed_oauth_providers if set.
     let oauth_store = OAuthTokenStore::new(&paths.data_dir);
     if let Ok(tokens) = oauth_store.load() {
         for (provider, token) in &tokens {
+            if manifest
+                .allowed_oauth_providers
+                .as_ref()
+                .is_some_and(|allowed| !allowed.contains(provider))
+            {
+                continue;
+            }
             if !token.is_expired() {
                 let header_name = format!("X-Praxis-OAuth-{}", provider_title(provider));
                 builder = builder.header(header_name, &token.access_token);
@@ -331,6 +349,65 @@ fn substitute_params(template: &str, params: &HashMap<String, String>) -> String
         result = result.replace(&format!("{{{key}}}"), value);
     }
     result
+}
+
+/// Block requests to private/internal networks to prevent SSRF attacks.
+fn is_ssrf_blocked(url: &str) -> bool {
+    // Extract the host portion from the URL for checking.
+    let host = extract_host(url);
+    let host = match host {
+        Some(h) => h,
+        None => return true, // Can't parse → block
+    };
+
+    // Block common internal hostnames.
+    if host == "localhost" || host.ends_with(".local") || host.ends_with(".internal") {
+        return true;
+    }
+
+    // Block IP-based private ranges.
+    if let Ok(ip) = host.parse::<std::net::IpAddr>() {
+        match ip {
+            std::net::IpAddr::V4(v4) => {
+                if v4.is_loopback()
+                    || v4.is_private()
+                    || v4.is_link_local()
+                    || v4.is_broadcast()
+                    || v4.is_documentation()
+                {
+                    return true;
+                }
+                // 169.254.169.254 — cloud metadata endpoint.
+                if v4.octets() == [169, 254, 169, 254] {
+                    return true;
+                }
+            }
+            std::net::IpAddr::V6(v6) => {
+                if v6.is_loopback() {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+/// Extract the host portion from a URL string.
+fn extract_host(url: &str) -> Option<String> {
+    // Strip scheme.
+    let rest = url
+        .strip_prefix("http://")
+        .or_else(|| url.strip_prefix("https://"))?;
+    // Strip credentials.
+    let rest = if let Some(at_pos) = rest.find('@') {
+        &rest[at_pos + 1..]
+    } else {
+        rest
+    };
+    // Strip port and path.
+    let host_port = rest.split('/').next()?;
+    let host = host_port.split(':').next()?;
+    Some(host.to_string())
 }
 
 /// Substitute `$VAULT{name}` references in `template` with resolved vault values.
@@ -541,8 +618,10 @@ fn exec_shell_command(
         .wait_with_output()
         .context("failed to collect shell-exec output")?;
 
-    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    let stdout_bytes = &output.stdout[..output.stdout.len().min(MAX_OUTPUT_BYTES)];
+    let stderr_bytes = &output.stderr[..output.stderr.len().min(MAX_OUTPUT_BYTES)];
+    let stdout = String::from_utf8_lossy(stdout_bytes).trim().to_string();
+    let stderr = String::from_utf8_lossy(stderr_bytes).trim().to_string();
 
     if !output.status.success() {
         let code = output.status.code().unwrap_or(-1);

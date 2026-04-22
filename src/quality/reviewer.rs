@@ -184,11 +184,18 @@ fn load_criteria(path: &PathBuf) -> Result<GoalCriteria> {
     Ok(criteria)
 }
 
+const ALLOWED_REVIEWER_COMMANDS: &[&str] = &["git", "grep", "test", "diff", "wc", "cat", "echo", "ls", "find", "cargo", "true", "false", "exit"];
+
 fn run_shell_bounded(
     paths: &PraxisPaths,
     command: &str,
     max_output_bytes: usize,
 ) -> Result<Option<String>> {
+    let cmd_prefix = command.split_whitespace().next().unwrap_or("");
+    let cmd_basename = cmd_prefix.split('/').next_back().unwrap_or("");
+    if !ALLOWED_REVIEWER_COMMANDS.contains(&cmd_basename) {
+        anyhow::bail!("reviewer command rejected (not in allowlist): `{command}`");
+    }
     let output = Command::new("/bin/sh")
         .arg("-lc")
         .arg(command)

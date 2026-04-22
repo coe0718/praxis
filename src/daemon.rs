@@ -434,7 +434,7 @@ fn run_session_blocking(data_dir: &Path, task: Option<String>) -> Result<RunSumm
 
     runtime.run_once(RunOptions {
         once: true, // Always single-pass from the daemon; the daemon manages the outer loop.
-        force: false,
+        force: task.is_some(),
         task,
     })
 }

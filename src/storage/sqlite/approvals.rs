@@ -107,7 +107,19 @@ pub(super) fn set_approval_status(
         )
         .context("failed to update approval request")?;
 
-    get_approval(store, id)
+    // Read back on the same connection to avoid stale data.
+    connection
+        .query_row(
+            "
+            SELECT id, tool_name, summary, requested_by, write_paths, payload_json, status, status_note, created_at, updated_at
+            FROM approval_requests
+            WHERE id = ?1
+            ",
+            params![id],
+            row_to_request,
+        )
+        .optional()
+        .context("failed to load updated approval request")
 }
 
 pub(super) fn next_approved_request(

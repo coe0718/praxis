@@ -24,6 +24,7 @@ fn payload_changes_tool_invocation_key() {
         headers: Vec::new(),
         body: None,
         allowed_vault_keys: None,
+        allowed_oauth_providers: None,
     };
     let first = StoredApprovalRequest {
         id: 1,

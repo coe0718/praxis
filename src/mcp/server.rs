@@ -92,6 +92,25 @@ fn handle_tools_call(paths: &PraxisPaths, request: &JsonRpcRequest) -> JsonRpcRe
         }
     };
 
+    // Validate that the tool exists in the registry.
+    let registry_tools = match FileToolRegistry.list(paths) {
+        Ok(t) => t,
+        Err(e) => {
+            return JsonRpcResponse::err(
+                request.id.clone(),
+                -32603,
+                format!("failed to list tools: {e}"),
+            );
+        }
+    };
+    if !registry_tools.iter().any(|t| t.name == tool_name) {
+        return JsonRpcResponse::err(
+            request.id.clone(),
+            -32602,
+            format!("unknown tool: {tool_name}"),
+        );
+    }
+
     let args = request
         .params
         .get("arguments")
@@ -180,46 +199,35 @@ fn handle_resources_read(paths: &PraxisPaths, request: &JsonRpcRequest) -> JsonR
         }
     };
 
-    // Strip the `praxis://` scheme and resolve relative to data_dir.
-    let rel = uri.strip_prefix("praxis://").unwrap_or(uri);
-    let path = paths.data_dir.join(rel);
-
-    // Safety: resolved path must remain inside the data directory.
-    let canonical_data = match paths.data_dir.canonicalize() {
-        Ok(p) => p,
-        Err(e) => {
-            return JsonRpcResponse::err(
-                request.id.clone(),
-                -32603,
-                format!("failed to resolve data_dir: {e}"),
-            );
-        }
-    };
-    let canonical_path = match path.canonicalize() {
-        Ok(p) => p,
-        Err(_) => {
+    // Only allow reading resources that are explicitly enumerated in resources/list.
+    let allowed = collect_resources(paths);
+    let allowed_uri = match allowed.iter().find(|r| r.uri == uri) {
+        Some(r) => r,
+        None => {
             return JsonRpcResponse::err(
                 request.id.clone(),
                 -32602,
-                format!("resource not found: {uri}"),
+                "access denied: resource not listed in resources/list",
             );
         }
     };
-    if !canonical_path.starts_with(&canonical_data) {
-        return JsonRpcResponse::err(
-            request.id.clone(),
-            -32602,
-            "access denied: resource is outside the data directory",
-        );
-    }
 
-    match std::fs::read_to_string(&canonical_path) {
+    // Resolve the resource URI back to a file path.
+    let filename = match uri.strip_prefix("praxis://") {
+        Some(f) => f,
+        None => {
+            return JsonRpcResponse::err(request.id.clone(), -32602, "invalid resource URI scheme");
+        }
+    };
+    let path = paths.data_dir.join(filename);
+
+    match std::fs::read_to_string(&path) {
         Ok(text) => JsonRpcResponse::ok(
             request.id.clone(),
             json!({
                 "contents": [{
                     "uri": uri,
-                    "mimeType": "text/plain",
+                    "mimeType": allowed_uri.mime_type.clone().unwrap_or_else(|| "text/plain".to_string()),
                     "text": text
                 }]
             }),

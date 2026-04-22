@@ -8,6 +8,20 @@ use crate::{
 
 use super::SqliteSessionStore;
 
+/// Escape SQL LIKE wildcards (`%` and `_`) in a user-supplied query string.
+fn escape_like(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    for ch in input.chars() {
+        match ch {
+            '%' => out.push_str("\\%"),
+            '_' => out.push_str("\\_"),
+            '\\' => out.push_str("\\\\"),
+            c => out.push(c),
+        }
+    }
+    out
+}
+
 impl OperationalMemoryStore for SqliteSessionStore {
     fn record_do_not_repeat(&self, entry: NewDoNotRepeat) -> Result<StoredDoNotRepeat> {
         let connection = self.connect()?;
@@ -51,7 +65,7 @@ impl OperationalMemoryStore for SqliteSessionStore {
 
     fn search_do_not_repeat(&self, query: &str, limit: usize) -> Result<Vec<StoredDoNotRepeat>> {
         let connection = self.connect()?;
-        let needle = format!("%{}%", query.to_lowercase());
+        let needle = format!("%{}%", escape_like(&query.to_lowercase()));
         load_do_not_repeat(
             &connection,
             "
@@ -108,7 +122,7 @@ impl OperationalMemoryStore for SqliteSessionStore {
 
     fn search_known_bugs(&self, query: &str, limit: usize) -> Result<Vec<StoredKnownBug>> {
         let connection = self.connect()?;
-        let needle = format!("%{}%", query.to_lowercase());
+        let needle = format!("%{}%", escape_like(&query.to_lowercase()));
         load_known_bugs(
             &connection,
             "

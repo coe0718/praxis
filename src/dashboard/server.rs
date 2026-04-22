@@ -76,9 +76,21 @@ pub async fn serve_dashboard(data_dir: PathBuf, host: String, port: u16) -> Resu
     let state = DashboardState { data_dir, token };
 
     // SSE stream is read-only and exempt from auth — EventSource API cannot send headers.
-    let public_routes = Router::new()
-        .route("/events", get(routes_events::events_sse))
-        .with_state(state.clone());
+    // Webhook routes are also public — Discord/Slack send webhooks without bearer tokens.
+    let public_routes = {
+        let mut routes = Router::new()
+            .route("/events", get(routes_events::events_sse));
+
+        #[cfg(feature = "discord")]
+        {
+            routes = routes.route("/webhook/discord", post(routes_events::webhook_discord));
+        }
+        #[cfg(feature = "slack")]
+        {
+            routes = routes.route("/webhook/slack", post(routes_events::webhook_slack));
+        }
+        routes.with_state(state.clone())
+    };
 
     let app = Router::new()
         .route("/", get(routes_events::index))
@@ -171,11 +183,6 @@ pub async fn serve_dashboard(data_dir: PathBuf, host: String, port: u16) -> Resu
         )
         .route("/api/forensics", get(routes_admin::api_forensics))
         .route("/api/argus", get(routes_admin::api_argus));
-
-    #[cfg(feature = "discord")]
-    let app = app.route("/webhook/discord", post(routes_events::webhook_discord));
-    #[cfg(feature = "slack")]
-    let app = app.route("/webhook/slack", post(routes_events::webhook_slack));
 
     let app = app
         .layer(axum::middleware::from_fn_with_state(

@@ -37,7 +37,10 @@ pub(super) fn execute(
     // causes Anthropic to cache everything up to and including that turn, so
     // repeated Orient / Ask calls with the same system text pay only for the
     // delta.
-    let use_cache = prompt_caching && request.max_output_tokens >= CACHE_MIN_TOKENS;
+    // Rough estimate: ~4 chars per token. Only enable caching when the system
+    // prompt is large enough for Anthropic's minimum cacheable prefix.
+    let input_token_estimate = (request.system.len() / 4) as u32;
+    let use_cache = prompt_caching && input_token_estimate >= CACHE_MIN_TOKENS;
 
     let system = if use_cache {
         ClaudeSystem::Blocks(vec![ClaudeSystemBlock {
@@ -74,7 +77,8 @@ pub(super) fn execute(
     if !response.status().is_success() {
         let status = response.status();
         let body = response.text().unwrap_or_default();
-        bail!("Claude provider request failed with {status}: {body}");
+        let safe_body = body.chars().take(200).collect::<String>();
+        bail!("Claude provider request failed with {status}: {safe_body}");
     }
 
     let parsed = response

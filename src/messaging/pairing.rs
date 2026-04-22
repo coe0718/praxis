@@ -96,11 +96,7 @@ impl PairingStore {
 }
 
 fn generate_code() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    // Simple non-cryptographic 6-digit code derived from nanosecond timestamp.
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.subsec_nanos())
-        .unwrap_or(0);
-    format!("{:06}", nanos % 1_000_000)
+    use rand::Rng;
+    let code: u32 = rand::thread_rng().gen_range(0..1_000_000);
+    format!("{code:06}")
 }

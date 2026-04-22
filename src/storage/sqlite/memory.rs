@@ -11,34 +11,34 @@ use super::SqliteSessionStore;
 
 impl MemoryStore for SqliteSessionStore {
     fn insert_hot_memory(&self, memory: NewHotMemory) -> Result<StoredMemory> {
-        let connection = self.connect()?;
+        let mut connection = self.connect()?;
         let tags = serde_json::to_string(&memory.tags).context("failed to serialize tags")?;
 
-        connection
-            .execute(
-                "
+        let tx = connection.transaction().context("failed to begin hot memory transaction")?;
+        tx.execute(
+            "
                 INSERT INTO hot_memories(content, summary, importance, tags, last_accessed, access_count, expires_at, memory_type)
                 VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7)
                 ",
-                params![
-                    memory.content,
-                    memory.summary,
-                    memory.importance,
-                    tags,
-                    Utc::now().to_rfc3339(),
-                    memory.expires_at,
-                    memory.memory_type.as_str(),
-                ],
-            )
-            .context("failed to insert hot memory")?;
+            params![
+                memory.content,
+                memory.summary,
+                memory.importance,
+                tags,
+                Utc::now().to_rfc3339(),
+                memory.expires_at,
+                memory.memory_type.as_str(),
+            ],
+        )
+        .context("failed to insert hot memory")?;
 
-        let id = connection.last_insert_rowid();
-        connection
-            .execute(
-                "INSERT INTO hot_fts(rowid, content, summary, tags) VALUES (?1, ?2, ?3, ?4)",
-                params![id, memory.content, memory.summary, tags],
-            )
-            .context("failed to index hot memory")?;
+        let id = tx.last_insert_rowid();
+        tx.execute(
+            "INSERT INTO hot_fts(rowid, content, summary, tags) VALUES (?1, ?2, ?3, ?4)",
+            params![id, memory.content, memory.summary, tags],
+        )
+        .context("failed to index hot memory")?;
+        tx.commit().context("failed to commit hot memory transaction")?;
 
         Ok(StoredMemory {
             id,
@@ -52,38 +52,38 @@ impl MemoryStore for SqliteSessionStore {
     }
 
     fn insert_cold_memory(&self, memory: NewColdMemory) -> Result<StoredMemory> {
-        let connection = self.connect()?;
+        let mut connection = self.connect()?;
         let tags = serde_json::to_string(&memory.tags).context("failed to serialize tags")?;
         let source_ids =
             serde_json::to_string(&memory.source_ids).context("failed to serialize source ids")?;
         let contradicts = serde_json::to_string(&memory.contradicts)
             .context("failed to serialize contradiction ids")?;
 
-        connection
-            .execute(
-                "
+        let tx = connection.transaction().context("failed to begin cold memory transaction")?;
+        tx.execute(
+            "
                 INSERT INTO cold_memories(content, weight, tags, source_ids, contradicts, last_reinforced, memory_type)
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
                 ",
-                params![
-                    memory.content,
-                    memory.weight,
-                    tags,
-                    source_ids,
-                    contradicts,
-                    Utc::now().to_rfc3339(),
-                    memory.memory_type.as_str(),
-                ],
-            )
-            .context("failed to insert cold memory")?;
+            params![
+                memory.content,
+                memory.weight,
+                tags,
+                source_ids,
+                contradicts,
+                Utc::now().to_rfc3339(),
+                memory.memory_type.as_str(),
+            ],
+        )
+        .context("failed to insert cold memory")?;
 
-        let id = connection.last_insert_rowid();
-        connection
-            .execute(
-                "INSERT INTO cold_fts(rowid, content, tags) VALUES (?1, ?2, ?3)",
-                params![id, memory.content, tags],
-            )
-            .context("failed to index cold memory")?;
+        let id = tx.last_insert_rowid();
+        tx.execute(
+            "INSERT INTO cold_fts(rowid, content, tags) VALUES (?1, ?2, ?3)",
+            params![id, memory.content, tags],
+        )
+        .context("failed to index cold memory")?;
+        tx.commit().context("failed to commit cold memory transaction")?;
 
         Ok(StoredMemory {
             id,

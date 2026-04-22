@@ -13,51 +13,51 @@ pub(super) fn record_attempts(
     session_id: i64,
     attempts: &[ProviderAttempt],
 ) -> Result<()> {
-    let connection = store.connect()?;
+    let mut connection = store.connect()?;
+    let tx = connection.transaction().context("failed to begin provider recording transaction")?;
     for attempt in attempts {
-        connection
-            .execute(
-                "
+        tx.execute(
+            "
                 INSERT INTO provider_attempts(
                     session_id, phase, provider, model, success,
                     input_tokens, output_tokens, estimated_cost_micros, error
                 )
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
                 ",
-                params![
-                    session_id,
-                    attempt.phase,
-                    attempt.provider,
-                    attempt.model,
-                    attempt.success,
-                    attempt.input_tokens,
-                    attempt.output_tokens,
-                    attempt.estimated_cost_micros,
-                    attempt.error,
-                ],
-            )
-            .context("failed to insert provider attempt")?;
-        connection
-            .execute(
-                "
+            params![
+                session_id,
+                attempt.phase,
+                attempt.provider,
+                attempt.model,
+                attempt.success,
+                attempt.input_tokens,
+                attempt.output_tokens,
+                attempt.estimated_cost_micros,
+                attempt.error,
+            ],
+        )
+        .context("failed to insert provider attempt")?;
+        tx.execute(
+            "
                 INSERT INTO token_ledger(
                     session_id, phase, provider, model,
                     input_tokens, output_tokens, estimated_cost_micros
                 )
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
                 ",
-                params![
-                    session_id,
-                    attempt.phase,
-                    attempt.provider,
-                    attempt.model,
-                    attempt.input_tokens,
-                    attempt.output_tokens,
-                    attempt.estimated_cost_micros,
-                ],
-            )
-            .context("failed to insert token ledger row")?;
+            params![
+                session_id,
+                attempt.phase,
+                attempt.provider,
+                attempt.model,
+                attempt.input_tokens,
+                attempt.output_tokens,
+                attempt.estimated_cost_micros,
+            ],
+        )
+        .context("failed to insert token ledger row")?;
     }
+    tx.commit().context("failed to commit provider recording transaction")?;
     Ok(())
 }
 

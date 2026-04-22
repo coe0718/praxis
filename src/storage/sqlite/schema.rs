@@ -88,7 +88,27 @@ pub(super) fn validate(store: &SqliteSessionStore) -> Result<()> {
 }
 
 fn ensure_session_column(connection: &Connection, name: &str, definition: &str) -> Result<()> {
+    validate_identifier(name)?;
     ensure_table_column(connection, "sessions", name, definition)
+}
+
+/// Validate that a SQL identifier (table/column name) contains only safe characters.
+/// Prevents injection via format!() in DDL statements.
+fn validate_identifier(name: &str) -> Result<()> {
+    if name.is_empty() {
+        bail!("SQL identifier must not be empty");
+    }
+    let mut chars = name.chars();
+    let first = chars.next().unwrap();
+    if !first.is_ascii_lowercase() && first != '_' {
+        bail!("invalid SQL identifier: '{name}'");
+    }
+    for ch in chars {
+        if !ch.is_ascii_lowercase() && !ch.is_ascii_digit() && ch != '_' {
+            bail!("invalid SQL identifier: '{name}'");
+        }
+    }
+    Ok(())
 }
 
 fn ensure_table_column(
@@ -97,6 +117,8 @@ fn ensure_table_column(
     name: &str,
     definition: &str,
 ) -> Result<()> {
+    validate_identifier(table)?;
+    validate_identifier(name)?;
     let mut statement = connection
         .prepare(&format!("PRAGMA table_info({table})"))
         .with_context(|| format!("failed to inspect {table} table"))?;

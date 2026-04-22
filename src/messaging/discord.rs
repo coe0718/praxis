@@ -108,7 +108,8 @@ impl DiscordClient {
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().unwrap_or_default();
-            bail!("Discord webhook POST failed with {status}: {body}");
+            let safe_body = body.chars().take(200).collect::<String>();
+            bail!("Discord webhook POST failed with {status}: {safe_body}");
         }
 
         Ok(())
@@ -137,7 +138,8 @@ impl DiscordClient {
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().unwrap_or_default();
-            bail!("Discord send_message failed with {status}: {body}");
+            let safe_body = body.chars().take(200).collect::<String>();
+            bail!("Discord send_message failed with {status}: {safe_body}");
         }
 
         response
@@ -227,7 +229,8 @@ impl DiscordClient {
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().unwrap_or_default();
-            bail!("Discord channel messages GET failed with {status}: {body}");
+            let safe_body = body.chars().take(200).collect::<String>();
+            bail!("Discord channel messages GET failed with {status}: {safe_body}");
         }
         resp.json::<Vec<RawDiscordMessage>>()
             .context("failed to parse Discord channel messages")
