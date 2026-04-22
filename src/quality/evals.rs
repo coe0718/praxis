@@ -95,7 +95,7 @@ impl LocalEvalSuite {
             let summary = match status {
                 EvalStatus::Passed => format!("Eval passed: {}", definition.name),
                 EvalStatus::Failed => format!("Eval failed: {}", definition.name),
-                EvalStatus::Skipped => unreachable!(),
+                EvalStatus::Skipped => format!("Eval skipped: {}", definition.name),
             };
             results.push(EvalOutcome {
                 eval_id: definition.id,

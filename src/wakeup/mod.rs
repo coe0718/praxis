@@ -91,12 +91,17 @@ pub fn request_wake(data_dir: &Path, intent: &WakeIntent) -> Result<()> {
 /// The file is deleted after reading.
 pub fn consume_intent(data_dir: &Path) -> Result<Option<WakeIntent>> {
     let path = data_dir.join(FILENAME);
-    if !path.exists() {
-        return Ok(None);
-    }
 
-    let raw = fs::read_to_string(&path)
-        .with_context(|| format!("failed to read wake intent from {}", path.display()))?;
+    let raw = match fs::read_to_string(&path) {
+        Ok(content) => content,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => {
+            return Err(anyhow::Error::new(e).context(format!(
+                "failed to read wake intent from {}",
+                path.display()
+            )));
+        }
+    };
 
     // Delete immediately — the intent is consumed regardless of whether we
     // can parse it, so a corrupt file does not loop.

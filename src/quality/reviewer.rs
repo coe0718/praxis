@@ -121,7 +121,7 @@ impl LocalReviewer {
                 criteria.goal_id,
                 findings.len()
             ),
-            ReviewStatus::Skipped => unreachable!(),
+            ReviewStatus::Skipped => format!("Reviewer skipped {}.", criteria.goal_id),
         };
 
         Ok(ReviewOutcome {

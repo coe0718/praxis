@@ -389,8 +389,10 @@ where
         if let Some(link) = store.links.get_mut(&link_name) {
             crate::delegation::send_over_link(link, task_summary, "praxis", now)?;
         }
-        store.acquire(&link_name);
+        // Persist before acquiring so a save failure does not leave the
+        // in-memory state inconsistent with the on-disk store.
         store.save(&self.paths.delegation_links_file)?;
+        store.acquire(&link_name);
         let endpoint = store
             .links
             .get(&link_name)

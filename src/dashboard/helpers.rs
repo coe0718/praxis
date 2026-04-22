@@ -104,15 +104,30 @@ pub(super) fn resolve_identity_file(paths: &PraxisPaths, name: &str) -> Option<s
 }
 
 pub(super) fn read_jsonl_tail(path: &std::path::Path, limit: usize) -> anyhow::Result<Vec<Value>> {
+    use std::fs::File;
+    use std::io::{BufRead, BufReader};
+
     if !path.exists() {
         return Ok(Vec::new());
     }
-    let raw = std::fs::read_to_string(path)?;
-    let rows: Vec<Value> = raw
-        .lines()
-        .filter(|l| !l.trim().is_empty())
-        .filter_map(|l| serde_json::from_str(l).ok())
-        .collect();
-    let start = rows.len().saturating_sub(limit);
-    Ok(rows[start..].to_vec())
+
+    let file = File::open(path)?;
+    let reader = BufReader::new(file);
+    let mut rows: Vec<Value> = Vec::with_capacity(limit);
+
+    for line in reader.lines() {
+        let line = line?;
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if let Ok(value) = serde_json::from_str(trimmed) {
+            rows.push(value);
+            if rows.len() > limit {
+                rows.remove(0);
+            }
+        }
+    }
+
+    Ok(rows)
 }

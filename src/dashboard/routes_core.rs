@@ -78,6 +78,8 @@ pub(super) async fn api_identity_read(
     }
 }
 
+const MAX_IDENTITY_FILE_SIZE: usize = 512 * 1024; // 512 KB
+
 pub(super) async fn api_identity_write(
     State(state): State<DashboardState>,
     Path(file): Path<String>,
@@ -85,6 +87,13 @@ pub(super) async fn api_identity_write(
 ) -> impl IntoResponse {
     if file == "soul" {
         return (StatusCode::FORBIDDEN, "SOUL.md is immutable").into_response();
+    }
+    if body.content.len() > MAX_IDENTITY_FILE_SIZE {
+        return (
+            StatusCode::PAYLOAD_TOO_LARGE,
+            "content exceeds maximum file size",
+        )
+            .into_response();
     }
     let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
     let path = match resolve_identity_file(&paths, &file) {

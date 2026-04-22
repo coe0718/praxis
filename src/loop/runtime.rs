@@ -311,12 +311,14 @@ fn try_send_morning_brief(paths: &crate::paths::PraxisPaths, now: chrono::DateTi
         }
     };
 
-    if let Err(e) = bot.send_message(chat_id, &brief) {
-        log::warn!("brief send failed: {e}");
+    // Write the guard file BEFORE sending so a crash or send failure
+    // cannot cause a duplicate brief later in the same day.
+    if let Err(e) = std::fs::write(&brief_sent_path, &today) {
+        log::warn!("failed to record brief_sent date: {e}");
         return;
     }
 
-    if let Err(e) = std::fs::write(&brief_sent_path, &today) {
-        log::warn!("failed to record brief_sent date: {e}");
+    if let Err(e) = bot.send_message(chat_id, &brief) {
+        log::warn!("brief send failed: {e}");
     }
 }
