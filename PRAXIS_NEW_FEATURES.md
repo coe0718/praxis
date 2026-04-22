@@ -4,10 +4,10 @@
 | Project (Source) | Gap | Why it matters |
 |------------------|-----|----------------|
 | **Moltworker** (shelldex) | Serverless Cloudflare-Workers deployment — zero-ops hosting with no persistent process | Lets operators run Praxis on demand without a VPS or Docker; cold-start on webhook triggers. |
-| **OpenFang** (clawcharts) | Native MCP (Model Context Protocol) support — tool registration and context sharing via the emerging open standard | Interop with the growing MCP ecosystem; agents could expose or consume MCP-native tools without custom adapters. |
+| **OpenFang** (clawcharts) | Native MCP (Model Context Protocol) support — tool registration and context sharing via the emerging open standard | Interop with the growing MCP ecosystem; agents could expose or consume MCP-native tools without custom adapters. ✅ *Implemented* — `/mcp` endpoint serves JSON-RPC 2.0 with `tools/list`, `tools/call`, `resources/list`, `resources/read`. |
 | **SafeClaw** (shelldex) | Zero-LLM deterministic mode — rule-based fallback path that skips all LLM calls | Offline operation, cost-free maintenance passes, and a testable baseline with no token spend. |
-| **Gitclaw** (shelldex) | Agent-as-repo — all state (SQLite, markdown files) committed to git automatically | Immutable audit trail, easy CI/CD integration, and trivial rollback of any state change. |
-| **AstrBot / LangBot** (shelldex) | Discord and Slack adapters alongside Telegram | Reaches operators on their primary platforms; Praxis currently ships only Telegram. |
+| **Gitclaw** (shelldex) | Agent-as-repo — all state (SQLite, markdown files) committed to git automatically | Immutable audit trail, easy CI/CD integration, and trivial rollback of any state change. ✅ *Implemented* — `auto_commit()` runs at the end of every Reflect phase when `data_dir/.git` exists. |
+| **AstrBot / LangBot** (shelldex) | Discord and Slack adapters alongside Telegram | Reaches operators on their primary platforms; Praxis currently ships only Telegram. ✅ *Implemented* — Discord and Slack adapters with polling and webhook support are behind Cargo features. |
 | **ClawGo** (shelldex) | Voice transcript streaming — real-time speech-to-text piped into the agent loop | Hands-free interaction and Raspberry Pi voice interface without a separate transcription service. |
 
 ## Why the others were removed
@@ -24,6 +24,9 @@
 | Moltis (zero-unsafe Rust) | Praxis already uses safe Rust throughout. Decision receipts + forensics snapshots cover the audit-trail angle. |
 | ApexClaw (94 built-in tools) | Tool quantity; "Community tool registry improvements" in PRAXIS_DESIGN.md covers discoverability. |
 | AionUi | Multi-provider graphical dashboard — the web dashboard and SSE streaming in PRAXIS_DESIGN.md cover this direction. |
+| Discord / Slack adapters | **Implemented** behind Cargo features (`discord`, `slack`). |
+| MCP support | **Implemented** — server endpoint (`/mcp`) and client (`McpClient`) both wired. |
+| Git auto-commit | **Implemented** — `auto_commit()` runs at end of every Reflect phase. |
 
 *Sources: ClawCharts (clawcharts.com) and Shelldex "OpenClaw Alternatives & Forks Compared (2026)" (shelldex.com).*
 
