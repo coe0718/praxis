@@ -3,10 +3,11 @@ use std::{convert::Infallible, time::Duration};
 use async_stream::stream;
 use axum::{
     Json,
-    extract::State,
+    extract::{Query, State},
     http::StatusCode,
-    response::{Html, IntoResponse, Sse, sse::Event},
+    response::{Html, IntoResponse, Response, Sse, sse::Event},
 };
+use serde::Deserialize;
 use serde_json::json;
 
 use crate::{
@@ -47,9 +48,25 @@ pub(super) async fn recent_events(State(state): State<DashboardState>) -> impl I
     Json(events.into_iter().rev().collect::<Vec<_>>())
 }
 
+#[derive(Deserialize)]
+pub(super) struct SseToken {
+    token: Option<String>,
+}
+
+/// SECURITY NOTE: The SSE endpoint accepts the auth token as a query
+/// parameter because the browser `EventSource` API cannot send custom
+/// headers. This means the token may appear in server access logs.
+/// Operators should ensure log access is restricted.
 pub(super) async fn events_sse(
     State(state): State<DashboardState>,
-) -> Sse<impl tokio_stream::Stream<Item = Result<Event, Infallible>>> {
+    Query(params): Query<SseToken>,
+) -> Response {
+    if let Some(ref expected) = state.token {
+        let provided = params.token.as_deref().unwrap_or("");
+        if provided != expected {
+            return StatusCode::UNAUTHORIZED.into_response();
+        }
+    }
     let path = state.data_dir.join("events.jsonl");
     let s = stream! {
         let mut offset = 0;
@@ -57,12 +74,12 @@ pub(super) async fn events_sse(
             let (events, next) = read_events_since(&path, offset).unwrap_or((Vec::new(), offset));
             offset = next;
             for item in events {
-                yield Ok(Event::default().event(item.kind).data(item.detail));
+                yield Ok::<Event, Infallible>(Event::default().event(item.kind).data(item.detail));
             }
             tokio::time::sleep(Duration::from_millis(750)).await;
         }
     };
-    Sse::new(s)
+    Sse::new(s).into_response()
 }
 
 pub(super) async fn mcp_endpoint(

@@ -21,6 +21,9 @@ use super::{ToolKind, ToolManifest, policy::normalize_relative, request::parse_p
 
 const DEFAULT_TIMEOUT_SECS: u64 = 30;
 
+/// Shell metacharacters that enable command injection when passed to `bash -c`.
+const DANGEROUS_SHELL_CHARS: &[char] = &[';', '|', '&', '`', '$', '(', ')', '<', '>'];
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ToolExecutionResult {
     pub summary: String,
@@ -135,10 +138,17 @@ fn run_shell(
         }
     }
 
-    // Inject OAuth tokens as env vars so shell tools can call authenticated APIs.
+    // Inject OAuth tokens as env vars, filtered by allowed_oauth_providers if set.
     let oauth_store = OAuthTokenStore::new(&paths.data_dir);
     if let Ok(tokens) = oauth_store.load() {
         for (provider, token) in &tokens {
+            if manifest
+                .allowed_oauth_providers
+                .as_ref()
+                .is_some_and(|allowed| !allowed.contains(provider))
+            {
+                continue;
+            }
             if !token.is_expired() {
                 let key = format!("PRAXIS_OAUTH_{}_TOKEN", provider.to_uppercase());
                 cmd.env(key, &token.access_token);
@@ -430,6 +440,23 @@ fn read_file(
     })
 }
 
+/// Validate that a shell command does not contain characters that enable
+/// command injection when passed to `/bin/bash -c`. Returns `Err` if any
+/// dangerous metacharacters are found.
+fn validate_shell_command(command: &str) -> Result<()> {
+    if command.is_empty() {
+        bail!("shell-exec command must not be empty");
+    }
+    if let Some(ch) = command.chars().find(|c| DANGEROUS_SHELL_CHARS.contains(c)) {
+        bail!(
+            "shell-exec command contains dangerous metacharacter '{}'. \
+             For complex operations, create a dedicated shell tool manifest.",
+            ch
+        );
+    }
+    Ok(())
+}
+
 fn exec_shell_command(
     paths: &PraxisPaths,
     vault: &Vault,
@@ -443,6 +470,8 @@ fn exec_shell_command(
         .map(|s| s.as_str())
         .filter(|s| !s.trim().is_empty())
         .ok_or_else(|| anyhow::anyhow!("shell-exec requires params.command"))?;
+
+    validate_shell_command(command)?;
 
     let timeout_secs = manifest
         .timeout_secs
@@ -475,9 +504,17 @@ fn exec_shell_command(
         }
     }
 
+    // Inject OAuth tokens as env vars, filtered by allowed_oauth_providers if set.
     let oauth_store = OAuthTokenStore::new(&paths.data_dir);
     if let Ok(tokens) = oauth_store.load() {
         for (provider, token) in &tokens {
+            if manifest
+                .allowed_oauth_providers
+                .as_ref()
+                .is_some_and(|allowed| !allowed.contains(provider))
+            {
+                continue;
+            }
             if !token.is_expired() {
                 let key = format!("PRAXIS_OAUTH_{}_TOKEN", provider.to_uppercase());
                 cmd.env(key, &token.access_token);
@@ -727,7 +764,7 @@ fn github_list_prs(
         .collect();
 
     Ok(ToolExecutionResult {
-        summary: format!("open PRs in {repo} ({}):\n{}", prs.len(), lines.join("\n")),
+        summary: format!("open PRs in {repo} ({})\n{}", prs.len(), lines.join("\n")),
     })
 }
 

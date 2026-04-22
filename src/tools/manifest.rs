@@ -52,6 +52,10 @@ pub struct ToolManifest {
     /// Absent means all keys (backwards-compatible); empty vec means none.
     #[serde(default)]
     pub allowed_vault_keys: Option<Vec<String>>,
+    /// If set, only these OAuth provider names are injected as PRAXIS_OAUTH_*_TOKEN env vars.
+    /// Absent means all providers (backwards-compatible); empty vec means none.
+    #[serde(default)]
+    pub allowed_oauth_providers: Option<Vec<String>>,
 }
 
 impl ToolManifest {

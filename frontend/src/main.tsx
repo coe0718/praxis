@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { SSEProvider } from './contexts/SSEContext'
+import { ToastProvider } from './contexts/ToastContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import App from './App'
 import './index.css'
@@ -27,7 +28,9 @@ createRoot(root).render(
         <ThemeProvider>
           <BrowserRouter>
             <SSEProvider>
-              <App />
+              <ToastProvider>
+                <App />
+              </ToastProvider>
             </SSEProvider>
           </BrowserRouter>
         </ThemeProvider>

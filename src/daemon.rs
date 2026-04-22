@@ -409,6 +409,11 @@ fn run_session_blocking(data_dir: &Path, task: Option<String>) -> Result<RunSumm
     identity.validate(&paths)?;
     tools.validate(&paths)?;
 
+    let vault = crate::vault::Vault::load(&paths.vault_file).unwrap_or_default();
+    for warning in crate::vault::audit_literals(&vault) {
+        log::warn!("{warning}");
+    }
+
     let store = SqliteSessionStore::new(paths.database_file.clone());
     store.initialize()?;
     store.validate_schema()?;

@@ -1,6 +1,7 @@
 import { Moon, Play, Sun, WifiOff, Zap } from 'lucide-react'
 import { useState } from 'react'
 import { useTheme } from '../../contexts/ThemeContext'
+import { useToast } from '../../contexts/ToastContext'
 import { triggerRun, triggerWake } from '../../lib/api'
 import { useQueryClient } from '@tanstack/react-query'
 
@@ -11,6 +12,7 @@ interface HeaderProps {
 
 export function Header({ connected, sidebarCollapsed }: HeaderProps) {
   const { theme, toggle } = useTheme()
+  const { addToast } = useToast()
   const qc = useQueryClient()
   const [running, setRunning] = useState(false)
 
@@ -18,9 +20,10 @@ export function Header({ connected, sidebarCollapsed }: HeaderProps) {
     setRunning(true)
     try {
       await triggerRun()
+      addToast('Session started', 'success')
       await qc.invalidateQueries()
-    } catch {
-      // ignore
+    } catch (e) {
+      addToast(e instanceof Error ? e.message : 'Failed to run session', 'error')
     } finally {
       setRunning(false)
     }
@@ -29,8 +32,9 @@ export function Header({ connected, sidebarCollapsed }: HeaderProps) {
   const handleWake = async () => {
     try {
       await triggerWake(undefined, 'dashboard trigger', true)
-    } catch {
-      // ignore
+      addToast('Wake intent sent', 'success')
+    } catch (e) {
+      addToast(e instanceof Error ? e.message : 'Failed to send wake intent', 'error')
     }
   }
 

@@ -26,7 +26,9 @@ export function SSEProvider({ children }: { children: React.ReactNode }): React.
 
   useEffect(() => {
     const base = sessionStorage.getItem('praxis_base_url') ?? ''
-    const es = new EventSource(`${base}/events`)
+    const token = sessionStorage.getItem('praxis_token')
+    const url = token ? `${base}/events?token=${encodeURIComponent(token)}` : `${base}/events`
+    const es = new EventSource(url)
     esRef.current = es
 
     es.addEventListener('open', () => setConnected(true))
