@@ -217,10 +217,8 @@ fn load_offset(path: &Path) -> Result<i64> {
 fn save_offset(path: &Path, last_update_id: i64) -> Result<()> {
     // Prevent lost updates from concurrent poll_once calls: never overwrite
     // a higher or equal offset that another process may have already saved.
-    if let Ok(current) = load_offset(path) {
-        if last_update_id <= current {
-            return Ok(());
-        }
+    if let Ok(current) = load_offset(path) && last_update_id <= current {
+        return Ok(());
     }
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)
@@ -251,16 +249,14 @@ impl Drop for PollLock {
 fn acquire_poll_lock(state_path: &Path) -> Result<PollLock> {
     let lock_path = state_path.with_extension("lock");
     // If a lock exists and is stale, remove it.
-    if let Ok(meta) = fs::metadata(&lock_path) {
-        if let Ok(modified) = meta.modified() {
-            if std::time::SystemTime::now()
-                .duration_since(modified)
-                .unwrap_or_default()
-                > Duration::from_secs(300)
-            {
-                let _ = fs::remove_file(&lock_path);
-            }
-        }
+    if let Ok(meta) = fs::metadata(&lock_path)
+        && let Ok(modified) = meta.modified()
+        && std::time::SystemTime::now()
+            .duration_since(modified)
+            .unwrap_or_default()
+            > Duration::from_secs(300)
+    {
+        let _ = fs::remove_file(&lock_path);
     }
     match fs::OpenOptions::new()
         .write(true)
