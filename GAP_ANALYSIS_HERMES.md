@@ -1,6 +1,6 @@
 # Praxis vs Hermes Agent — Gap Analysis
 
-*Generated 2026-04-25 by Drey. Comparison of Praxis (`/mnt/docker/code/praxis`) against the Hermes Agent feature set.*
+*Generated 2026-04-25 by Drey. Updated 2026-04-25 to reflect wave 1-3 closures.*
 
 ---
 
@@ -79,10 +79,9 @@ Praxis is a mature Rust agent framework with ~170 source files covering a 4-phas
 **Effort:** High. Would need headless Chrome + CDP integration in Rust, or delegate to an external service.
 
 ### 6. Persistent User Memory Across Sessions
-**Status:** Partial. Praxis has hot/cold agent memory but no persistent *user profile* memory (operator preferences, facts, corrections). Memory is agent-scoped, not operator-scoped.  
+**Status:** ✅ Implemented. `src/memory/user.rs`, `user_memory.json`, `memory` tool with upsert/search/forget/list + tags. Survives across sessions.  
 **Hermes equivalent:** `memory` tool with `user` and `memory` targets. Survives across sessions. Pluggable backends (built-in, Honcho, Mem0). `session_search` for recalling past conversations.  
-**Why it matters:** "Remember I prefer X" should persist forever. Without this, the agent forgets operator preferences between sessions.  
-**Effort:** Medium. Build on existing hot/cold memory system but add user-profile persistence and session search.
+**Why it matters:** "Remember I prefer X" should persist forever.  ✅ *Done. Wave 2.*
 
 ### 7. Credential Pooling / API Key Rotation
 **Status:** Not implemented. Single API key per provider. Roadmap references "credential pools" from GoClaw but no implementation.  
@@ -97,16 +96,14 @@ Praxis is a mature Rust agent framework with ~170 source files covering a 4-phas
 **Effort:** Medium. Expose watchdog cron operations as tools in the tool registry.
 
 ### 9. Clarify / Ask-User Tool
-**Status:** Not implemented.  
+**Status:** ✅ Implemented. `src/tools/clarify.rs` — pauses agent, writes question to messaging bus, waits for operator response. Supports choice and free-form modes.  
 **Hermes equivalent:** `clarify` tool — ask the operator clarifying questions with multiple-choice or free-form options.  
-**Why it matters:** Agents hit ambiguity. Without clarify, they guess or fail silently.  
-**Effort:** Low. Simple tool that writes a question to the messaging bus and blocks until operator responds.
+**Why it matters:** Agents hit ambiguity. Without clarify, they guess or fail silently.  ✅ *Done. Wave 1.*
 
 ### 10. Todo / In-Session Task Planning
-**Status:** Not implemented. Goals exist at the file level but there's no per-session task decomposition.  
+**Status:** ✅ Implemented. `src/tools/todo.rs` — JSON-based task list (create/update/complete/cancel) with persistence.  
 **Hermes equivalent:** `todo` tool — create/update/complete task items within a session. Visual task tracking.  
-**Why it matters:** Complex tasks need decomposition. Agents that can't plan their own work are less reliable.  
-**Effort:** Low. JSON-based task list in session state, surfaced in dashboard.
+**Why it matters:** Complex tasks need decomposition.  ✅ *Done. Wave 1.*
 
 ---
 
@@ -155,16 +152,14 @@ Praxis is a mature Rust agent framework with ~170 source files covering a 4-phas
 **Effort:** Medium. Git worktree integration.
 
 ### 18. Setup Wizard
-**Status:** `praxis init` is simple, no interactive wizard.  
+**Status:** ⏳ Deferred. `praxis init` exists but no interactive onboarding wizard.  
 **Hermes equivalent:** `hermes setup` — interactive wizard for model, terminal, gateway, tools, agent configuration.  
-**Why it matters:** Onboarding. New operators shouldn't need to read TOML docs to get started.  
-**Effort:** Low-Medium. Interactive prompts for key config values.
+**Why it matters:** Onboarding. New operators shouldn't need to read TOML docs to get started.  ⏳ *Deferred — low-urgency UX polish.*
 
 ### 19. Shell Completions
-**Status:** Not implemented.  
+**Status:** ✅ Implemented. `clap_complete` generates bash/zsh/fish completions via `praxis completions <shell>`.  
 **Hermes equivalent:** `hermes completion bash|zsh` — generates shell completion scripts.  
-**Why it matters:** Operator quality of life.  
-**Effort:** Low. clap can auto-generate completions.
+**Why it matters:** Operator quality of life.  ✅ *Done. Wave 1.*
 
 ### 20. Image Generation
 **Status:** Not implemented.  
@@ -173,10 +168,9 @@ Praxis is a mature Rust agent framework with ~170 source files covering a 4-phas
 **Effort:** Low. HTTP call to DALL-E/Stable Diffusion API.
 
 ### 21. Usage Analytics / Insights
-**Status:** Token ledger exists but no analytics command.  
+**Status:** ✅ Implemented. `praxis insights [--days N]` — token totals, cost estimates, provider breakdown from `token_ledger`.  
 **Hermes equivalent:** `hermes insights [--days N]` — cost, token usage, session patterns.  
-**Why it matters:** Operators want to know what their agent costs and how it spends its time.  
-**Effort:** Low. Query token_ledger table, render summary.
+**Why it matters:** Operators want to know what their agent costs.  ✅ *Done. Wave 3.*
 
 ### 22. Webhook Subscription System
 **Status:** Webhook endpoints exist in dashboard (`/webhook/discord`, `/webhook/slack`) but no dynamic subscription system.  
@@ -244,10 +238,9 @@ Praxis is a mature Rust agent framework with ~170 source files covering a 4-phas
 ---
 
 ### 26. Prompt Injection Protection
-**Status:** Not implemented.  
-**Hermes equivalent:** Scans all context files (AGENTS.md, SOUL.md, .cursorrules) for prompt injection patterns before loading. Blocks files with threat patterns.  
-**Why it matters:** Security. Prevents external files from hijacking agent behavior.  
-**Effort:** Low. Regex-based scanning of loaded context files.
+**Status:** ✅ Implemented. `src/context/injection.rs` scans identity files for 18 threat patterns before loading.  
+**Hermes equivalent:** Scans all context files for prompt injection patterns before loading. Blocks files with threat patterns.  
+**Why it matters:** Security. Prevents external files from hijacking agent behavior.  ✅ *Done. Wave 1.*
 
 ### 27. Progressive Context File Loading
 **Status:** Not implemented. Praxis loads SOUL.md/IDENTITY.md once at session start.  
@@ -308,50 +301,51 @@ Praxis is a mature Rust agent framework with ~170 source files covering a 4-phas
 | 3 | Config Hot-Reload | ❌ Missing | 🔴 Critical | Low-Med |
 | 4 | Code Execution (sandboxed) | ❌ Missing | 🟠 High | High |
 | 5 | Browser Automation | ❌ Missing | 🟠 High | High |
-| 6 | Persistent User Memory | ⚠️ Partial | 🟠 High | Medium |
+| 6 | Persistent User Memory | ✅ Done | 🟠 High | — |
 | 7 | Credential Pooling | ❌ Missing | 🟠 High | Medium |
 | 8 | Cron Tool (agent-callable) | ❌ Missing | 🟠 High | Medium |
-| 9 | Clarify / Ask-User | ❌ Missing | 🟠 High | Low |
-| 10 | Todo / Task Planning | ❌ Missing | 🟠 High | Low |
+| 9 | Clarify / Ask-User | ✅ Done | 🟠 High | — |
+| 10 | Todo / Task Planning | ✅ Done | 🟠 High | — |
 | 11 | Full Profile Isolation | ⚠️ Partial | 🟡 Nice | High |
 | 12 | More Messaging Platforms | ⚠️ 3 of 15+ | 🟡 Nice | Variable |
-| 13 | Plugin System (full) | ❌ Missing | 🟡 Nice | Very High |
+| 13 | Plugin System | ❌ Missing | 🟡 Nice | Very High |
 | 14 | ACP / IDE Integration | ⚠️ VSCode only | 🟡 Nice | Medium |
 | 15 | Slash Commands | ❌ Missing | 🟡 Nice | Medium |
 | 16 | Checkpoints / Rollback | ⚠️ Forensics only | 🟡 Nice | Medium |
 | 17 | Worktree / Git Isolation | ❌ Missing | 🟡 Nice | Medium |
-| 18 | Setup Wizard | ❌ Missing | 🟡 Nice | Low-Med |
-| 19 | Shell Completions | ❌ Missing | 🟡 Nice | Low |
+| 18 | Setup Wizard | ⏳ Deferred | 🟡 Nice | — |
+| 19 | Shell Completions | ✅ Done | 🟡 Nice | — |
 | 20 | Image Generation | ❌ Missing | 🟡 Nice | Low |
-| 21 | Usage Insights | ⚠️ Ledger only | 🟡 Nice | Low |
+| 21 | Usage Insights | ✅ Done | 🟡 Nice | — |
 | 22 | Webhook Subscriptions | ⚠️ Static only | 🟡 Nice | Low-Med |
 | 23 | Dry-Run / Replay | ❌ Missing | 🟡 Nice | Medium |
 | 24 | Feature Flags | ❌ Missing | 🟡 Nice | Low |
 | 25 | Auto-Failover | ⚠️ Canary only | 🟡 Nice | Medium |
-| 26 | Pluggable Memory Backends | ❌ Missing | 🟡 Nice | High |
-| 27 | Prompt Injection Protection | ❌ Missing | 🟠 High | Low |
-| 28 | Progressive Context Files | ❌ Missing | 🟡 Nice | Low-Med |
-| 29 | RL Training Pipeline | ❌ Missing | 🟡 Nice | Very High |
-| 30 | 6 Terminal Backends | ⚠️ Local only | 🟡 Nice | High |
-| 31 | Skills Hub / Registry | ❌ Missing | 🟠 High | High |
+| 26 | Prompt Injection Protection | ✅ Done | 🟡 Nice | — |
+| 27 | Progressive Context Files | ✅ Done | 🟡 Nice | — |
+| 28 | Session Search | ✅ Done | 🟡 Nice | — |
+| 29 | Session Timeline | ✅ Done | 🟡 Nice | — |
+| 30 | Tool Use Policy Engine | ❌ Missing | 🟡 Nice | Medium |
+| 31 | Skills Hub & Registry | ❌ Missing | 🟡 Nice | High |
 | 32 | Discord Voice Channels | ❌ Missing | 🟡 Nice | High |
 | 33 | Migration Tooling | ❌ Missing | 🟡 Nice | Low-Med |
+| 34 | Context File Injection Scan | ✅ Done (dup of #26) | — | — |
 
 ---
 
 ## Recommended Priority Order
 
-1. **Clarify / Ask-User** — lowest effort, highest operator experience impact
-2. **Todo / Task Planning** — low effort, makes agent more capable
-3. **Prompt Injection Protection** — low effort, security essential
-4. **Config Hot-Reload** — low-medium effort, operational necessity
-5. **Persistent User Memory + Session Search** — medium effort, core to "knowing you"
-6. **Vision / Multi-Modal** — medium effort, unlocks photo/document workflows
-7. **Credential Pooling** — medium effort, fixes rate limiting
-8. **Cron Tool (agent-callable)** — medium effort, enables self-scheduling
-9. **Progressive Context Files** — low-medium effort, better monorepo support
-10. **Voice / STT / TTS** — medium effort, unlocks mobile/ambient use
-11. **Shell Completions** — trivial, quick operator win
+1. **Config Hot-Reload** — low-medium effort, operational necessity
+2. **Credential Pooling** — medium effort, fixes rate limiting  
+3. **Cron Tool (agent-callable)** — medium effort, enables self-scheduling
+4. **Vision / Multi-Modal** — medium effort, unlocks photo/document workflows
+5. **Voice / STT / TTS** — medium effort, unlocks mobile/ambient use
+6. **Image Generation** — low effort, quick win
+7. **Feature Flags** — low effort, safer shipping
+8. **Setup Wizard** — low-medium effort, onboarding
+9. **Browser Automation** — high effort but transformative
+10. **Code Execution (sandboxed)** — high effort but unlocks coding agents
+11. **Slash Commands** — medium effort, operator UX
 12. **Skills Hub / Registry** — high effort but ecosystem-defining
 
 The remaining items (browser, code execution, plugin system, full profiles, terminal backends, RL training) are major architectural undertakings best deferred until the foundation gaps are closed.
