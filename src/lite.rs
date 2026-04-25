@@ -38,6 +38,8 @@ pub struct LiteMode {
     pub anatomy_refresh_hours: u64,
     #[serde(default = "default_disable_sse")]
     pub disable_sse: bool,
+    #[serde(default = "default_disable_deterministic")]
+    pub disable_deterministic: bool,
 }
 
 impl Default for LiteMode {
@@ -125,6 +127,7 @@ impl LiteMode {
             LiteCapability::Learning => self.disable_learning,
             LiteCapability::Brief => self.disable_brief,
             LiteCapability::SseStream => self.disable_sse,
+            LiteCapability::Deterministic => self.disable_deterministic,
         }
     }
 }
@@ -138,6 +141,7 @@ pub enum LiteCapability {
     Learning,
     Brief,
     SseStream,
+    Deterministic,
 }
 
 #[cfg(test)]
