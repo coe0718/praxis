@@ -31,6 +31,8 @@ mod tui;
 mod vault;
 mod vscode;
 mod watchdog;
+mod webhook;
+pub mod wizard;
 
 use std::path::PathBuf;
 
@@ -92,6 +94,7 @@ pub enum Commands {
     Hooks(hooks::HooksArgs),
     Sandbox(sandbox::SandboxArgs),
     Vault(vault::VaultArgs),
+    Webhook(webhook::WebhookArgs),
     Memory(memory::MemoryArgs),
     Completions(CompletionsArgs),
     Sessions(SessionsArgs),
@@ -267,6 +270,7 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::Hooks(args) => hooks::handle_hooks(cli.data_dir, args),
         Commands::Sandbox(args) => sandbox::handle_sandbox(cli.data_dir, args),
         Commands::Vault(args) => vault::handle_vault(cli.data_dir, args),
+        Commands::Webhook(args) => webhook::handle_webhook(cli.data_dir, &args),
         Commands::Memory(args) => memory::handle_memory(cli.data_dir, args),
         Commands::Completions(args) => handle_completions(args),
         Commands::Sessions(args) => handle_sessions(cli.data_dir, args),

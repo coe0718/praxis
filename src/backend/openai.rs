@@ -92,7 +92,7 @@ pub(super) fn execute(
     })
 }
 
-pub(super) fn resolve_api_key(provider: &str) -> Result<String> {
+pub(crate) fn resolve_api_key(provider: &str) -> Result<String> {
     // If credential pooling is enabled and a pool exists, rotate through it.
     if let Some(pool) = super::credential_pool::CREDENTIAL_POOLS
         .get()

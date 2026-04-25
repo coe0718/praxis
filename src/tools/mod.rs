@@ -4,6 +4,7 @@ pub mod cron;
 mod docs;
 mod execute;
 mod guard;
+mod image;
 mod manifest;
 mod policy;
 mod registry;

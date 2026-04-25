@@ -53,6 +53,7 @@ pub fn execute_request(
         "clarify" => execute_clarify_tool(paths, request),
         "memory" => execute_memory_tool(paths, request),
         "cron" => execute_cron_tool(paths, request),
+        "image" => crate::tools::image::execute_image_tool(paths, request),
         _ => match manifest.kind {
             ToolKind::Shell if manifest.path.as_deref().is_some_and(|p| !p.trim().is_empty()) => {
                 run_shell(paths, &vault, manifest, request)

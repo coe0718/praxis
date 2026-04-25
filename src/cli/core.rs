@@ -32,15 +32,36 @@ pub(crate) fn handle_init(data_dir_override: Option<PathBuf>, args: InitArgs) ->
     let clock = SystemClock::from_env()?;
     let now = clock.now_utc();
 
-    let config = if base_paths.config_file.exists() {
-        AppConfig::load(&base_paths.config_file)?.with_overridden_data_dir(data_dir.clone())
+    // Detect init mode from args.
+    let mode = crate::cli::wizard::WizardConfig::detect_mode(&args);
+
+    let (config, api_key_hint) = if base_paths.config_file.exists() {
+        // Existing config — reload and re-validate (idempotent).
+        let config =
+            AppConfig::load(&base_paths.config_file)?.with_overridden_data_dir(data_dir.clone());
+        (config, None)
+    } else if mode == crate::cli::wizard::InitMode::Wizard {
+        // Run interactive wizard.
+        let wiz = match crate::cli::wizard::run_wizard()? {
+            Some(w) => w,
+            None => return Ok("Setup cancelled.".to_string()),
+        };
+        let mut config = AppConfig::default_for_data_dir(data_dir.clone());
+        config.set_name(wiz.name);
+        config.set_timezone(wiz.timezone)?;
+        config.agent.backend = wiz.backend.clone();
+        config.security.level = wiz.security_level;
+        config.validate()?;
+        let hint = crate::cli::wizard::export_api_key_hint(&wiz.backend, wiz.api_key.as_deref());
+        (config, Some(hint))
     } else {
+        // Flag-driven init (existing behavior).
         let mut config = AppConfig::default_for_data_dir(data_dir.clone());
         config.set_name(args.name);
         config.set_timezone(args.timezone)?;
         config.security.level = args.security_level;
         config.validate()?;
-        config
+        (config, None)
     };
 
     let paths = PraxisPaths::from_config(&config);
@@ -63,13 +84,17 @@ pub(crate) fn handle_init(data_dir_override: Option<PathBuf>, args: InitArgs) ->
     sync_capabilities(&FileToolRegistry, &store, &paths)?;
     write_heartbeat(&paths.heartbeat_file, "praxis", "sleep", "Initialized data directory.", now)?;
 
-    Ok(format!(
-        "initialized: ok\ndata_dir: {}\nconfig: {}\ndatabase: {}\ntools: {}",
-        paths.data_dir.display(),
-        paths.config_file.display(),
-        paths.database_file.display(),
-        paths.tools_dir.display(),
-    ))
+    let mut lines = vec![
+        format!("initialized: ok"),
+        format!("data_dir: {}", paths.data_dir.display()),
+        format!("config: {}", paths.config_file.display()),
+        format!("database: {}", paths.database_file.display()),
+        format!("tools: {}", paths.tools_dir.display()),
+    ];
+    if let Some(hint) = api_key_hint {
+        lines.push(hint);
+    }
+    Ok(lines.join("\n"))
 }
 
 pub(crate) fn handle_run(data_dir_override: Option<PathBuf>, args: RunArgs) -> Result<String> {

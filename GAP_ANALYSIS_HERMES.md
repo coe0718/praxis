@@ -150,9 +150,9 @@ Praxis is a mature Rust agent framework with ~170 source files covering a 4-phas
 **Effort:** Medium. Git worktree integration.
 
 ### 18. Setup Wizard
-**Status:** ⏳ Deferred. `praxis init` exists but no interactive onboarding wizard.  
+**Status:** ✅ Implemented. Interactive `praxis init` wizard using `dialoguer` crate. Prompts for name, timezone, backend, API key, and security level with defaults and validation. Skipped if CLI flags are provided or config exists.  `src/cli/wizard.rs`.  
 **Hermes equivalent:** `hermes setup` — interactive wizard for model, terminal, gateway, tools, agent configuration.  
-**Why it matters:** Onboarding. New operators shouldn't need to read TOML docs to get started.  ⏳ *Deferred — low-urgency UX polish.*
+**Why it matters:** Onboarding. New operators shouldn't need to read TOML docs to get started.  ✅ *Done. Wave 6.*
 
 ### 19. Shell Completions
 **Status:** ✅ Implemented. `clap_complete` generates bash/zsh/fish completions via `praxis completions <shell>`.  
@@ -160,10 +160,9 @@ Praxis is a mature Rust agent framework with ~170 source files covering a 4-phas
 **Why it matters:** Operator quality of life.  ✅ *Done. Wave 1.*
 
 ### 20. Image Generation
-**Status:** Not implemented.  
+**Status:** ✅ Implemented. `image` tool via `src/tools/image.rs`. Calls OpenAI DALL-E `/v1/images/generations`. Supports `params.prompt`, `params.size` (256x256/512x512/1024x1024), `params.n` (1-4), and `params.provider`. Uses same credential pooling path as chat.  
 **Hermes equivalent:** `image_generate` tool — AI image generation from text prompts.  
-**Why it matters:** Creative/presentation use cases.  
-**Effort:** Low. HTTP call to DALL-E/Stable Diffusion API.
+**Why it matters:** Creative/presentation use cases.  ✅ *Done. Wave 6.*
 
 ### 21. Usage Analytics / Insights
 **Status:** ✅ Implemented. `praxis insights [--days N]` — token totals, cost estimates, provider breakdown from `token_ledger`.  
@@ -171,10 +170,9 @@ Praxis is a mature Rust agent framework with ~170 source files covering a 4-phas
 **Why it matters:** Operators want to know what their agent costs.  ✅ *Done. Wave 3.*
 
 ### 22. Webhook Subscription System
-**Status:** Webhook endpoints exist in dashboard (`/webhook/discord`, `/webhook/slack`) but no dynamic subscription system.  
+**Status:** ✅ Implemented. `src/webhooks.rs` — persisted `WebhookStore` with HMAC-SHA256 signature verification and anti-replay (5min). CLI: `praxis webhook subscribe|list|unsubscribe`. Registered webhooks mapped to `POST /webhook/{name}` in dashboard.  
 **Hermes equivalent:** `hermes webhook subscribe` — create named routes dynamically.  
-**Why it matters:** Operators can wire Praxis into external systems without code changes.  
-**Effort:** Low-Medium. Dynamic route registration + persistence.
+**Why it matters:** Operators can wire Praxis into external systems without code changes.  ✅ *Done. Wave 6.*
 
 ### 23. Dry-Run / Replay Mode
 **Status:** Mentioned as nice-to-have in roadmap (#13).  
@@ -222,11 +220,11 @@ Praxis is a mature Rust agent framework with ~170 source files covering a 4-phas
 | 15 | Slash Commands | ❌ Missing | 🟡 Nice | Medium |
 | 16 | Checkpoints / Rollback | ⚠️ Forensics only | 🟡 Nice | Medium |
 | 17 | Worktree / Git Isolation | ❌ Missing | 🟡 Nice | Medium |
-| 18 | Setup Wizard | ❌ Missing | 🟡 Nice | Low-Med |
-| 19 | Shell Completions | ❌ Missing | 🟡 Nice | Low |
-| 20 | Image Generation | ❌ Missing | 🟡 Nice | Low |
+| 18 | Setup Wizard | ✅ Done | 🟡 Nice | — |
+| 19 | Shell Completions | ✅ Done | 🟡 Nice | — |
+| 20 | Image Generation | ✅ Done | 🟡 Nice | — |
 | 21 | Usage Insights | ⚠️ Ledger only | 🟡 Nice | Low |
-| 22 | Webhook Subscriptions | ⚠️ Static only | 🟡 Nice | Low-Med |
+| 22 | Webhook Subscriptions | ✅ Done | 🟡 Nice | — |
 | 23 | Dry-Run / Replay | ❌ Missing | 🟡 Nice | Medium |
 | 24 | Feature Flags | ✅ Done | 🟡 Nice | — |
 | 25 | Auto-Failover | ⚠️ Canary only | 🟡 Nice | Medium |
@@ -310,11 +308,11 @@ Praxis is a mature Rust agent framework with ~170 source files covering a 4-phas
 | 15 | Slash Commands | ❌ Missing | 🟡 Nice | Medium |
 | 16 | Checkpoints / Rollback | ⚠️ Forensics only | 🟡 Nice | Medium |
 | 17 | Worktree / Git Isolation | ❌ Missing | 🟡 Nice | Medium |
-| 18 | Setup Wizard | ⏳ Deferred | 🟡 Nice | — |
+| 18 | Setup Wizard | ✅ Done | 🟡 Nice | — |
 | 19 | Shell Completions | ✅ Done | 🟡 Nice | — |
-| 20 | Image Generation | ❌ Missing | 🟡 Nice | Low |
+| 20 | Image Generation | ✅ Done | 🟡 Nice | — |
 | 21 | Usage Insights | ✅ Done | 🟡 Nice | — |
-| 22 | Webhook Subscriptions | ⚠️ Static only | 🟡 Nice | Low-Med |
+| 22 | Webhook Subscriptions | ✅ Done | 🟡 Nice | — |
 | 23 | Dry-Run / Replay | ❌ Missing | 🟡 Nice | Medium |
 | 24 | Feature Flags | ✅ Done | 🟡 Nice | — |
 | 25 | Auto-Failover | ⚠️ Canary only | 🟡 Nice | Medium |

@@ -56,6 +56,7 @@ pub struct CredentialPool {
     /// Per-key cooldown deadline.  `Instant` is monotonic and safe to compare
     /// without worrying about clock jumps.
     cooldowns: std::sync::Mutex<Vec<Option<Instant>>>,
+    #[allow(dead_code)]
     cooldown_duration: Duration,
 }
 
@@ -117,6 +118,7 @@ impl CredentialPool {
 
     /// Mark the key that was just used as rate-limited (429).
     /// Returns `true` if the key was found in the pool.
+    #[allow(dead_code)]
     pub fn mark_rate_limited(&self, key: &str) -> bool {
         let mut cooldowns = self.cooldowns.lock().expect("credential pool mutex poisoned");
         for (i, k) in self.keys.iter().enumerate() {
@@ -139,6 +141,7 @@ impl CredentialPool {
     }
 
     /// Whether the pool is empty (should never be true if constructed via `from_env`).
+    #[allow(dead_code)]
     pub fn is_empty(&self) -> bool {
         self.keys.is_empty()
     }

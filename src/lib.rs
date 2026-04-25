@@ -53,3 +53,4 @@ pub mod usage;
 pub mod vault;
 pub mod wakeup;
 pub mod wave;
+pub mod webhooks;
