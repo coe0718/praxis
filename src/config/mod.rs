@@ -1,12 +1,11 @@
 mod model;
 mod security;
 mod validation;
+mod watcher;
 
-pub use model::{
-    AgentConfig, AppConfig, ContextConfig, ContextSourceConfig, DatabaseConfig, InstanceConfig,
-    RuntimeConfig, SecurityConfig,
-};
+pub use model::*;
 pub use security::SecurityOverrides;
+pub use watcher::ConfigWatcher;
 
 #[cfg(test)]
 mod tests;

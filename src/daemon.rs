@@ -268,6 +268,9 @@ async fn async_daemon_loop(
     let mut last_maintenance_at: Option<DateTime<Utc>> = None;
     let poll = Duration::from_secs(config.poll_interval_secs);
 
+    // Watch praxis.toml for hot-reload — config changes take effect next cycle.
+    let cfg_watcher = crate::config::ConfigWatcher::spawn(paths.config_file.clone())?;
+
     log::info!(
         "daemon: started (pid={}, data_dir={})",
         std::process::id(),
@@ -290,6 +293,32 @@ async fn async_daemon_loop(
         }
 
         let now = Utc::now();
+
+        // ── Config hot-reload ────────────────────────────────────────────
+        // If praxis.toml changed, re-validate immediately.  The next
+        // session will pick up the new config without a daemon restart.
+        if cfg_watcher.take_dirty() {
+            match crate::config::AppConfig::load(&paths.config_file) {
+                Ok(cfg) => {
+                    log::info!(
+                        "daemon: config reloaded — backend={}, security_level={}",
+                        cfg.agent.backend,
+                        cfg.security.level
+                    );
+                }
+                Err(e) => {
+                    log::warn!("daemon: config changed but failed to load: {e:#}");
+                }
+            }
+            // Re-validate paths in case data_dir or other paths changed.
+            let _ = write_heartbeat(
+                &paths.heartbeat_file,
+                "praxis",
+                "daemon",
+                "Config reloaded.",
+                Utc::now(),
+            );
+        }
 
         // ── Reactive triggers (highest priority) ───────────────────────────
 

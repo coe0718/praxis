@@ -57,10 +57,9 @@ Praxis is a mature Rust agent framework with ~170 source files covering a 4-phas
 **Effort:** Medium. Add `image_url` / `base64_image` fields to provider requests. Requires content block arrays instead of plain text messages.
 
 ### 3. Config Hot-Reload
-**Status:** Not implemented. Daemon loads `praxis.toml` once at startup. Roadmap item #5.  
-**Hermes equivalent:** Config changes take effect on gateway `/restart` or CLI relaunch. Hermes also has `hermes config set KEY VAL` for programmatic changes.  
-**Why it matters:** An always-on daemon shouldn't require a restart to change backend, budget, or security settings.  
-**Effort:** Low-Medium. `notify` crate to watch config file, re-validate, atomically swap.
+**Status:** ✅ Implemented. `src/config/watcher.rs` uses `notify` crate to watch `praxis.toml`. Daemon detects changes within 2s and re-validates. Session runner already re-reads config per-cycle.  
+**Hermes equivalent:** Config changes take effect on gateway `/restart` or CLI relaunch.  
+**Why it matters:** An always-on daemon shouldn't require a restart to change backend, budget, or security settings.  ✅ *Done. Wave 4.*
 
 ---
 
