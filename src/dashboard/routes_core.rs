@@ -272,9 +272,7 @@ pub(super) async fn api_health(State(state): State<DashboardState>) -> impl Into
 
     if hb_status == "error" {
         overall = "error";
-    } else if hb_status == "warn" && overall == "ok" {
-        overall = "warn";
-    } else if hb_status == "unknown" && overall == "ok" {
+    } else if (hb_status == "warn" || hb_status == "unknown") && overall == "ok" {
         overall = "warn";
     }
 

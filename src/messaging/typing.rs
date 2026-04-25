@@ -56,6 +56,13 @@ impl RecordingTypingIndicator {
 }
 
 #[cfg(test)]
+impl Default for RecordingTypingIndicator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(test)]
 impl TypingIndicator for RecordingTypingIndicator {
     fn begin(&self, conversation_id: &str) -> Result<()> {
         self.calls

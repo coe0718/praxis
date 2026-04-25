@@ -66,7 +66,7 @@ pub fn embedding_to_blob(vec: &[f32]) -> Vec<u8> {
 
 /// Deserialise a little-endian byte blob back into Vec<f32>.
 pub fn blob_to_embedding(blob: &[u8]) -> Result<Vec<f32>> {
-    if blob.len() % 4 != 0 {
+    if !blob.len().is_multiple_of(4) {
         anyhow::bail!("embedding blob length {} is not a multiple of 4", blob.len());
     }
     let mut vec = Vec::with_capacity(blob.len() / 4);

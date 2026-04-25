@@ -101,7 +101,7 @@ fn doctor_reports_healthy_and_broken_setups() {
         .arg("status")
         .assert()
         .success()
-        .stdout(predicate::str::contains("registered_tools: 6"))
+        .stdout(predicate::str::contains("registered_tools: 9"))
         .stdout(predicate::str::contains("backend: stub"));
 
     fs::remove_file(data_dir.join("GOALS.md")).unwrap();

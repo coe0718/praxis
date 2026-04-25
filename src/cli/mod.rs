@@ -477,15 +477,14 @@ fn handle_insights(data_dir_override: Option<PathBuf>, _args: InsightsArgs) -> R
     }
 
     // Top provider
-    if let Some(ref providers) = providers {
-        if let Some(top) = providers.first() {
+    if let Some(ref providers) = providers
+        && let Some(top) = providers.first() {
             lines.push(format!(
                 "  top provider: {} ({:.1}K tokens)",
                 top.provider,
                 top.tokens_used as f64 / 1000.0,
             ));
         }
-    }
 
     // Memory
     lines.push(format!("  memory: {hot} hot / {cold} cold"));

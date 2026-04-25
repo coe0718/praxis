@@ -52,7 +52,7 @@ fn run_once_records_goal_session_and_updates_status() {
         .stdout(predicate::str::contains("anatomy_entries:"))
         .stdout(predicate::str::contains("operational_memory: dnr=0 bugs=0"))
         .stdout(predicate::str::contains("repeated_reads_avoided: 0"))
-        .stdout(predicate::str::contains("registered_tools: 6"))
+        .stdout(predicate::str::contains("registered_tools: 9"))
         .stdout(predicate::str::contains("event_count:"))
         .stdout(predicate::str::contains("phase: sleep"))
         .stdout(predicate::str::contains("last_session: #1 goal_selected"));

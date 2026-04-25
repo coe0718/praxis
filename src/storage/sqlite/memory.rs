@@ -316,10 +316,8 @@ impl MemoryStore for SqliteSessionStore {
             };
             Ok((m, sim))
         })?;
-        for r in hot_rows {
-            if let Ok(item) = r {
-                candidates.push(item);
-            }
+        for item in hot_rows.flatten() {
+            candidates.push(item);
         }
 
         // Cold memories with embeddings.
@@ -343,10 +341,8 @@ impl MemoryStore for SqliteSessionStore {
             };
             Ok((m, sim))
         })?;
-        for r in cold_rows {
-            if let Ok(item) = r {
-                candidates.push(item);
-            }
+        for item in cold_rows.flatten() {
+            candidates.push(item);
         }
 
         // If no embeddings exist, fall back to FTS5 keyword search.

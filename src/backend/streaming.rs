@@ -109,13 +109,11 @@ impl StreamingBackend {
                                         output_tokens: usage.completion_tokens,
                                     };
                                 }
-                                if let Some(choice) = delta.choices.into_iter().next() {
-                                    if let Some(content) = choice.delta.content {
-                                        if !content.is_empty() {
+                                if let Some(choice) = delta.choices.into_iter().next()
+                                    && let Some(content) = choice.delta.content
+                                        && !content.is_empty() {
                                             yield StreamEvent::Token(content);
                                         }
-                                    }
-                                }
                             }
                         }
                     }

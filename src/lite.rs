@@ -104,8 +104,7 @@ impl LiteMode {
             .and_then(toml::Value::as_bool)
             .unwrap_or(false);
 
-        let mut lite = Self::default();
-        lite.enabled = enabled;
+        let mut lite = Self { enabled, ..Self::default() };
         if let Some(t) = agent {
             if let Some(v) = t.get("lite_context_ceiling_pct").and_then(toml::Value::as_float) {
                 lite.context_ceiling_pct = v as f32;

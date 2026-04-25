@@ -83,7 +83,7 @@ Register an OAuth App at https://github.com/settings/developers",
             .map(|secs| Utc::now() + chrono::Duration::seconds(secs as i64));
 
         let scope_str = result.scope.as_deref().unwrap_or(scopes);
-        let scopes_list = scope_str.split(|c| c == ' ' || c == ',').map(str::to_string).collect();
+        let scopes_list = scope_str.split([' ', ',']).map(str::to_string).collect();
 
         Ok(OAuthToken {
             provider: "copilot".to_string(),
