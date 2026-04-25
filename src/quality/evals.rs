@@ -180,7 +180,9 @@ fn load_eval(path: &PathBuf) -> Result<EvalDefinition> {
 }
 
 fn run_definition(paths: &PraxisPaths, definition: &EvalDefinition) -> Result<EvalStatus> {
-    const ALLOWED_EVAL_COMMANDS: &[&str] = &["git", "grep", "test", "diff", "wc", "cat", "echo", "ls", "find", "true", "false", "exit"];
+    const ALLOWED_EVAL_COMMANDS: &[&str] = &[
+        "git", "grep", "test", "diff", "wc", "cat", "echo", "ls", "find", "true", "false", "exit",
+    ];
     for command in &definition.commands {
         // Only allow commands that start with a whitelisted prefix.
         let cmd_prefix = command.split_whitespace().next().unwrap_or("");

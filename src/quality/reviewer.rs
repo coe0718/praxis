@@ -184,7 +184,10 @@ fn load_criteria(path: &PathBuf) -> Result<GoalCriteria> {
     Ok(criteria)
 }
 
-const ALLOWED_REVIEWER_COMMANDS: &[&str] = &["git", "grep", "test", "diff", "wc", "cat", "echo", "ls", "find", "cargo", "true", "false", "exit"];
+const ALLOWED_REVIEWER_COMMANDS: &[&str] = &[
+    "git", "grep", "test", "diff", "wc", "cat", "echo", "ls", "find", "cargo", "true", "false",
+    "exit",
+];
 
 fn run_shell_bounded(
     paths: &PraxisPaths,

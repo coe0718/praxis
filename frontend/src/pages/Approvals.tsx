@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle, ChevronDown, ChevronUp, Shield, XCircle } from 'lucide-react'
+import { CheckCircle, ChevronDown, ChevronUp, Search, Shield, XCircle } from 'lucide-react'
 import { fetchApprovals, approveRequest, rejectRequest, type Approval } from '../lib/api'
 import { Card } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
@@ -13,6 +13,7 @@ const statusVariant = (s: string): React.ComponentProps<typeof Badge>['variant']
   if (s === 'pending') return 'warning'
   if (s === 'rejected') return 'danger'
   if (s === 'executed') return 'info'
+  if (s === 'claiming') return 'default'
   return 'default'
 }
 
@@ -142,18 +143,41 @@ function ApprovalCard({ a }: { a: Approval }) {
 }
 
 export function Approvals() {
-  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'executed'>(
+  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'executed' | 'claiming'>(
     'pending',
   )
+  const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [toolFilter, setToolFilter] = useState('')
+
+  // Debounce search input
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300)
+    return () => clearTimeout(t)
+  }, [search])
+
+  const statusParam = filter === 'all' ? undefined : filter
 
   const { data: approvals = [], isLoading } = useQuery({
-    queryKey: ['approvals'],
-    queryFn: fetchApprovals,
+    queryKey: ['approvals', debouncedSearch, toolFilter, statusParam],
+    queryFn: () =>
+      fetchApprovals({
+        q: debouncedSearch || undefined,
+        tool: toolFilter || undefined,
+        status: statusParam,
+      }),
     refetchInterval: 15_000,
   })
 
-  const filtered =
-    filter === 'all' ? approvals : approvals.filter((a) => a.status === filter)
+  // Fetch unfiltered list for tool dropdown so tools don't disappear when filters narrow results.
+  const { data: allApprovals = [] } = useQuery({
+    queryKey: ['approvals', 'all-tools'],
+    queryFn: () => fetchApprovals(),
+    refetchInterval: 60_000,
+  })
+
+  const uniqueTools = Array.from(new Set(allApprovals.map((a) => a.tool_name))).sort()
+
   const pendingCount = approvals.filter((a) => a.status === 'pending').length
 
   return (
@@ -167,9 +191,35 @@ export function Approvals() {
         </div>
       </div>
 
+      {/* Search + filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search by tool, summary, or requester…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <select
+          value={toolFilter}
+          onChange={(e) => setToolFilter(e.target.value)}
+          className="px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">All tools</option>
+          {uniqueTools.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {/* Filter tabs */}
       <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 rounded-xl p-1 w-fit">
-        {(['all', 'pending', 'approved', 'rejected', 'executed'] as const).map((f) => (
+        {(['all', 'pending', 'approved', 'rejected', 'executed', 'claiming'] as const).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
@@ -191,7 +241,7 @@ export function Approvals() {
 
       {isLoading ? (
         <PageSpinner />
-      ) : filtered.length === 0 ? (
+      ) : approvals.length === 0 ? (
         <Empty
           icon={<Shield className="w-8 h-8" />}
           title={`No ${filter === 'all' ? '' : filter} approvals`}
@@ -199,7 +249,7 @@ export function Approvals() {
         />
       ) : (
         <div className="space-y-3">
-          {filtered.map((a) => (
+          {approvals.map((a) => (
             <ApprovalCard key={a.id} a={a} />
           ))}
         </div>

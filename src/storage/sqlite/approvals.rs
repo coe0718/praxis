@@ -38,6 +38,60 @@ pub(super) fn queue_approval(
         .context("approval request disappeared after insert")
 }
 
+pub(super) fn search_approvals(
+    store: &SqliteSessionStore,
+    q: Option<&str>,
+    tool: Option<&str>,
+    status: Option<ApprovalStatus>,
+) -> Result<Vec<StoredApprovalRequest>> {
+    let connection = store.connect()?;
+
+    let mut conditions: Vec<String> = Vec::new();
+    let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+
+    if let Some(q_val) = q {
+        // Escape LIKE metacharacters so user input is literal.
+        let escaped = q_val.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_");
+        let pattern = format!("%{}%", escaped);
+        conditions.push(
+            "(tool_name LIKE ? ESCAPE '\\' OR summary LIKE ? ESCAPE '\\' OR requested_by LIKE ? ESCAPE '\\')"
+                .to_string(),
+        );
+        params.push(Box::new(pattern.clone()));
+        params.push(Box::new(pattern.clone()));
+        params.push(Box::new(pattern));
+    }
+    if let Some(tool_val) = tool {
+        conditions.push("tool_name = ?".to_string());
+        params.push(Box::new(tool_val.to_string()));
+    }
+    if let Some(status_val) = status {
+        conditions.push("status = ?".to_string());
+        params.push(Box::new(status_val.as_str().to_string()));
+    }
+
+    let where_clause = if conditions.is_empty() {
+        String::new()
+    } else {
+        format!(" WHERE {}", conditions.join(" AND "))
+    };
+
+    let sql = format!(
+        "SELECT id, tool_name, summary, requested_by, write_paths, payload_json, status, status_note, created_at, updated_at
+         FROM approval_requests{}
+         ORDER BY id DESC
+         LIMIT 500",
+        where_clause
+    );
+
+    let mut stmt = connection.prepare(&sql)?;
+    let param_refs: Vec<&dyn rusqlite::ToSql> = params.iter().map(|p| p.as_ref()).collect();
+    let rows = stmt.query_map(&param_refs[..], row_to_request)?;
+
+    rows.collect::<rusqlite::Result<Vec<_>>>()
+        .context("failed to search approval queue")
+}
+
 pub(super) fn list_approvals(
     store: &SqliteSessionStore,
     status: Option<ApprovalStatus>,
@@ -49,7 +103,8 @@ pub(super) fn list_approvals(
             SELECT id, tool_name, summary, requested_by, write_paths, payload_json, status, status_note, created_at, updated_at
             FROM approval_requests
             WHERE status = ?1
-            ORDER BY id ASC
+            ORDER BY id DESC
+            LIMIT 500
             ",
         )?;
         let rows = statement.query_map(params![value.as_str()], row_to_request)?;
@@ -62,7 +117,8 @@ pub(super) fn list_approvals(
         "
         SELECT id, tool_name, summary, requested_by, write_paths, payload_json, status, status_note, created_at, updated_at
         FROM approval_requests
-        ORDER BY id ASC
+        ORDER BY id DESC
+        LIMIT 500
         ",
     )?;
     let rows = statement.query_map([], row_to_request)?;

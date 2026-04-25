@@ -33,25 +33,23 @@ impl GmailClient {
         };
         if token.needs_refresh() {
             match super::google::GoogleOAuth::from_env() {
-                Ok(oauth) => {
-                    match oauth.refresh(&token) {
-                        Ok(new_token) => {
-                            if let Err(e) = store.save(&new_token) {
-                                log::warn!("failed to save refreshed google token: {e}");
-                            }
-                            token = new_token;
+                Ok(oauth) => match oauth.refresh(&token) {
+                    Ok(new_token) => {
+                        if let Err(e) = store.save(&new_token) {
+                            log::warn!("failed to save refreshed google token: {e}");
                         }
-                        Err(e) => {
-                            log::warn!("google token refresh failed: {e}");
-                            if token.is_expired() {
-                                anyhow::bail!(
-                                    "Google OAuth token is expired and refresh failed — \
+                        token = new_token;
+                    }
+                    Err(e) => {
+                        log::warn!("google token refresh failed: {e}");
+                        if token.is_expired() {
+                            anyhow::bail!(
+                                "Google OAuth token is expired and refresh failed — \
                                      run `praxis oauth login google` to re-authenticate"
-                                );
-                            }
+                            );
                         }
                     }
-                }
+                },
                 Err(e) => {
                     log::warn!("google oauth env vars missing, cannot refresh: {e}");
                     if token.is_expired() {

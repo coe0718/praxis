@@ -17,6 +17,7 @@ mod hands;
 mod heartbeat;
 mod hooks;
 mod learning;
+mod mcp;
 mod memory;
 mod oauth;
 mod sandbox;
@@ -61,6 +62,7 @@ pub enum Commands {
     Argus(argus::ArgusArgs),
     Canary(canary::CanaryArgs),
     Learn(learning::LearningArgs),
+    Mcp(mcp::McpArgs),
     Forensics(forensics::ForensicsArgs),
     Heartbeat(heartbeat::HeartbeatArgs),
     Queue(QueueArgs),
@@ -201,6 +203,7 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::Argus(args) => argus::handle_argus(cli.data_dir, args),
         Commands::Canary(args) => canary::handle_canary(cli.data_dir, args),
         Commands::Learn(args) => learning::handle_learning(cli.data_dir, args),
+        Commands::Mcp(args) => mcp::handle_mcp(cli.data_dir, args),
         Commands::Forensics(args) => forensics::handle_forensics(cli.data_dir, args),
         Commands::Heartbeat(args) => heartbeat::handle_heartbeat(cli.data_dir, args),
         Commands::Queue(args) => approvals::handle_queue(cli.data_dir, args),

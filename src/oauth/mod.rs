@@ -30,12 +30,14 @@
 //! ```
 
 mod device_flow;
+pub mod copilot;
 pub mod github;
 pub mod github_client;
 pub mod gmail;
 pub mod google;
 pub mod store;
 
+pub use copilot::CopilotOAuth;
 pub use github::GitHubOAuth;
 pub use github_client::GitHubClient;
 pub use gmail::GmailClient;

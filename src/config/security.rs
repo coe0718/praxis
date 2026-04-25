@@ -26,10 +26,12 @@ impl SecurityOverrides {
         }
         let raw = fs::read_to_string(path)?;
         let overrides = toml::from_str::<Self>(&raw)?;
-        // Validate that level, if present, is in the valid range 1–3.
-        if let Some(level) = overrides.level && (level == 0 || level > 3) {
+        // Validate that level, if present, is in the valid range 1–4.
+        if let Some(level) = overrides.level
+            && (level == 0 || level > 4)
+        {
             anyhow::bail!(
-                "security override level must be between 1 and 3 (inclusive), got {level}"
+                "security override level must be between 1 and 4 (inclusive), got {level}"
             );
         }
         Ok(overrides)
@@ -69,7 +71,16 @@ mod tests {
         let path = dir.path().join("security.toml");
         std::fs::write(&path, "level = 0\n").unwrap();
         assert!(SecurityOverrides::load_or_default(&path).is_err());
-        std::fs::write(&path, "level = 4\n").unwrap();
+        std::fs::write(&path, "level = 5\n").unwrap();
         assert!(SecurityOverrides::load_or_default(&path).is_err());
+    }
+
+    #[test]
+    fn accepts_level_4_override() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("security.toml");
+        std::fs::write(&path, "level = 4\n").unwrap();
+        let overrides = SecurityOverrides::load_or_default(&path).unwrap();
+        assert_eq!(overrides.level, Some(4));
     }
 }

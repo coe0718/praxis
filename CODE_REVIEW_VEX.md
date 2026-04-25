@@ -177,4 +177,29 @@ These are lower-priority design, performance, and maintainability issues. Full l
 The codebase is ready for production deployment. Webhook endpoints are now signature-verified, OAuth tokens auto-refresh, and all identified security gaps from the audit are closed.
 
 ---
-*Review by Vex. Round 1 verification commit: `5f84ac9`. Round 2 fix commit: `1ea5c18`. Final clippy cleanup: `38be748`.*
+---
+
+## Round 3 Verification — Commit `1ea5c18`
+
+**Status: 7/8 VERIFIED ✓ | 1 DISCREPANCY ⚠**
+
+| ID | Status | Finding |
+|----|--------|---------|
+| W6 | ✅ VERIFIED | HMAC-SHA256: `v0:timestamp:body` basestring, `HmacSha256::verify_slice`, 300s replay window, fail-closed on missing secret. Discord ED25519 also added. |
+| W14 | ✅ VERIFIED | `store.save()` now propagates `load()` errors instead of `unwrap_or_default()` |
+| W15 | ✅ VERIFIED | Gmail: `needs_refresh()` triggers `oauth.refresh()`, saves new token, errors if refresh fails on expired. GitHub: explicit error on expired/refresh-needed, no false auto-refresh. |
+| W16 | ✅ VERIFIED | `save_offset` uses `temp_path + rename` (atomic). `acquire_poll_lock` uses `create_new` with 5-min stale detection. Backwards-overwrite guard (`current >= new → no-op`). |
+| W17 | ✅ VERIFIED | `handle_telegram_command(chat_id: &str)`, Discord passes `channel_id` verbatim as `&str`, no i64 parse. |
+| W18 | ✅ VERIFIED | Slack `handle_slack_command` passes `channel_id: &str` directly, no digit-stripping. |
+| W19 | ⚠ DISCREPANCY | `core.rs:load_initialized_config` validates 1–4 ✓. But `security.rs:load_or_default` validates 1–3 only (line 30: `level > 3`). A level-4 override can be set via `core.rs` but can't be persisted/reloaded via `security.toml`. Suggest对齐 to 1–4 in `security.rs` too. |
+| W20 | ✅ VERIFIED | CSP header confirmed: `script-src 'self'` and `style-src 'self'` with no `unsafe-inline`. |
+
+### W19 Discrepancy Detail
+- **`src/cli/core.rs:263-265`** — validates `!(1..=4).contains(&level)` ✓ correct
+- **`src/config/security.rs:30`** — validates `level > 3` (i.e., only 1–3 allowed) ⚠
+
+The `security.toml` file can't store a level 4 override, but `load_initialized_config` would accept it if manually edited into the config. Recommend updating `security.rs` to match: `level > 4` instead of `level > 3`.
+
+---
+
+*Review by Vex. Round 1 verification commit: `5f84ac9`. Round 2 fix commit: `1ea5c18`. Round 3 verification: `1ea5c18`.*

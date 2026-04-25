@@ -4,10 +4,14 @@ import {
   Heart,
   Shield,
   TrendingUp,
+  Zap,
+  DollarSign,
 } from 'lucide-react'
 import {
   Area,
   AreaChart,
+  Bar,
+  BarChart,
   CartesianGrid,
   ResponsiveContainer,
   Tooltip,
@@ -25,6 +29,9 @@ import {
   fetchApprovals,
   fetchScores,
   fetchHeartbeat,
+  fetchTokenSummary,
+  fetchTokenSessions,
+  fetchHealth,
 } from '../lib/api'
 import { formatRelative, outcomeBadgeClass, formatDuration } from '../lib/utils'
 
@@ -43,7 +50,7 @@ export function Dashboard() {
   })
   const { data: approvals } = useQuery({
     queryKey: ['approvals'],
-    queryFn: fetchApprovals,
+    queryFn: () => fetchApprovals(),
     refetchInterval: 30_000,
   })
   const { data: scoreRows } = useQuery({
@@ -55,6 +62,21 @@ export function Dashboard() {
     queryKey: ['heartbeat'],
     queryFn: fetchHeartbeat,
     refetchInterval: 15_000,
+  })
+  const { data: tokenSummary } = useQuery({
+    queryKey: ['tokens'],
+    queryFn: fetchTokenSummary,
+    refetchInterval: 60_000,
+  })
+  const { data: tokenSessions } = useQuery({
+    queryKey: ['tokenSessions'],
+    queryFn: fetchTokenSessions,
+    refetchInterval: 60_000,
+  })
+  const { data: health } = useQuery({
+    queryKey: ['health'],
+    queryFn: fetchHealth,
+    refetchInterval: 30_000,
   })
 
   const pendingApprovals = approvals?.filter((a) => a.status === 'pending').length ?? 0
@@ -68,6 +90,23 @@ export function Dashboard() {
   const latestScore = scoreData[scoreData.length - 1]
   const hbPhase = (heartbeat?.phase as string) ?? '—'
   const hbUpdated = (heartbeat?.updated_at as string) ?? ''
+
+  const tokenChartData = (tokenSessions ?? [])
+    .slice()
+    .reverse()
+    .map((r) => ({
+      session: `#${r.session_id}`,
+      tokens: r.tokens_used,
+      cost: r.estimated_cost_micros / 1_000_000,
+    }))
+
+  const healthStatus = health?.status ?? 'unknown'
+  const healthColor =
+    healthStatus === 'ok'
+      ? 'text-emerald-500'
+      : healthStatus === 'warn'
+        ? 'text-amber-500'
+        : 'text-red-500'
 
   return (
     <div className="space-y-6">
@@ -108,6 +147,36 @@ export function Dashboard() {
           label="Agent Phase"
           value={<span className="text-base capitalize">{hbPhase}</span>}
           icon={<Heart className="w-5 h-5" />}
+        />
+      </div>
+
+      {/* Token + Health stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          label="Total Tokens"
+          value={tokenSummary?.total_tokens?.toLocaleString() ?? '—'}
+          icon={<Zap className="w-5 h-5" />}
+        />
+        <StatCard
+          label="Est. Cost"
+          value={
+            tokenSummary
+              ? `$${(tokenSummary.total_cost_micros / 1_000_000).toFixed(2)}`
+              : '—'
+          }
+          icon={<DollarSign className="w-5 h-5" />}
+        />
+        <StatCard
+          label="Token Sessions"
+          value={tokenSummary?.total_sessions ?? '—'}
+          icon={<Activity className="w-5 h-5" />}
+        />
+        <StatCard
+          label="Health"
+          value={
+            <span className={`text-base capitalize ${healthColor}`}>{healthStatus}</span>
+          }
+          icon={<Heart className={`w-5 h-5 ${healthColor}`} />}
         />
       </div>
 
@@ -206,6 +275,43 @@ export function Dashboard() {
           </div>
         </Card>
       </div>
+
+      {/* Token usage chart */}
+      <Card padding="none">
+        <div className="px-5 pt-5 pb-3 flex items-center justify-between border-b border-slate-100 dark:border-slate-800">
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+            Token Usage by Session
+          </h2>
+          <Badge variant="info">Tokens</Badge>
+        </div>
+        <div className="p-5">
+          {tokenChartData.length === 0 ? (
+            <Empty
+              icon={<Zap className="w-8 h-8" />}
+              title="No token data yet"
+              description="Token usage appears after sessions complete."
+            />
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={tokenChartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" strokeOpacity={0.3} />
+                <XAxis dataKey="session" tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                <Tooltip
+                  contentStyle={{
+                    background: '#1e293b',
+                    border: '1px solid #334155',
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                  labelStyle={{ color: '#94a3b8' }}
+                />
+                <Bar dataKey="tokens" fill="#6366f1" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </Card>
 
       {/* Recent sessions */}
       <Card padding="none">

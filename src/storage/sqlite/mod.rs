@@ -42,6 +42,52 @@ impl SqliteSessionStore {
         Self { path }
     }
 
+    pub fn search_approvals(
+        &self,
+        q: Option<&str>,
+        tool: Option<&str>,
+        status: Option<ApprovalStatus>,
+    ) -> Result<Vec<StoredApprovalRequest>> {
+        approvals::search_approvals(self, q, tool, status)
+    }
+
+    pub fn token_summary_all_time(&self) -> Result<crate::usage::TokenSummaryAllTime> {
+        providers::token_summary_all_time(self)
+    }
+
+    pub fn token_usage_by_session(
+        &self,
+        limit: usize,
+    ) -> Result<Vec<crate::usage::SessionTokenUsage>> {
+        providers::token_usage_by_session(self, limit)
+    }
+
+    pub fn token_usage_by_provider(&self) -> Result<Vec<crate::usage::ProviderTokenSummary>> {
+        providers::token_usage_by_provider(self)
+    }
+
+    pub fn count_hot_memories(&self) -> Result<i64> {
+        let conn = self.connect()?;
+        conn.query_row("SELECT COUNT(*) FROM hot_memories", [], |row| row.get(0))
+            .context("failed to count hot memories")
+    }
+
+    pub fn count_cold_memories(&self) -> Result<i64> {
+        let conn = self.connect()?;
+        conn.query_row("SELECT COUNT(*) FROM cold_memories", [], |row| row.get(0))
+            .context("failed to count cold memories")
+    }
+
+    pub fn count_pending_approvals(&self) -> Result<i64> {
+        let conn = self.connect()?;
+        conn.query_row(
+            "SELECT COUNT(*) FROM approval_requests WHERE status = 'pending'",
+            [],
+            |row| row.get(0),
+        )
+        .context("failed to count pending approvals")
+    }
+
     fn connect(&self) -> Result<Connection> {
         if let Some(parent) = self.path.parent() {
             fs::create_dir_all(parent)

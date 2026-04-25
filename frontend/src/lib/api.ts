@@ -1,8 +1,8 @@
 const getBaseUrl = (): string =>
-  sessionStorage.getItem('praxis_base_url') ?? ''
+  localStorage.getItem('praxis_base_url') ?? sessionStorage.getItem('praxis_base_url') ?? ''
 
 const getToken = (): string | null =>
-  sessionStorage.getItem('praxis_token')
+  localStorage.getItem('praxis_token') ?? sessionStorage.getItem('praxis_token')
 
 function headers(): HeadersInit {
   const token = getToken()
@@ -11,19 +11,46 @@ function headers(): HeadersInit {
   return h
 }
 
-async function request<T>(
+async function requestWithRetry<T>(
   path: string,
   options: RequestInit = {},
+  retries = 2,
+  timeoutMs = 15_000,
 ): Promise<T> {
-  const res = await fetch(`${getBaseUrl()}${path}`, {
-    ...options,
-    headers: { ...headers(), ...(options.headers ?? {}) },
-  })
-  if (!res.ok) {
-    const text = await res.text().catch(() => res.statusText)
-    throw new Error(`${res.status}: ${text}`)
+  const url = `${getBaseUrl()}${path}`
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
+  let lastErr: Error | undefined
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, {
+        ...options,
+        headers: { ...headers(), ...(options.headers ?? {}) },
+        signal: controller.signal,
+      })
+      clearTimeout(timeoutId)
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => res.statusText)
+        throw new Error(`${res.status}: ${text}`)
+      }
+      return res.json() as Promise<T>
+    } catch (e) {
+      lastErr = e instanceof Error ? e : new Error(String(e))
+      if (attempt < retries && !controller.signal.aborted) {
+        await new Promise((r) => setTimeout(r, 500 * (attempt + 1)))
+      }
+    }
   }
-  return res.json() as Promise<T>
+
+  clearTimeout(timeoutId)
+  throw lastErr ?? new Error(`Request to ${path} failed`)
+}
+
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  return requestWithRetry(path, options, 0, 15_000)
 }
 
 // ── Summary & status ──────────────────────────────────────────────────────────
@@ -50,6 +77,7 @@ export interface SessionRow {
   selected_goal_title: string | null
   selected_task: string | null
   action_summary: string
+  phase_durations?: Record<string, number>
 }
 
 export const fetchSessions = (): Promise<SessionRow[]> =>
@@ -85,7 +113,14 @@ export interface Approval {
   updated_at: string
 }
 
-export const fetchApprovals = (): Promise<Approval[]> => request('/api/approvals')
+export const fetchApprovals = (params?: { q?: string; tool?: string; status?: string }): Promise<Approval[]> => {
+  const qs = new URLSearchParams()
+  if (params?.q) qs.set('q', params.q)
+  if (params?.tool) qs.set('tool', params.tool)
+  if (params?.status) qs.set('status', params.status)
+  const query = qs.toString()
+  return request(`/api/approvals${query ? '?' + query : ''}`)
+}
 export const approveRequest = (id: number): Promise<{ id: number; status: string }> =>
   request(`/api/approvals/${id}/approve`, { method: 'POST' })
 export const rejectRequest = (id: number): Promise<{ id: number; status: string }> =>
@@ -105,6 +140,10 @@ export interface Memory {
 
 export const fetchHotMemories = (): Promise<Memory[]> => request('/api/memories/hot')
 export const fetchColdMemories = (): Promise<Memory[]> => request('/api/memories/cold')
+export const searchMemories = (q: string): Promise<Memory[]> => {
+  const params = new URLSearchParams({ q })
+  return request(`/api/memories/search?${params}`)
+}
 export const reinforceMemory = (id: number): Promise<{ id: number; action: string }> =>
   request(`/api/memories/${id}/reinforce`, { method: 'POST' })
 export const forgetMemory = (id: number): Promise<{ id: number; action: string }> =>
@@ -175,6 +214,46 @@ export interface SessionScore {
 }
 
 export const fetchScores = (): Promise<SessionScore[]> => request('/api/score')
+
+// ── Tokens ────────────────────────────────────────────────────────────────────
+
+export interface TokenSummary {
+  total_tokens: number
+  total_cost_micros: number
+  total_sessions: number
+  by_provider: { provider: string; tokens_used: number; estimated_cost_micros: number }[]
+}
+
+export interface SessionTokenUsage {
+  session_id: number
+  day: number
+  tokens_used: number
+  estimated_cost_micros: number
+}
+
+export const fetchTokenSummary = (): Promise<TokenSummary> => request('/api/tokens')
+export const fetchTokenSessions = (): Promise<SessionTokenUsage[]> =>
+  request('/api/tokens/sessions')
+
+// ── Health ────────────────────────────────────────────────────────────────────
+
+export interface HealthCheck {
+  name: string
+  status: string
+  age_seconds?: number
+  phase?: string
+  pending?: number
+  hot?: number
+  cold?: number
+}
+
+export interface HealthReport {
+  status: string
+  checked_at: string
+  checks: HealthCheck[]
+}
+
+export const fetchHealth = (): Promise<HealthReport> => request('/api/health')
 
 // ── Evolution ─────────────────────────────────────────────────────────────────
 

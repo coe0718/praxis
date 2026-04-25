@@ -171,3 +171,144 @@ pub(super) async fn api_canary(State(state): State<DashboardState>) -> impl Into
     let freeze = CanaryFreezeState::load_or_default(&paths.canary_freeze_file).unwrap_or_default();
     Json(json!({ "records": ledger.records, "frozen": freeze.frozen }))
 }
+
+pub(super) async fn api_tokens(State(state): State<DashboardState>) -> impl IntoResponse {
+    use crate::storage::SqliteSessionStore;
+    let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
+    let store = SqliteSessionStore::new(paths.database_file.clone());
+
+    let summary = store
+        .token_summary_all_time()
+        .unwrap_or_else(|e| {
+            log::warn!("token summary query failed: {e:#}");
+            crate::usage::TokenSummaryAllTime {
+                total_tokens: 0,
+                total_cost_micros: 0,
+                total_sessions: 0,
+            }
+        });
+    let by_provider = store.token_usage_by_provider().unwrap_or_else(|e| {
+        log::warn!("token usage by provider query failed: {e:#}");
+        Vec::new()
+    });
+
+    Json(json!({
+        "total_tokens": summary.total_tokens,
+        "total_cost_micros": summary.total_cost_micros,
+        "total_sessions": summary.total_sessions,
+        "by_provider": by_provider.into_iter().map(|p| json!({
+            "provider": p.provider,
+            "tokens_used": p.tokens_used,
+            "estimated_cost_micros": p.estimated_cost_micros,
+        })).collect::<Vec<_>>(),
+    }))
+    .into_response()
+}
+
+pub(super) async fn api_tokens_sessions(State(state): State<DashboardState>) -> impl IntoResponse {
+    use crate::storage::SqliteSessionStore;
+    let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
+    let store = SqliteSessionStore::new(paths.database_file.clone());
+    match store.token_usage_by_session(50) {
+        Ok(rows) => {
+            let out = rows
+                .into_iter()
+                .map(|r| {
+                    json!({
+                        "session_id": r.session_id,
+                        "day": r.day,
+                        "tokens_used": r.tokens_used,
+                        "estimated_cost_micros": r.estimated_cost_micros,
+                    })
+                })
+                .collect::<Vec<_>>();
+            Json(out).into_response()
+        }
+        Err(e) => api_error(e).into_response(),
+    }
+}
+
+pub(super) async fn api_health(State(state): State<DashboardState>) -> impl IntoResponse {
+    use crate::{
+        heartbeat::read_heartbeat,
+        storage::{SessionStore, SqliteSessionStore},
+    };
+    use chrono::{DateTime, Utc};
+
+    let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
+    let store = SqliteSessionStore::new(paths.database_file.clone());
+    let now = Utc::now();
+
+    let mut checks = Vec::new();
+    let mut overall = "ok";
+
+    // Config
+    let config_ok = crate::cli::core::load_initialized_config(Some(state.data_dir.clone())).is_ok();
+    checks.push(json!({ "name": "config", "status": if config_ok { "ok" } else { "error" } }));
+    if !config_ok {
+        overall = "error";
+    }
+
+    // Database
+    let db_ok = store.validate_schema().is_ok();
+    checks.push(json!({ "name": "database", "status": if db_ok { "ok" } else { "error" } }));
+    if !db_ok {
+        overall = "error";
+    }
+
+    // Heartbeat
+    let hb = read_heartbeat(&paths.heartbeat_file).ok();
+    let (hb_age, hb_status) = hb
+        .as_ref()
+        .and_then(|h| {
+            DateTime::parse_from_rfc3339(&h.updated_at)
+                .ok()
+                .map(|ts| {
+                    let age = (now - ts.with_timezone(&Utc)).num_seconds().max(0);
+                    let status = if age < 300 {
+                        "ok"
+                    } else if age < 900 {
+                        "warn"
+                    } else {
+                        "error"
+                    };
+                    (Some(age), status)
+                })
+        })
+        .unwrap_or((None, "unknown"));
+
+    if hb_status == "error" {
+        overall = "error";
+    } else if hb_status == "warn" && overall == "ok" {
+        overall = "warn";
+    } else if hb_status == "unknown" && overall == "ok" {
+        overall = "warn";
+    }
+
+    let mut hb_check = json!({
+        "name": "heartbeat",
+        "status": hb_status,
+        "phase": hb.as_ref().map(|h| h.phase.clone()).unwrap_or_default(),
+    });
+    if let Some(age) = hb_age {
+        hb_check["age_seconds"] = json!(age);
+    }
+    checks.push(hb_check);
+
+    // Pending approvals — COUNT(*)
+    let pending = store.count_pending_approvals().unwrap_or(0);
+    checks.push(json!({ "name": "approvals", "status": "ok", "pending": pending }));
+
+    // Memories — COUNT(*)
+    let hot_count = store.count_hot_memories().unwrap_or(0);
+    let cold_count = store.count_cold_memories().unwrap_or(0);
+    checks
+        .push(json!({ "name": "memories", "status": "ok", "hot": hot_count, "cold": cold_count }));
+
+    Json(json!({
+        "status": overall,
+        "checked_at": now.to_rfc3339(),
+        "checks": checks,
+    }))
+    .into_response()
+}

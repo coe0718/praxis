@@ -157,6 +157,11 @@ pub trait MemoryStore {
     fn recent_hot_memories(&self, limit: usize) -> Result<Vec<StoredMemory>>;
     fn strongest_cold_memories(&self, limit: usize) -> Result<Vec<StoredMemory>>;
     fn search_memories(&self, query: &str, limit: usize) -> Result<Vec<StoredMemory>>;
+
+    /// Semantic search using stored embeddings + cosine similarity.
+    /// Falls back to FTS5 if no embeddings are present.
+    fn search_memories_semantic(&self, query: &str, limit: usize) -> Result<Vec<StoredMemory>>;
+
     fn decay_cold_memories(&self, now: DateTime<Utc>) -> Result<usize>;
 
     /// Cluster related hot memories into cold memories and prune dead cold memories.

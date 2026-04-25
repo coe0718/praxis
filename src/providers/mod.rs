@@ -61,6 +61,10 @@ impl Default for ProviderSettings {
                 ProviderRoute::new("claude", "claude-3-5-sonnet-latest", None),
                 ProviderRoute::new("openai", "gpt-4o-mini", None),
                 ProviderRoute::new("ollama", "llama3.2", Some("http://127.0.0.1:11434")),
+                ProviderRoute::new("copilot", "gpt-4o", Some("https://api.githubcopilot.com")),
+                ProviderRoute::new("kimi", "moonshot-v1-8k", Some("https://api.moonshot.cn")),
+                ProviderRoute::new("minimax", "abab6.5s-chat", Some("https://api.minimax.chat")),
+                ProviderRoute::new("glm", "glm-4", Some("https://open.bigmodel.cn/api/paas/v4")),
             ],
         }
     }
@@ -175,7 +179,7 @@ impl ProviderRoute {
             bail!("provider {} must define a model", self.provider);
         }
         match self.provider.as_str() {
-            "claude" | "openai" | "ollama" => {}
+            "claude" | "openai" | "ollama" | "copilot" | "kimi" | "minimax" | "glm" => {}
             custom if self.base_url.is_some() => {
                 // Custom provider names are valid when a base_url is set.
                 // They are dispatched through the OpenAI-compatible adapter.
@@ -198,6 +202,11 @@ impl ProviderRoute {
             "ollama" => ProviderProtocol::Ollama,
             _ => ProviderProtocol::OpenAiCompat,
         }
+    }
+
+    /// True when this provider is authenticated via OAuth rather than API key.
+    pub fn uses_oauth(&self) -> bool {
+        self.provider == "copilot"
     }
 
     pub fn estimated_cost_micros(&self, input_tokens: i64, output_tokens: i64) -> i64 {

@@ -200,7 +200,11 @@ fn append_boundary(data_dir: std::path::PathBuf, rule: &str) -> Result<String> {
     Ok(format!("boundary: added\nrule: {rule}"))
 }
 
-fn handle_activation(data_dir: std::path::PathBuf, chat_id: &str, mode_str: &str) -> Result<String> {
+fn handle_activation(
+    data_dir: std::path::PathBuf,
+    chat_id: &str,
+    mode_str: &str,
+) -> Result<String> {
     let paths = PraxisPaths::for_data_dir(data_dir);
     let mut store = ActivationStore::load(&paths.activation_file)?;
 

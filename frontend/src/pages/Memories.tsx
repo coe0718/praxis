@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Brain, RefreshCcw, Star, Trash2 } from 'lucide-react'
+import { Brain, RefreshCcw, Search, Star, Trash2, X } from 'lucide-react'
 import {
   fetchHotMemories,
   fetchColdMemories,
+  searchMemories,
   reinforceMemory,
   forgetMemory,
   consolidateMemories,
@@ -14,7 +15,11 @@ import { Badge } from '../components/ui/Badge'
 import { PageSpinner } from '../components/ui/Spinner'
 import { Empty } from '../components/ui/Empty'
 
-function MemoryCard({ m, onReinforce, onForget }: {
+function MemoryCard({
+  m,
+  onReinforce,
+  onForget,
+}: {
   m: Memory
   onReinforce: () => void
   onForget: () => void
@@ -24,9 +29,7 @@ function MemoryCard({ m, onReinforce, onForget }: {
       <div className="flex items-start gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1.5">
-            <Badge variant={m.tier === 'hot' ? 'warning' : 'info'}>
-              {m.tier}
-            </Badge>
+            <Badge variant={m.tier === 'hot' ? 'warning' : 'info'}>{m.tier}</Badge>
             <Badge variant="default">{m.memory_type}</Badge>
             <span className="text-xs font-mono text-slate-400">
               score: {m.score.toFixed(3)}
@@ -43,7 +46,10 @@ function MemoryCard({ m, onReinforce, onForget }: {
           {m.tags.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1">
               {m.tags.map((t) => (
-                <span key={t} className="badge bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                <span
+                  key={t}
+                  className="badge bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
+                >
                   #{t}
                 </span>
               ))}
@@ -73,18 +79,33 @@ function MemoryCard({ m, onReinforce, onForget }: {
 
 export function Memories() {
   const [tab, setTab] = useState<'hot' | 'cold'>('hot')
+  const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const qc = useQueryClient()
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300)
+    return () => clearTimeout(t)
+  }, [search])
+
+  const isSearching = debouncedSearch.length > 0
 
   const { data: hot = [], isLoading: hotLoading } = useQuery({
     queryKey: ['memories', 'hot'],
     queryFn: fetchHotMemories,
     refetchInterval: 60_000,
+    enabled: !isSearching,
   })
   const { data: cold = [], isLoading: coldLoading } = useQuery({
     queryKey: ['memories', 'cold'],
     queryFn: fetchColdMemories,
     refetchInterval: 60_000,
-    enabled: tab === 'cold',
+    enabled: tab === 'cold' && !isSearching,
+  })
+  const { data: searchResults = [], isLoading: searchLoading } = useQuery({
+    queryKey: ['memories', 'search', debouncedSearch],
+    queryFn: () => searchMemories(debouncedSearch),
+    enabled: isSearching,
   })
 
   const consolidateMut = useMutation({
@@ -105,8 +126,12 @@ export function Memories() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['memories'] }),
   })
 
-  const memories = tab === 'hot' ? hot : cold
-  const loading = tab === 'hot' ? hotLoading : coldLoading
+  const memories = isSearching ? searchResults : tab === 'hot' ? hot : cold
+  const loading = isSearching
+    ? searchLoading
+    : tab === 'hot'
+      ? hotLoading
+      : coldLoading
 
   return (
     <div className="space-y-6">
@@ -127,32 +152,63 @@ export function Memories() {
         </button>
       </div>
 
-      <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 rounded-xl p-1 w-fit">
-        {(['hot', 'cold'] as const).map((t) => (
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+        <input
+          type="text"
+          placeholder="Search memories…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full pl-9 pr-9 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        {search && (
           <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-4 py-1.5 text-sm font-medium rounded-lg capitalize transition-all ${
-              tab === t
-                ? 'bg-white dark:bg-slate-900 shadow-sm text-slate-800 dark:text-slate-200'
-                : 'text-slate-500 dark:text-slate-400'
-            }`}
+            onClick={() => setSearch('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
           >
-            {t === 'hot' ? `🔥 Hot (${hot.length})` : `❄️ Cold (${cold.length})`}
+            <X className="w-4 h-4" />
           </button>
-        ))}
+        )}
       </div>
+
+      {/* Tabs — hide when searching, since search covers both tiers */}
+      {!isSearching && (
+        <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 rounded-xl p-1 w-fit">
+          {(['hot', 'cold'] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`px-4 py-1.5 text-sm font-medium rounded-lg capitalize transition-all ${
+                tab === t
+                  ? 'bg-white dark:bg-slate-900 shadow-sm text-slate-800 dark:text-slate-200'
+                  : 'text-slate-500 dark:text-slate-400'
+              }`}
+            >
+              {t === 'hot' ? `🔥 Hot (${hot.length})` : `❄️ Cold (${cold.length})`}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {isSearching && (
+        <p className="text-xs text-slate-500">
+          {searchResults.length} result(s) for "{debouncedSearch}"
+        </p>
+      )}
 
       {loading ? (
         <PageSpinner />
       ) : memories.length === 0 ? (
         <Empty
           icon={<Brain className="w-8 h-8" />}
-          title={`No ${tab} memories`}
+          title={isSearching ? 'No matches' : `No ${tab} memories`}
           description={
-            tab === 'hot'
-              ? 'Hot memories are created during sessions.'
-              : 'Cold memories are promoted from hot memory over time.'
+            isSearching
+              ? 'Try a different search term.'
+              : tab === 'hot'
+                ? 'Hot memories are created during sessions.'
+                : 'Cold memories are promoted from hot memory over time.'
           }
         />
       ) : (

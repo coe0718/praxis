@@ -22,7 +22,9 @@ use super::{ToolKind, ToolManifest, policy::normalize_relative, request::parse_p
 const DEFAULT_TIMEOUT_SECS: u64 = 30;
 
 /// Shell metacharacters that enable command injection when passed to `bash -c`.
-const DANGEROUS_SHELL_CHARS: &[char] = &[';', '|', '&', '`', '$', '(', ')', '<', '>', '\n', '\r', '\\'];
+const DANGEROUS_SHELL_CHARS: &[char] = &[
+    ';', '|', '&', '`', '$', '(', ')', '<', '>', '\n', '\r', '\\',
+];
 const MAX_OUTPUT_BYTES: usize = 1024 * 1024; // 1 MB cap on command output
 
 #[derive(Debug, Clone, PartialEq, Eq)]

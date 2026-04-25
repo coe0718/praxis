@@ -36,6 +36,18 @@ pub(super) fn initialize(store: &SqliteSessionStore) -> Result<()> {
         "memory_type",
         "TEXT NOT NULL DEFAULT 'episodic'",
     )?;
+    ensure_table_column(
+        &connection,
+        "hot_memories",
+        "embedding",
+        "BLOB",
+    )?;
+    ensure_table_column(
+        &connection,
+        "cold_memories",
+        "embedding",
+        "BLOB",
+    )?;
 
     connection
         .execute(

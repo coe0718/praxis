@@ -3,7 +3,10 @@ use rusqlite::{OptionalExtension, params};
 
 use crate::{
     storage::ProviderUsageStore,
-    usage::{PhaseTokenUsage, ProviderAttempt, ProviderUsageSummary, TokenLedgerSummary},
+    usage::{
+        PhaseTokenUsage, ProviderAttempt, ProviderTokenSummary, ProviderUsageSummary,
+        SessionTokenUsage, TokenLedgerSummary, TokenSummaryAllTime,
+    },
 };
 
 use super::SqliteSessionStore;
@@ -14,7 +17,9 @@ pub(super) fn record_attempts(
     attempts: &[ProviderAttempt],
 ) -> Result<()> {
     let mut connection = store.connect()?;
-    let tx = connection.transaction().context("failed to begin provider recording transaction")?;
+    let tx = connection
+        .transaction()
+        .context("failed to begin provider recording transaction")?;
     for attempt in attempts {
         tx.execute(
             "
@@ -57,7 +62,8 @@ pub(super) fn record_attempts(
         )
         .context("failed to insert token ledger row")?;
     }
-    tx.commit().context("failed to commit provider recording transaction")?;
+    tx.commit()
+        .context("failed to commit provider recording transaction")?;
     Ok(())
 }
 
@@ -170,6 +176,94 @@ pub(super) fn latest_phase_usage(
         .context("failed to load token hotspots")
 }
 
+pub(super) fn token_summary_all_time(store: &SqliteSessionStore) -> Result<TokenSummaryAllTime> {
+    let connection = store.connect()?;
+    connection
+        .query_row(
+            "
+            SELECT
+                COALESCE(SUM(input_tokens + output_tokens), 0) AS total_tokens,
+                COALESCE(SUM(estimated_cost_micros), 0) AS total_cost_micros,
+                COUNT(DISTINCT session_id) AS total_sessions
+            FROM token_ledger
+            ",
+            [],
+            |row| {
+                Ok(TokenSummaryAllTime {
+                    total_tokens: row.get(0)?,
+                    total_cost_micros: row.get(1)?,
+                    total_sessions: row.get(2)?,
+                })
+            },
+        )
+        .context("failed to query all-time token summary")
+}
+
+pub(super) fn token_usage_by_session(
+    store: &SqliteSessionStore,
+    limit: usize,
+) -> Result<Vec<SessionTokenUsage>> {
+    let connection = store.connect()?;
+    let mut statement = connection
+        .prepare(
+            "
+            SELECT
+                s.id AS session_id,
+                s.day,
+                COALESCE(SUM(t.input_tokens + t.output_tokens), 0) AS tokens_used,
+                COALESCE(SUM(t.estimated_cost_micros), 0) AS estimated_cost_micros
+            FROM sessions s
+            LEFT JOIN token_ledger t ON s.id = t.session_id
+            GROUP BY s.id, s.day
+            ORDER BY s.id DESC
+            LIMIT ?1
+            ",
+        )
+        .context("failed to prepare session token query")?;
+    let rows = statement
+        .query_map(params![limit as i64], |row| {
+            Ok(SessionTokenUsage {
+                session_id: row.get(0)?,
+                day: row.get(1)?,
+                tokens_used: row.get(2)?,
+                estimated_cost_micros: row.get(3)?,
+            })
+        })
+        .context("failed to execute session token query")?;
+    rows.collect::<std::result::Result<Vec<_>, _>>()
+        .context("failed to load session token usage")
+}
+
+pub(super) fn token_usage_by_provider(
+    store: &SqliteSessionStore,
+) -> Result<Vec<ProviderTokenSummary>> {
+    let connection = store.connect()?;
+    let mut statement = connection
+        .prepare(
+            "
+            SELECT
+                provider,
+                SUM(input_tokens + output_tokens) AS tokens_used,
+                SUM(estimated_cost_micros) AS estimated_cost_micros
+            FROM token_ledger
+            GROUP BY provider
+            ORDER BY tokens_used DESC
+            ",
+        )
+        .context("failed to prepare provider token query")?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok(ProviderTokenSummary {
+                provider: row.get(0)?,
+                tokens_used: row.get(1)?,
+                estimated_cost_micros: row.get(2)?,
+            })
+        })
+        .context("failed to execute provider token query")?;
+    rows.collect::<std::result::Result<Vec<_>, _>>()
+        .context("failed to load provider token usage")
+}
+
 impl ProviderUsageStore for SqliteSessionStore {
     fn record_provider_attempts(
         &self,
@@ -189,5 +283,17 @@ impl ProviderUsageStore for SqliteSessionStore {
 
     fn latest_phase_token_usage(&self, limit: usize) -> Result<Vec<PhaseTokenUsage>> {
         latest_phase_usage(self, limit)
+    }
+
+    fn token_summary_all_time(&self) -> Result<TokenSummaryAllTime> {
+        token_summary_all_time(self)
+    }
+
+    fn token_usage_by_session(&self, limit: usize) -> Result<Vec<SessionTokenUsage>> {
+        token_usage_by_session(self, limit)
+    }
+
+    fn token_usage_by_provider(&self) -> Result<Vec<ProviderTokenSummary>> {
+        token_usage_by_provider(self)
     }
 }

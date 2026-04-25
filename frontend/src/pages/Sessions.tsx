@@ -5,6 +5,7 @@ import { fetchSessions, type SessionRow } from '../lib/api'
 import { Card } from '../components/ui/Card'
 import { PageSpinner } from '../components/ui/Spinner'
 import { Empty } from '../components/ui/Empty'
+import { SessionTimeline } from '../components/SessionTimeline'
 import { formatDate, formatDuration, formatRelative, outcomeBadgeClass } from '../lib/utils'
 
 function SessionCard({ s }: { s: SessionRow }) {
@@ -51,6 +52,7 @@ function SessionCard({ s }: { s: SessionRow }) {
 
       {expanded && (
         <div className="px-5 pb-4 border-t border-slate-100 dark:border-slate-800 pt-3 space-y-3">
+          <SessionTimeline durations={s.phase_durations} />
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
             <div>
               <p className="text-xs text-slate-400 uppercase tracking-wider">Session</p>

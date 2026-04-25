@@ -1,9 +1,10 @@
 use axum::{
     Json,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
 };
+use serde::Deserialize;
 use serde_json::json;
 
 use crate::paths::PraxisPaths;
@@ -102,11 +103,65 @@ pub(super) async fn api_memory_forget(
     }
 }
 
-pub(super) async fn api_approvals(State(state): State<DashboardState>) -> impl IntoResponse {
-    use crate::storage::{ApprovalStore, SqliteSessionStore};
+#[derive(Debug, Deserialize)]
+pub(super) struct MemorySearchQuery {
+    q: String,
+}
+
+pub(super) async fn api_memories_search(
+    State(state): State<DashboardState>,
+    Query(query): Query<MemorySearchQuery>,
+) -> impl IntoResponse {
+    use crate::{memory::MemoryStore, storage::SqliteSessionStore};
     let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
     let store = SqliteSessionStore::new(paths.database_file.clone());
-    match store.list_approvals(None) {
+    if query.q.trim().is_empty() {
+        return (StatusCode::BAD_REQUEST, "q is required").into_response();
+    }
+    match store.search_memories(&query.q, 50) {
+        Ok(mems) => {
+            let rows: Vec<MemoryRow> = mems
+                .into_iter()
+                .map(|m| MemoryRow {
+                    id: m.id,
+                    tier: match m.tier {
+                        crate::memory::MemoryTier::Hot => "hot".to_string(),
+                        crate::memory::MemoryTier::Cold => "cold".to_string(),
+                    },
+                    content: m.content,
+                    summary: m.summary,
+                    tags: m.tags,
+                    score: m.score as f64,
+                    memory_type: m.memory_type.as_str().to_string(),
+                })
+                .collect();
+            Json(rows).into_response()
+        }
+        Err(e) => api_error(e).into_response(),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub(super) struct ApprovalQuery {
+    q: Option<String>,
+    tool: Option<String>,
+    status: Option<String>,
+}
+
+pub(super) async fn api_approvals(
+    State(state): State<DashboardState>,
+    Query(query): Query<ApprovalQuery>,
+) -> impl IntoResponse {
+    use crate::storage::{ApprovalStatus, SqliteSessionStore};
+    let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
+    let store = SqliteSessionStore::new(paths.database_file.clone());
+
+    let status = query
+        .status
+        .as_deref()
+        .and_then(|s| ApprovalStatus::parse(s).ok());
+
+    match store.search_approvals(query.q.as_deref(), query.tool.as_deref(), status) {
         Ok(rows) => {
             let out: Vec<ApprovalRow> = rows
                 .into_iter()

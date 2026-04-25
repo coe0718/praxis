@@ -178,6 +178,29 @@ fn collect_prometheus_metrics(paths: &PraxisPaths) -> String {
         session_count
     );
 
+    // Token usage metrics
+    if let Ok(summary) = store.token_summary_all_time() {
+        gauge!(
+            "praxis_tokens_total",
+            "Total tokens consumed across all sessions.",
+            summary.total_tokens
+        );
+        gauge!(
+            "praxis_cost_micros_total",
+            "Total estimated cost in micro-dollars.",
+            summary.total_cost_micros
+        );
+    }
+
+    if let Ok(by_provider) = store.token_usage_by_provider() {
+        for p in by_provider {
+            lines.push(format!(
+                "# HELP praxis_provider_tokens_total Tokens by provider.\n# TYPE praxis_provider_tokens_total gauge\npraxis_provider_tokens_total{{provider=\"{}\"}} {}",
+                p.provider, p.tokens_used
+            ));
+        }
+    }
+
     lines.push(String::new());
     lines.join("\n")
 }
@@ -188,7 +211,7 @@ pub(super) async fn webhook_discord(
     headers: HeaderMap,
     body: Bytes,
 ) -> impl IntoResponse {
-    use ed25519_dalek::{Signature, VerifyingKey, Verifier};
+    use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 
     // Fail closed: require the public key to be configured.
     let public_key_hex = match state.discord_public_key.as_deref() {
@@ -199,11 +222,17 @@ pub(super) async fn webhook_discord(
         }
     };
 
-    let signature_hex = match headers.get("X-Signature-Ed25519").and_then(|v| v.to_str().ok()) {
+    let signature_hex = match headers
+        .get("X-Signature-Ed25519")
+        .and_then(|v| v.to_str().ok())
+    {
         Some(s) => s,
         None => return StatusCode::UNAUTHORIZED.into_response(),
     };
-    let timestamp = match headers.get("X-Signature-Timestamp").and_then(|v| v.to_str().ok()) {
+    let timestamp = match headers
+        .get("X-Signature-Timestamp")
+        .and_then(|v| v.to_str().ok())
+    {
         Some(s) => s,
         None => return StatusCode::UNAUTHORIZED.into_response(),
     };
@@ -291,11 +320,17 @@ pub(super) async fn webhook_slack(
         }
     };
 
-    let signature = match headers.get("X-Slack-Signature").and_then(|v| v.to_str().ok()) {
+    let signature = match headers
+        .get("X-Slack-Signature")
+        .and_then(|v| v.to_str().ok())
+    {
         Some(s) => s,
         None => return StatusCode::UNAUTHORIZED.into_response(),
     };
-    let timestamp = match headers.get("X-Slack-Request-Timestamp").and_then(|v| v.to_str().ok()) {
+    let timestamp = match headers
+        .get("X-Slack-Request-Timestamp")
+        .and_then(|v| v.to_str().ok())
+    {
         Some(s) => s,
         None => return StatusCode::UNAUTHORIZED.into_response(),
     };

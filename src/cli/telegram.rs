@@ -105,8 +105,12 @@ fn process_messages(bot: &TelegramBot, paths: &crate::paths::PraxisPaths) -> Res
             log::debug!("typing indicator begin failed for {conversation_id}: {e}");
         }
 
-        let reply = handle_telegram_command(paths.data_dir.clone(), &message.chat_id.to_string(), &message.text)
-            .unwrap_or_else(|error| format!("telegram command error: {error}"));
+        let reply = handle_telegram_command(
+            paths.data_dir.clone(),
+            &message.chat_id.to_string(),
+            &message.text,
+        )
+        .unwrap_or_else(|error| format!("telegram command error: {error}"));
 
         if let Err(e) = bot.end(&conversation_id) {
             log::debug!("typing indicator end failed for {conversation_id}: {e}");

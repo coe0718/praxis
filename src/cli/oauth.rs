@@ -5,7 +5,9 @@ use clap::{Args, Subcommand};
 
 use crate::{
     oauth::{
-        GitHubOAuth, GoogleOAuth, OAuthTokenStore, github::DEFAULT_SCOPES as GITHUB_DEFAULT_SCOPES,
+        CopilotOAuth, GitHubOAuth, GoogleOAuth, OAuthTokenStore,
+        copilot::DEFAULT_SCOPES as COPILOT_DEFAULT_SCOPES,
+        github::DEFAULT_SCOPES as GITHUB_DEFAULT_SCOPES,
         google::DEFAULT_SCOPES as GOOGLE_DEFAULT_SCOPES,
     },
     paths::{PraxisPaths, default_data_dir},
@@ -33,7 +35,7 @@ enum OAuthCommand {
 
 #[derive(Debug, Args)]
 struct OAuthLoginArgs {
-    /// Provider to authorize (github, google).
+    /// Provider to authorize (github, google, copilot).
     provider: String,
 
     /// Override the default OAuth scopes (space or comma-separated).
@@ -43,7 +45,7 @@ struct OAuthLoginArgs {
 
 #[derive(Debug, Args)]
 struct OAuthProviderArgs {
-    /// Provider name (github, google).
+    /// Provider name (github, google, copilot).
     provider: String,
 }
 
@@ -85,7 +87,21 @@ fn handle_login(store: &OAuthTokenStore, args: OAuthLoginArgs) -> Result<String>
                 "google: authorized\nscopes: {scopes_str}\nexpires: {expires}"
             ))
         }
-        other => bail!("unknown provider '{other}' — supported: github, google"),
+        "copilot" => {
+            let scopes = args.scopes.as_deref().unwrap_or(COPILOT_DEFAULT_SCOPES);
+            let client = CopilotOAuth::from_env()?;
+            let token = client.login(scopes)?;
+            let scopes_str = token.scopes.join(", ");
+            let expires = token
+                .expires_at
+                .map(|t| t.format("%Y-%m-%d %H:%M UTC").to_string())
+                .unwrap_or_else(|| "never".to_string());
+            store.save(&token)?;
+            Ok(format!(
+                "copilot: authorized\nscopes: {scopes_str}\nexpires: {expires}"
+            ))
+        }
+        other => bail!("unknown provider '{other}' — supported: github, google, copilot"),
     }
 }
 
@@ -99,7 +115,7 @@ fn handle_status(store: &OAuthTokenStore) -> Result<String> {
     }
 
     let mut lines = Vec::new();
-    for provider in ["github", "google"] {
+    for provider in ["github", "google", "copilot"] {
         match tokens.get(provider) {
             Some(token) => {
                 let status = if token.is_expired() {
@@ -158,12 +174,12 @@ fn handle_refresh(store: &OAuthTokenStore, provider: &str) -> Result<String> {
             store.save(&refreshed)?;
             Ok(format!("google: token refreshed\nexpires: {expires}"))
         }
-        "github" => Ok(
-            "github: tokens do not expire by default — no refresh needed.\n\
-             If your token was revoked, run `praxis oauth login github` to re-authorize."
+        "github" | "copilot" => Ok(
+            "tokens do not expire by default — no refresh needed.\n\
+             If your token was revoked, run `praxis oauth login {prov}` to re-authorize."
                 .to_string(),
         ),
-        other => bail!("unknown provider '{other}' — supported: github, google"),
+        other => bail!("unknown provider '{other}' — supported: github, google, copilot"),
     }
 }
 

@@ -217,7 +217,9 @@ fn load_offset(path: &Path) -> Result<i64> {
 fn save_offset(path: &Path, last_update_id: i64) -> Result<()> {
     // Prevent lost updates from concurrent poll_once calls: never overwrite
     // a higher or equal offset that another process may have already saved.
-    if let Ok(current) = load_offset(path) && last_update_id <= current {
+    if let Ok(current) = load_offset(path)
+        && last_update_id <= current
+    {
         return Ok(());
     }
     if let Some(parent) = path.parent() {
@@ -229,8 +231,13 @@ fn save_offset(path: &Path, last_update_id: i64) -> Result<()> {
     let temp_path = path.with_extension("tmp");
     fs::write(&temp_path, raw)
         .with_context(|| format!("failed to write {}", temp_path.display()))?;
-    fs::rename(&temp_path, path)
-        .with_context(|| format!("failed to rename {} to {}", temp_path.display(), path.display()))
+    fs::rename(&temp_path, path).with_context(|| {
+        format!(
+            "failed to rename {} to {}",
+            temp_path.display(),
+            path.display()
+        )
+    })
 }
 
 /// Advisory lock file to prevent concurrent `poll_once` calls.
@@ -264,9 +271,9 @@ fn acquire_poll_lock(state_path: &Path) -> Result<PollLock> {
         .open(&lock_path)
     {
         Ok(_) => Ok(PollLock { path: lock_path }),
-        Err(e) => anyhow::bail!(
-            "another Telegram poll is already in progress (lock file exists): {e}"
-        ),
+        Err(e) => {
+            anyhow::bail!("another Telegram poll is already in progress (lock file exists): {e}")
+        }
     }
 }
 

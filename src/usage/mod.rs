@@ -43,6 +43,28 @@ pub struct PhaseTokenUsage {
     pub estimated_cost_micros: i64,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TokenSummaryAllTime {
+    pub total_tokens: i64,
+    pub total_cost_micros: i64,
+    pub total_sessions: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SessionTokenUsage {
+    pub session_id: i64,
+    pub day: i64,
+    pub tokens_used: i64,
+    pub estimated_cost_micros: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProviderTokenSummary {
+    pub provider: String,
+    pub tokens_used: i64,
+    pub estimated_cost_micros: i64,
+}
+
 impl ProviderAttempt {
     pub fn tokens_used(&self) -> i64 {
         self.input_tokens + self.output_tokens

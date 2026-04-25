@@ -21,6 +21,7 @@ import {
   TrendingUp,
   Wrench,
   Zap,
+  DollarSign,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
@@ -68,6 +69,7 @@ const navGroups: NavGroup[] = [
       { to: '/tools', label: 'Tools', icon: <Wrench className="w-4 h-4" /> },
       { to: '/evolution', label: 'Evolution', icon: <Sparkles className="w-4 h-4" /> },
       { to: '/score', label: 'Score', icon: <TrendingUp className="w-4 h-4" /> },
+      { to: '/tokens', label: 'Tokens', icon: <DollarSign className="w-4 h-4" /> },
       { to: '/canary', label: 'Canary', icon: <FlaskConical className="w-4 h-4" /> },
       { to: '/delegation', label: 'Delegation', icon: <GitBranch className="w-4 h-4" /> },
     ],

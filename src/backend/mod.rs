@@ -6,6 +6,7 @@ mod ollama;
 mod openai;
 mod prompts;
 mod provider_routes;
+pub mod streaming;
 
 use anyhow::Result;
 

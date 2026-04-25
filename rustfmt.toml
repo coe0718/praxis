@@ -1,0 +1,11 @@
+edition = "2024"
+max_width = 100
+chain_width = 80
+fn_args_layout = "Tall"
+fn_call_width = 80
+struct_lit_width = 30
+struct_variant_width = 30
+array_width = 80
+attr_fn_like_width = 80
+single_line_if_else_max_width = 60
+single_line_let_else_max_width = 60

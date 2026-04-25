@@ -14,10 +14,17 @@ pub(super) fn query_recent_sessions(
     let conn = rusqlite::Connection::open(db_path)?;
     let mut stmt = conn.prepare(
         "SELECT id, day, session_num, started_at, ended_at, outcome,
-                selected_goal_id, selected_goal_title, selected_task, action_summary
+                selected_goal_id, selected_goal_title, selected_task, action_summary,
+                phase_durations
          FROM sessions ORDER BY id DESC LIMIT ?1",
     )?;
     let rows = stmt.query_map([limit as i64], |row| {
+        let phase_durations_raw: String = row.get(10)?;
+        let phase_durations: Value = serde_json::from_str(&phase_durations_raw)
+            .unwrap_or_else(|e| {
+                log::warn!("Invalid phase_durations JSON for session {}: {e}", row.get::<_, i64>(0).unwrap_or(-1));
+                json!({})
+            });
         Ok(json!({
             "id": row.get::<_, i64>(0)?,
             "day": row.get::<_, i64>(1)?,
@@ -29,6 +36,7 @@ pub(super) fn query_recent_sessions(
             "selected_goal_title": row.get::<_, Option<String>>(7)?,
             "selected_task": row.get::<_, Option<String>>(8)?,
             "action_summary": row.get::<_, String>(9)?,
+            "phase_durations": phase_durations,
         }))
     })?;
     rows.collect::<rusqlite::Result<Vec<_>>>()

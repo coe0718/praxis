@@ -4,7 +4,7 @@ use rusqlite::{OptionalExtension, params};
 
 use crate::memory::{
     ConsolidationSummary, MemoryStore, MemoryTier, MemoryType, NewColdMemory, NewHotMemory,
-    StoredMemory, to_fts_query,
+    StoredMemory, to_fts_query, vector,
 };
 
 use super::SqliteSessionStore;
@@ -14,7 +14,9 @@ impl MemoryStore for SqliteSessionStore {
         let mut connection = self.connect()?;
         let tags = serde_json::to_string(&memory.tags).context("failed to serialize tags")?;
 
-        let tx = connection.transaction().context("failed to begin hot memory transaction")?;
+        let tx = connection
+            .transaction()
+            .context("failed to begin hot memory transaction")?;
         tx.execute(
             "
                 INSERT INTO hot_memories(content, summary, importance, tags, last_accessed, access_count, expires_at, memory_type)
@@ -38,7 +40,8 @@ impl MemoryStore for SqliteSessionStore {
             params![id, memory.content, memory.summary, tags],
         )
         .context("failed to index hot memory")?;
-        tx.commit().context("failed to commit hot memory transaction")?;
+        tx.commit()
+            .context("failed to commit hot memory transaction")?;
 
         Ok(StoredMemory {
             id,
@@ -59,7 +62,9 @@ impl MemoryStore for SqliteSessionStore {
         let contradicts = serde_json::to_string(&memory.contradicts)
             .context("failed to serialize contradiction ids")?;
 
-        let tx = connection.transaction().context("failed to begin cold memory transaction")?;
+        let tx = connection
+            .transaction()
+            .context("failed to begin cold memory transaction")?;
         tx.execute(
             "
                 INSERT INTO cold_memories(content, weight, tags, source_ids, contradicts, last_reinforced, memory_type)
@@ -83,7 +88,8 @@ impl MemoryStore for SqliteSessionStore {
             params![id, memory.content, tags],
         )
         .context("failed to index cold memory")?;
-        tx.commit().context("failed to commit cold memory transaction")?;
+        tx.commit()
+            .context("failed to commit cold memory transaction")?;
 
         Ok(StoredMemory {
             id,
@@ -158,8 +164,9 @@ impl MemoryStore for SqliteSessionStore {
         };
 
         let connection = self.connect()?;
-        let hot = search_hot_memories(&connection, &query, limit)?;
-        let cold = search_cold_memories(&connection, &query, limit)?;
+        let half = limit.div_ceil(2);
+        let hot = search_hot_memories(&connection, &query, half)?;
+        let cold = search_cold_memories(&connection, &query, half)?;
         let mut combined = hot.into_iter().chain(cold).collect::<Vec<_>>();
         combined.sort_by(|left, right| right.score.total_cmp(&left.score));
         combined.truncate(limit);
@@ -284,6 +291,97 @@ impl MemoryStore for SqliteSessionStore {
         }
 
         Ok(false)
+    }
+
+    fn search_memories_semantic(&self, query: &str, limit: usize) -> Result<Vec<StoredMemory>> {
+        let query_embedding = vector::generate_embedding(query);
+
+        let connection = self.connect()?;
+
+        // Load all memories with embeddings from both tiers.
+        let mut candidates: Vec<(StoredMemory, f32)> = Vec::new();
+
+        // Hot memories with embeddings.
+        let mut hot_stmt = connection.prepare(
+            "SELECT id, content, summary, tags, importance, embedding, COALESCE(memory_type, 'episodic')
+             FROM hot_memories WHERE embedding IS NOT NULL",
+        )?;
+        let hot_rows = hot_stmt.query_map([], |row| {
+            let blob: Vec<u8> = row.get(5)?;
+            let emb = vector::blob_to_embedding(&blob).unwrap_or_default();
+            let sim = vector::cosine_similarity(&query_embedding, &emb);
+            let mt: String = row.get(6)?;
+            let m = StoredMemory {
+                id: row.get(0)?,
+                tier: MemoryTier::Hot,
+                content: row.get(1)?,
+                summary: row.get(2)?,
+                tags: parse_tags(row.get::<_, String>(3)?).unwrap_or_default(),
+                score: row.get(4)?,
+                memory_type: MemoryType::parse(&mt),
+            };
+            Ok((m, sim))
+        })?;
+        for r in hot_rows {
+            if let Ok(item) = r { candidates.push(item); }
+        }
+
+        // Cold memories with embeddings.
+        let mut cold_stmt = connection.prepare(
+            "SELECT id, content, tags, weight, embedding, COALESCE(memory_type, 'episodic')
+             FROM cold_memories WHERE embedding IS NOT NULL",
+        )?;
+        let cold_rows = cold_stmt.query_map([], |row| {
+            let blob: Vec<u8> = row.get(4)?;
+            let emb = vector::blob_to_embedding(&blob).unwrap_or_default();
+            let sim = vector::cosine_similarity(&query_embedding, &emb);
+            let mt: String = row.get(5)?;
+            let m = StoredMemory {
+                id: row.get(0)?,
+                tier: MemoryTier::Cold,
+                content: row.get(1)?,
+                summary: None,
+                tags: parse_tags(row.get::<_, String>(2)?).unwrap_or_default(),
+                score: row.get(3)?,
+                memory_type: MemoryType::parse(&mt),
+            };
+            Ok((m, sim))
+        })?;
+        for r in cold_rows {
+            if let Ok(item) = r { candidates.push(item); }
+        }
+
+        // If no embeddings exist, fall back to FTS5 keyword search.
+        if candidates.is_empty() {
+            return self.search_memories(query, limit);
+        }
+
+        // Hybrid score: 60% vector similarity + 40% base score (importance/weight).
+        candidates.sort_by(|a, b| {
+            let score_a = 0.6 * a.1 + 0.4 * a.0.score;
+            let score_b = 0.6 * b.1 + 0.4 * b.0.score;
+            score_b.total_cmp(&score_a)
+        });
+
+        let mut results: Vec<StoredMemory> = candidates
+            .into_iter()
+            .take(limit)
+            .map(|(mut m, sim)| {
+                m.score = 0.6 * sim + 0.4 * m.score;
+                m
+            })
+            .collect();
+
+        // Also include any FTS5 keyword matches that didn't have embeddings.
+        let fts_results = self.search_memories(query, limit)?;
+        let existing_ids: std::collections::HashSet<i64> = results.iter().map(|m| m.id).collect();
+        for m in fts_results {
+            if !existing_ids.contains(&m.id) && results.len() < limit {
+                results.push(m);
+            }
+        }
+
+        Ok(results)
     }
 }
 

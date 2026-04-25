@@ -83,11 +83,15 @@ pub async fn serve_dashboard(data_dir: PathBuf, host: String, port: u16) -> Resu
 
     #[cfg(feature = "discord")]
     if discord_public_key.is_none() {
-        log::warn!("dashboard: PRAXIS_DISCORD_PUBLIC_KEY not set — Discord webhooks will be rejected");
+        log::warn!(
+            "dashboard: PRAXIS_DISCORD_PUBLIC_KEY not set — Discord webhooks will be rejected"
+        );
     }
     #[cfg(feature = "slack")]
     if slack_signing_secret.is_none() {
-        log::warn!("dashboard: PRAXIS_SLACK_SIGNING_SECRET not set — Slack webhooks will be rejected");
+        log::warn!(
+            "dashboard: PRAXIS_SLACK_SIGNING_SECRET not set — Slack webhooks will be rejected"
+        );
     }
 
     let state = DashboardState {
@@ -100,8 +104,7 @@ pub async fn serve_dashboard(data_dir: PathBuf, host: String, port: u16) -> Resu
     // SSE stream is read-only and exempt from auth — EventSource API cannot send headers.
     // Webhook routes are also public — Discord/Slack send webhooks without bearer tokens.
     let public_routes = {
-        let mut routes = Router::new()
-            .route("/events", get(routes_events::events_sse));
+        let mut routes = Router::new().route("/events", get(routes_events::events_sse));
 
         #[cfg(feature = "discord")]
         {
@@ -138,9 +141,16 @@ pub async fn serve_dashboard(data_dir: PathBuf, host: String, port: u16) -> Resu
         .route("/api/score", get(routes_core::api_score))
         .route("/api/report", get(routes_core::api_report))
         .route("/api/canary", get(routes_core::api_canary))
+        .route("/api/tokens", get(routes_core::api_tokens))
+        .route(
+            "/api/tokens/sessions",
+            get(routes_core::api_tokens_sessions),
+        )
+        .route("/api/health", get(routes_core::api_health))
         // Memory & approvals
         .route("/api/memories/hot", get(routes_memory::api_memories_hot))
         .route("/api/memories/cold", get(routes_memory::api_memories_cold))
+        .route("/api/memories/search", get(routes_memory::api_memories_search))
         .route(
             "/api/memories/consolidate",
             post(routes_memory::api_memories_consolidate),

@@ -19,6 +19,7 @@ import { Forensics } from './pages/Forensics'
 import { Agents } from './pages/Agents'
 import { Vault } from './pages/Vault'
 import { Argus } from './pages/Argus'
+import { Tokens } from './pages/Tokens'
 
 export default function App(): React.ReactElement {
   return (
@@ -44,6 +45,7 @@ export default function App(): React.ReactElement {
         <Route path="agents" element={<Agents />} />
         <Route path="vault" element={<Vault />} />
         <Route path="argus" element={<Argus />} />
+        <Route path="tokens" element={<Tokens />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Route>
     </Routes>

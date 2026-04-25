@@ -2,6 +2,8 @@ use anyhow::{Context, Result, bail};
 
 use crate::{
     config::AppConfig,
+    oauth::OAuthTokenStore,
+    paths::{PraxisPaths, default_data_dir},
     providers::{ProviderProtocol, ProviderRoute, ProviderSettings},
 };
 
@@ -51,19 +53,41 @@ pub fn validate_provider(route: &ProviderRoute) -> Result<()> {
             let specific = format!("{upper}_API_KEY");
             let has_stub = std::env::var("PRAXIS_OPENAI_STUB_RESPONSE").is_ok()
                 || std::env::var(format!("PRAXIS_{upper}_STUB_RESPONSE")).is_ok();
-            if !has_stub
-                && std::env::var(&specific).is_err()
-                && std::env::var("OPENAI_API_KEY").is_err()
-            {
-                bail!(
-                    "no API key found for provider '{}': set {specific} or OPENAI_API_KEY",
-                    route.provider
-                );
+            let has_key = has_stub
+                || std::env::var(&specific).is_ok()
+                || std::env::var("OPENAI_API_KEY").is_ok();
+            if !has_key {
+                // OAuth-backed providers may have a token in the store instead.
+                if route.uses_oauth() {
+                    if let Err(e) = check_oauth_token(&route.provider) {
+                        bail!(
+                            "no API key or OAuth token for provider '{}': set {specific}, OPENAI_API_KEY, or run `praxis oauth login {}` ({e})",
+                            route.provider, route.provider
+                        );
+                    }
+                } else {
+                    bail!(
+                        "no API key found for provider '{}': set {specific} or OPENAI_API_KEY",
+                        route.provider
+                    );
+                }
             }
         }
         ProviderProtocol::Ollama => {
             // Ollama is local; no key required.
         }
+    }
+    Ok(())
+}
+
+fn check_oauth_token(provider: &str) -> Result<()> {
+    let data_dir = default_data_dir()?;
+    let paths = PraxisPaths::for_data_dir(data_dir);
+    let store = OAuthTokenStore::new(&paths.data_dir);
+    let token = store.get(provider)?
+        .with_context(|| format!("no OAuth token for '{provider}'"))?;
+    if token.is_expired() {
+        bail!("OAuth token for '{provider}' has expired");
     }
     Ok(())
 }

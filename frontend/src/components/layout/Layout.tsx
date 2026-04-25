@@ -4,16 +4,18 @@ import { useQuery } from '@tanstack/react-query'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
 import { useSSE } from '../../hooks/useSSE'
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts'
 import { fetchApprovals } from '../../lib/api'
 import { cn } from '../../lib/utils'
 
 export function Layout() {
+  useKeyboardShortcuts()
   const [collapsed, setCollapsed] = useState(false)
   const { connected } = useSSE()
 
   const { data: approvals } = useQuery({
-    queryKey: ['approvals'],
-    queryFn: fetchApprovals,
+    queryKey: ['approvals', 'pending-count'],
+    queryFn: () => fetchApprovals({ status: 'pending' }),
     refetchInterval: 30_000,
   })
 

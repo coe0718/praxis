@@ -17,6 +17,8 @@ use aes_gcm::{
 };
 use anyhow::{Context, Result, bail};
 
+pub mod zeroize;
+
 const MAGIC: &str = "PRAXISENC1:";
 const NONCE_HEX_LEN: usize = 24; // 12 bytes × 2
 

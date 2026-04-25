@@ -10,7 +10,9 @@ pub(super) fn record_session(
     record: &SessionRecord,
 ) -> Result<StoredSession> {
     let mut connection = store.connect()?;
-    let tx = connection.transaction().context("failed to begin session recording transaction")?;
+    let tx = connection
+        .transaction()
+        .context("failed to begin session recording transaction")?;
     let session_num = next_session_number_tx(&tx, record.day)?;
     let started_at = record.started_at.to_rfc3339();
     let ended_at = record.ended_at.to_rfc3339();
@@ -41,7 +43,8 @@ pub(super) fn record_session(
     .context("failed to insert session row")?;
 
     let id = tx.last_insert_rowid();
-    tx.commit().context("failed to commit session recording transaction")?;
+    tx.commit()
+        .context("failed to commit session recording transaction")?;
 
     Ok(StoredSession {
         id,

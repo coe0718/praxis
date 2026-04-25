@@ -99,17 +99,41 @@ pub(super) fn execute(
     })
 }
 
-fn resolve_api_key(provider: &str) -> Result<String> {
-    // Try <UPPER_PROVIDER>_API_KEY first, then fall back to OPENAI_API_KEY.
+pub(super) fn resolve_api_key(provider: &str) -> Result<String> {
+    // 1. Try <UPPER_PROVIDER>_API_KEY env var.
     let env_name = format!("{}_API_KEY", provider.to_uppercase().replace('-', "_"));
-    std::env::var(&env_name)
-        .or_else(|_| std::env::var("OPENAI_API_KEY"))
-        .with_context(|| {
-            format!("no API key found for provider '{provider}': set {env_name} or OPENAI_API_KEY")
-        })
+    if let Ok(key) = std::env::var(&env_name) {
+        return Ok(key);
+    }
+    // 2. Try OPENAI_API_KEY fallback.
+    if let Ok(key) = std::env::var("OPENAI_API_KEY") {
+        return Ok(key);
+    }
+    // 3. For OAuth-backed providers (copilot), try the OAuth token store.
+    if provider == "copilot" {
+        if let Ok(token) = resolve_oauth_token(provider) {
+            return Ok(token);
+        }
+    }
+    bail!("no API key found for provider '{provider}': set {env_name} or OPENAI_API_KEY")
 }
 
-fn resolve_endpoint(route: &ProviderRoute) -> String {
+/// Load an OAuth token from the token store for providers that use OAuth.
+fn resolve_oauth_token(provider: &str) -> Result<String> {
+    use crate::paths::{PraxisPaths, default_data_dir};
+    use crate::oauth::OAuthTokenStore;
+    let data_dir = default_data_dir()?;
+    let paths = PraxisPaths::for_data_dir(data_dir);
+    let store = OAuthTokenStore::new(&paths.data_dir);
+    let token = store.get(provider)?
+        .with_context(|| format!("no OAuth token for '{provider}' — run `praxis oauth login {provider}`"))?;
+    if token.is_expired() {
+        bail!("OAuth token for '{provider}' has expired — run `praxis oauth login {provider}` or `praxis oauth refresh {provider}`");
+    }
+    Ok(token.access_token)
+}
+
+pub(super) fn resolve_endpoint(route: &ProviderRoute) -> String {
     match &route.base_url {
         Some(base) => {
             // If the operator already specified the full path, use it as-is.
