@@ -286,13 +286,10 @@ pub(super) async fn api_health(State(state): State<DashboardState>) -> impl Into
     }
     checks.push(hb_check);
 
-    // Pending approvals — COUNT(*)
-    let pending = store.count_pending_approvals().unwrap_or(0);
+    // Pending approvals + memories — single connection
+    let (pending, hot_count, cold_count) = store.health_counts().unwrap_or((0, 0, 0));
     checks.push(json!({ "name": "approvals", "status": "ok", "pending": pending }));
 
-    // Memories — COUNT(*)
-    let hot_count = store.count_hot_memories().unwrap_or(0);
-    let cold_count = store.count_cold_memories().unwrap_or(0);
     checks
         .push(json!({ "name": "memories", "status": "ok", "hot": hot_count, "cold": cold_count }));
 

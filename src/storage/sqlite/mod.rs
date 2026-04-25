@@ -89,6 +89,25 @@ impl SqliteSessionStore {
         .context("failed to count pending approvals")
     }
 
+    /// Batch COUNT queries on a single connection for health checks.
+    pub fn health_counts(&self) -> Result<(i64, i64, i64)> {
+        let conn = self.connect()?;
+        let pending = conn
+            .query_row(
+                "SELECT COUNT(*) FROM approval_requests WHERE status = 'pending'",
+                [],
+                |row| row.get(0),
+            )
+            .context("failed to count pending approvals")?;
+        let hot = conn
+            .query_row("SELECT COUNT(*) FROM hot_memories", [], |row| row.get(0))
+            .context("failed to count hot memories")?;
+        let cold = conn
+            .query_row("SELECT COUNT(*) FROM cold_memories", [], |row| row.get(0))
+            .context("failed to count cold memories")?;
+        Ok((pending, hot, cold))
+    }
+
     pub fn search_sessions(
         &self,
         query: &str,
