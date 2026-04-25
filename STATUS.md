@@ -77,6 +77,10 @@ All 12 CRITICAL + 23 WARNING from Vex's review resolved:
 - Merkle audit trail
 - Deterministic/offline mode
 
+### STUB — Aspirational (zero implementation)
+- Voice transcript streaming (Whisper → agent loop)
+- Serverless/edge entry point (Cloudflare Workers / AWS Lambda)
+
 ---
 
 ## Backlog (SUGGESTION items from reviews)

@@ -1,7 +1,8 @@
 # Praxis Ecosystem Review — ClawCharts + Shelldex Cross-Reference
 
-**Date:** 2026-04-20
+**Date:** 2026-04-20 | **Updated:** 2026-04-25 (stale entries fixed)
 **Reviewed:** 10 ClawCharts repos, 36 Shelldex projects, cross-referenced against Praxis codebase
+**Note:** Open action items folded into STATUS.md. This doc is historical benchmarking.
 
 ---
 
@@ -14,7 +15,7 @@ Praxis has a `sandbox.rs` but it's just per-channel policy gating — no actual 
 - **WASM Dual-Metered Sandbox** — tools run with fuel metering + epoch interruption. Praxis's shell-exec runs raw bash with no isolation beyond approval queue. ❌ *Not implemented.*
 - **Secret Zeroization** — auto-wipes API keys from memory when no longer needed. Praxis injects secrets into env without cleanup. ❌ *Not implemented.*
 - **Loop Guard** — SHA256-based tool call loop detection. If the agent calls the same tool with same args 3x, it stops. ✅ *Implemented* in `src/tools/guard.rs` with 1–3 step pattern detection.
-- **Prompt Injection Scanner** — detects override attempts in tool outputs and user messages. ❌ *Not implemented.*
+- **Prompt Injection Scanner** — detects override attempts in tool outputs and user messages. ✅ *Implemented* in `src/context/injection.rs` with 18 patterns.
 
 ### IronClaw (Rust, 11.6k★)
 
