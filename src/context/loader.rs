@@ -71,6 +71,8 @@ impl LocalContextLoader {
                 tail_lines(&reader.read(store, state, &paths.journal_file, "journal")?, 12),
             ),
             source("tools", render_tools(tool_summary, &paths.skills_dir)),
+            source("progressive_context", progressive_context()),
+            source("user_memory", load_user_memory(&paths.user_memory_file)),
             source("decision_receipts", render_receipts(&recent_decisions)),
             source("task", requested_task.unwrap_or_default().to_string()),
         ];
@@ -192,6 +194,21 @@ fn tail_lines(content: &str, limit: usize) -> String {
     let lines = content.lines().collect::<Vec<_>>();
     let start = lines.len().saturating_sub(limit);
     lines[start..].join("\n")
+}
+
+fn progressive_context() -> String {
+    use std::env;
+    let cwd = env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    match super::progressive::load_progressive_context(&cwd) {
+        Ok(ctx) => ctx.render(),
+        Err(_) => String::new(),
+    }
+}
+
+fn load_user_memory(path: &std::path::Path) -> String {
+    crate::memory::user::UserMemory::load(path)
+        .map(|m| m.render())
+        .unwrap_or_default()
 }
 
 #[cfg(test)]

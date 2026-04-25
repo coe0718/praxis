@@ -371,3 +371,12 @@ The remaining items (browser, code execution, plugin system, full profiles, term
 | #3 | Config Hot-Reload | ⏸️ DEFERRED | Needs `notify` crate + `Arc<RwLock<AppConfig>>` refactor of `PraxisRuntime` |
 
 **Remaining open: 29 gaps** (was 33, 4 closed, 1 deferred)
+
+### 2026-04-25 — Wave 2 (Context + Memory)
+
+| Gap | Feature | Status | Commit |
+|-----|---------|--------|--------|
+| #28 | Progressive Context Files | ✅ DONE | `src/context/progressive.rs` — walks CWD→git root for `.praxis.md`, `AGENTS.md`, `CLAUDE.md`, `.cursorrules` |
+| #6 | Persistent User Memory | ✅ DONE | `src/memory/user.rs` — `user_memory.json` key-value store with `memory` tool (upsert/search/forget/list) |
+
+**Remaining open: 27 gaps** (was 29, 2 closed)

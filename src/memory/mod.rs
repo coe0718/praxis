@@ -11,8 +11,10 @@ pub use ops::{
 };
 pub(crate) use query::{build_lookup_query, to_fts_query};
 pub mod conflicts;
+pub mod user;
 
 pub use types::{
     ConsolidationSummary, MemoryLink, MemoryLinkStore, MemoryLinkType, MemoryStore, MemoryTier,
     MemoryType, NewColdMemory, NewHotMemory, StoredMemory,
 };
+pub use user::{UserMemory, UserMemoryEntry};

@@ -51,6 +51,7 @@ pub fn execute_request(
         "github-prs" => github_list_prs(paths, request),
         "todo" => execute_todo_tool(paths, request),
         "clarify" => execute_clarify_tool(paths, request),
+        "memory" => execute_memory_tool(paths, request),
         _ => match manifest.kind {
             ToolKind::Shell if manifest.path.as_deref().is_some_and(|p| !p.trim().is_empty()) => {
                 run_shell(paths, &vault, manifest, request)
@@ -834,5 +835,28 @@ fn execute_clarify_tool(
     };
 
     let summary = execute_clarify(&paths.bus_file, question, &choices)?;
+    Ok(ToolExecutionResult { summary })
+}
+
+fn execute_memory_tool(
+    paths: &PraxisPaths,
+    request: &StoredApprovalRequest,
+) -> Result<ToolExecutionResult> {
+    let payload = parse_payload(request.payload_json.as_deref())?;
+    let action = payload
+        .params
+        .get("action")
+        .map(|s| s.as_str())
+        .ok_or_else(|| anyhow::anyhow!("memory requires action parameter"))?;
+    let key = payload.params.get("key").map(|s| s.as_str());
+    let value = payload.params.get("value").map(|s| s.as_str());
+    let tags: Vec<String> = payload
+        .params
+        .get("tags")
+        .map(|s| s.split(',').map(|t| t.trim().to_string()).collect())
+        .unwrap_or_default();
+
+    use crate::memory::user::execute_user_memory_action;
+    let summary = execute_user_memory_action(&paths.user_memory_file, action, key, value, tags)?;
     Ok(ToolExecutionResult { summary })
 }

@@ -71,6 +71,8 @@ pub struct PraxisPaths {
     pub sender_pairing_file: PathBuf,
     /// Auto-generated conflict workbench (`MEMORY_CONFLICTS.md`).
     pub memory_conflicts_file: PathBuf,
+    /// Persistent operator memory across sessions (`user_memory.json`).
+    pub user_memory_file: PathBuf,
     /// Per-session task decomposition (`todo.json`).
     pub todo_file: PathBuf,
     /// Compressed working-set cache from the last Reflect phase (`context_cache.json`).
@@ -220,6 +222,7 @@ impl PraxisPaths {
             security_file: data_dir.join("security.toml"),
             sender_pairing_file: data_dir.join("sender_pairing.json"),
             memory_conflicts_file: data_dir.join("MEMORY_CONFLICTS.md"),
+            user_memory_file: data_dir.join("user_memory.json"),
             todo_file: data_dir.join("todo.json"),
             context_cache_file: data_dir.join("context_cache.json"),
             tool_cooldowns_file: data_dir.join("tool_cooldowns.json"),
