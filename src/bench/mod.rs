@@ -232,18 +232,9 @@ impl BenchmarkResult {
 // ── Summary helpers ───────────────────────────────────────────────────────────
 
 pub fn summarize_results(results: &[BenchmarkResult]) -> String {
-    let passed = results
-        .iter()
-        .filter(|r| r.status == BenchmarkStatus::Passed)
-        .count();
-    let failed = results
-        .iter()
-        .filter(|r| r.status == BenchmarkStatus::Failed)
-        .count();
-    let errors = results
-        .iter()
-        .filter(|r| r.status == BenchmarkStatus::Error)
-        .count();
+    let passed = results.iter().filter(|r| r.status == BenchmarkStatus::Passed).count();
+    let failed = results.iter().filter(|r| r.status == BenchmarkStatus::Failed).count();
+    let errors = results.iter().filter(|r| r.status == BenchmarkStatus::Error).count();
     format!(
         "Benchmarks: {}/{} passed, {} failed, {} errors",
         passed,

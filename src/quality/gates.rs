@@ -163,9 +163,7 @@ impl QualityGate for NonEmptyGate {
 /// Build the default delivery gate pipeline — the set of gates applied to
 /// every operator-visible output from the agent.
 pub fn default_delivery_pipeline() -> GatePipeline {
-    GatePipeline::empty()
-        .add(NonEmptyGate)
-        .add(CredentialScrubGate)
+    GatePipeline::empty().add(NonEmptyGate).add(CredentialScrubGate)
 }
 
 // ---------------------------------------------------------------------------
@@ -255,23 +253,15 @@ mod tests {
     #[test]
     fn non_empty_gate_blocks_blank_response() {
         let gate = NonEmptyGate;
-        assert_eq!(
-            gate.check("   \n"),
-            GateDecision::Block("Response is empty.".to_string())
-        );
+        assert_eq!(gate.check("   \n"), GateDecision::Block("Response is empty.".to_string()));
         assert_eq!(gate.check("Hello"), GateDecision::Pass);
     }
 
     #[test]
     fn pipeline_returns_first_non_pass() {
-        let pipeline = GatePipeline::empty()
-            .add(NonEmptyGate)
-            .add(MaxLengthGate { max_bytes: 5 });
+        let pipeline = GatePipeline::empty().add(NonEmptyGate).add(MaxLengthGate { max_bytes: 5 });
 
-        assert_eq!(
-            pipeline.run(""),
-            GateDecision::Block("Response is empty.".to_string())
-        );
+        assert_eq!(pipeline.run(""), GateDecision::Block("Response is empty.".to_string()));
         match pipeline.run("Too long for the limit.") {
             GateDecision::RetryWithFeedback(_) => {}
             other => panic!("expected RetryWithFeedback, got {other:?}"),

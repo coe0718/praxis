@@ -116,19 +116,13 @@ impl LocalReviewer {
                 criteria.goal_id,
                 criteria.commands.len()
             ),
-            ReviewStatus::Failed => format!(
-                "Reviewer failed {} with {} finding(s).",
-                criteria.goal_id,
-                findings.len()
-            ),
+            ReviewStatus::Failed => {
+                format!("Reviewer failed {} with {} finding(s).", criteria.goal_id, findings.len())
+            }
             ReviewStatus::Skipped => format!("Reviewer skipped {}.", criteria.goal_id),
         };
 
-        Ok(ReviewOutcome {
-            status,
-            summary,
-            findings,
-        })
+        Ok(ReviewOutcome { status, summary, findings })
     }
 }
 
@@ -155,30 +149,17 @@ fn load_criteria(path: &PathBuf) -> Result<GoalCriteria> {
         bail!("criteria in {} must include a goal_id", path.display());
     }
     if criteria.done_when.is_empty() {
-        bail!(
-            "criteria in {} must include at least one done_when item",
-            path.display()
-        );
+        bail!("criteria in {} must include at least one done_when item", path.display());
     }
     if criteria.verify_with != "shell" {
-        bail!(
-            "criteria in {} only supports verify_with = \"shell\" right now",
-            path.display()
-        );
+        bail!("criteria in {} only supports verify_with = \"shell\" right now", path.display());
     }
     if criteria.commands.is_empty() {
-        bail!(
-            "criteria in {} must include at least one shell command",
-            path.display()
-        );
+        bail!("criteria in {} must include at least one shell command", path.display());
     }
 
     if path.file_stem().and_then(|value| value.to_str()) != Some(criteria.goal_id.as_str()) {
-        bail!(
-            "criteria filename {} must match goal_id {}",
-            path.display(),
-            criteria.goal_id
-        );
+        bail!("criteria filename {} must match goal_id {}", path.display(), criteria.goal_id);
     }
 
     Ok(criteria)
@@ -216,10 +197,7 @@ fn run_shell_bounded(
         let stderr = String::from_utf8_lossy(&output.stderr);
         let raw = format!("{stdout}\n{stderr}");
         if raw.len() > max_output_bytes {
-            format!(
-                "{}… (truncated to {max_output_bytes} bytes)",
-                &raw[..max_output_bytes]
-            )
+            format!("{}… (truncated to {max_output_bytes} bytes)", &raw[..max_output_bytes])
         } else {
             raw
         }

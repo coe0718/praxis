@@ -21,10 +21,7 @@ pub fn export_audit(
     days: i64,
 ) -> Result<AuditExportSummary> {
     if output_file.exists() && !overwrite {
-        anyhow::bail!(
-            "{} already exists; pass --overwrite to replace it",
-            output_file.display()
-        );
+        anyhow::bail!("{} already exists; pass --overwrite to replace it", output_file.display());
     }
     if let Some(parent) = output_file.parent() {
         fs::create_dir_all(parent)
@@ -115,9 +112,7 @@ fn query_lines<T>(
     map: impl FnMut(&rusqlite::Row<'_>) -> rusqlite::Result<T>,
 ) -> Result<Vec<T>> {
     let mut statement = connection.prepare(sql).context("failed to prepare query")?;
-    let rows = statement
-        .query_map(params![cutoff], map)
-        .context("failed to execute query")?;
+    let rows = statement.query_map(params![cutoff], map).context("failed to execute query")?;
     rows.collect::<std::result::Result<Vec<_>, _>>()
         .context("failed to collect rows")
 }
@@ -134,13 +129,7 @@ fn grouped_counts(
             "SELECT status, COUNT(*) FROM {table} WHERE {column} >= ?1 GROUP BY status ORDER BY status"
         ),
         cutoff,
-        |row| {
-            Ok(format!(
-                "- status={} count={}",
-                row.get::<_, String>(0)?,
-                row.get::<_, i64>(1)?
-            ))
-        },
+        |row| Ok(format!("- status={} count={}", row.get::<_, String>(0)?, row.get::<_, i64>(1)?)),
     )
 }
 
@@ -179,8 +168,7 @@ fn memory_lines(connection: &Connection, cutoff: &str) -> Result<Vec<String>> {
             Ok(format!(
                 "- hot {} {}",
                 row.get::<_, String>(0)?,
-                row.get::<_, Option<String>>(1)?
-                    .unwrap_or_else(|| "summary=none".to_string())
+                row.get::<_, Option<String>>(1)?.unwrap_or_else(|| "summary=none".to_string())
             ))
         },
     )?;

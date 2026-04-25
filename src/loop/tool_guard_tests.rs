@@ -24,9 +24,7 @@ fn runtime_blocks_repeated_tool_invocations() {
     let identity = LocalIdentityPolicy;
     let started_at = chrono::Utc.with_ymd_and_hms(2026, 3, 31, 12, 0, 0).unwrap();
 
-    identity
-        .ensure_foundation(&paths, &config, started_at)
-        .unwrap();
+    identity.ensure_foundation(&paths, &config, started_at).unwrap();
     FileToolRegistry.ensure_foundation(&paths).unwrap();
 
     let store = SqliteSessionStore::new(paths.database_file.clone());
@@ -66,9 +64,7 @@ fn runtime_blocks_repeated_two_step_tool_patterns() {
     let identity = LocalIdentityPolicy;
     let started_at = chrono::Utc.with_ymd_and_hms(2026, 4, 1, 12, 0, 0).unwrap();
 
-    identity
-        .ensure_foundation(&paths, &config, started_at)
-        .unwrap();
+    identity.ensure_foundation(&paths, &config, started_at).unwrap();
     FileToolRegistry.ensure_foundation(&paths).unwrap();
 
     let store = SqliteSessionStore::new(paths.database_file.clone());
@@ -105,11 +101,7 @@ fn runtime_blocks_repeated_two_step_tool_patterns() {
     let summary = run_once(&paths, &config, &identity, &store, started_at);
 
     assert_eq!(summary.outcome, "blocked_loop_guard");
-    assert!(
-        summary
-            .action_summary
-            .contains("repeating 2-step tool pattern")
-    );
+    assert!(summary.action_summary.contains("repeating 2-step tool pattern"));
 }
 
 fn tool_state(started_at: chrono::DateTime<chrono::Utc>, request_id: i64) -> SessionState {

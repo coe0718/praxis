@@ -190,11 +190,7 @@ impl EvolutionStore {
 
     /// Load only proposals matching a status filter.
     pub fn with_status(&self, status: ProposalStatus) -> Result<Vec<EvolutionProposal>> {
-        Ok(self
-            .all()?
-            .into_iter()
-            .filter(|p| p.status == status)
-            .collect())
+        Ok(self.all()?.into_iter().filter(|p| p.status == status).collect())
     }
 
     /// Find a proposal by ID.
@@ -312,12 +308,7 @@ pub fn render_self_evolution_doc(paths: &PraxisPaths) -> Result<()> {
 
     let pending: Vec<_> = proposals
         .iter()
-        .filter(|p| {
-            matches!(
-                p.status,
-                ProposalStatus::Proposed | ProposalStatus::Approved
-            )
-        })
+        .filter(|p| matches!(p.status, ProposalStatus::Proposed | ProposalStatus::Approved))
         .collect();
     let historical: Vec<_> = proposals
         .iter()
@@ -378,19 +369,12 @@ fn render_proposal_summary(p: &EvolutionProposal) -> String {
             .applied_at
             .map(|t| format!(" (applied {})", t.format("%Y-%m-%d")))
             .unwrap_or_default(),
-        ProposalStatus::Rejected => p
-            .rejection_note
-            .as_deref()
-            .map(|n| format!(" — {n}"))
-            .unwrap_or_default(),
+        ProposalStatus::Rejected => {
+            p.rejection_note.as_deref().map(|n| format!(" — {n}")).unwrap_or_default()
+        }
         _ => String::new(),
     };
-    format!(
-        "- `{}` **{}** [{}]{extra}\n",
-        p.id,
-        p.title,
-        p.status.label()
-    )
+    format!("- `{}` **{}** [{}]{extra}\n", p.id, p.title, p.status.label())
 }
 
 #[cfg(test)]

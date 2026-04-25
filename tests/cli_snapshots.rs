@@ -23,10 +23,7 @@ fn enabled_daily_snapshots_create_and_prune_backup_bundles() {
     let config_path = data_dir.join("praxis.toml");
     let updated = fs::read_to_string(&config_path)
         .unwrap()
-        .replace(
-            "daily_backup_snapshots = false",
-            "daily_backup_snapshots = true",
-        )
+        .replace("daily_backup_snapshots = false", "daily_backup_snapshots = true")
         .replace("snapshot_retention_days = 7", "snapshot_retention_days = 1");
     fs::write(&config_path, updated).unwrap();
 

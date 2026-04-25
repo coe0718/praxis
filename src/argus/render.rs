@@ -46,10 +46,7 @@ pub fn render(report: &ArgusReport) -> String {
     } else {
         lines.push("failure_clusters:".to_string());
         lines.extend(
-            report
-                .failure_clusters
-                .iter()
-                .map(|(name, count)| format!("- {name} x{count}")),
+            report.failure_clusters.iter().map(|(name, count)| format!("- {name} x{count}")),
         );
     }
 
@@ -102,11 +99,7 @@ pub(super) fn directives(inputs: DirectiveInputs<'_>) -> Vec<String> {
                 .to_string(),
         );
     }
-    if inputs
-        .repeated_work
-        .iter()
-        .any(|pattern| pattern.distinct_days >= 2)
-    {
+    if inputs.repeated_work.iter().any(|pattern| pattern.distinct_days >= 2) {
         directives.push(
             "Recurring work is resurfacing across multiple days; promote it into automation, a parent goal, or the learning runtime."
                 .to_string(),

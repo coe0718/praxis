@@ -71,6 +71,8 @@ pub struct PraxisPaths {
     pub sender_pairing_file: PathBuf,
     /// Auto-generated conflict workbench (`MEMORY_CONFLICTS.md`).
     pub memory_conflicts_file: PathBuf,
+    /// Per-session task decomposition (`todo.json`).
+    pub todo_file: PathBuf,
     /// Compressed working-set cache from the last Reflect phase (`context_cache.json`).
     pub context_cache_file: PathBuf,
     /// Tool-level approval cooldown state (`tool_cooldowns.json`).
@@ -134,11 +136,7 @@ pub fn default_data_dir() -> Result<PathBuf> {
         .context("HOME is not set, unable to resolve a default Praxis data directory")?;
     let xdg_data_home = env::var_os("XDG_DATA_HOME").map(PathBuf::from);
 
-    Ok(default_data_dir_for(
-        detect_platform(),
-        &home,
-        xdg_data_home.as_deref(),
-    ))
+    Ok(default_data_dir_for(detect_platform(), &home, xdg_data_home.as_deref()))
 }
 
 pub fn default_data_dir_for(
@@ -157,11 +155,7 @@ pub fn default_data_dir_for(
 
 impl PraxisPaths {
     pub fn for_data_dir(data_dir: PathBuf) -> Self {
-        Self::new(
-            data_dir,
-            PathBuf::from("praxis.db"),
-            PathBuf::from("session_state.json"),
-        )
+        Self::new(data_dir, PathBuf::from("praxis.db"), PathBuf::from("session_state.json"))
     }
 
     pub fn from_config(config: &AppConfig) -> Self {
@@ -226,6 +220,7 @@ impl PraxisPaths {
             security_file: data_dir.join("security.toml"),
             sender_pairing_file: data_dir.join("sender_pairing.json"),
             memory_conflicts_file: data_dir.join("MEMORY_CONFLICTS.md"),
+            todo_file: data_dir.join("todo.json"),
             context_cache_file: data_dir.join("context_cache.json"),
             tool_cooldowns_file: data_dir.join("tool_cooldowns.json"),
             context_groups_file: data_dir.join("context_groups.json"),
@@ -299,9 +294,6 @@ mod tests {
         let home = PathBuf::from("/Users/tester");
         let path = default_data_dir_for(Platform::MacOs, &home, None);
 
-        assert_eq!(
-            path,
-            PathBuf::from("/Users/tester/Library/Application Support/Praxis")
-        );
+        assert_eq!(path, PathBuf::from("/Users/tester/Library/Application Support/Praxis"));
     }
 }

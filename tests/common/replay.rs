@@ -100,11 +100,7 @@ fn run_step(data_dir: &PathBuf, step: ReplayStep) -> Result<()> {
         let content = fs::read_to_string(data_dir.join(&check.path))
             .with_context(|| format!("failed to read replay file {}", check.path))?;
         if !content.contains(&check.contains) {
-            bail!(
-                "expected {} to contain {:?}, but it did not",
-                check.path,
-                check.contains
-            );
+            bail!("expected {} to contain {:?}, but it did not", check.path, check.contains);
         }
     }
     Ok(())

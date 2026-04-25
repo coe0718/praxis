@@ -58,16 +58,10 @@ pub(super) fn detect_drift(sessions: &[SessionRow], window: usize) -> DriftRepor
 
 fn score(sessions: &[SessionRow]) -> f32 {
     let total = sessions.len() as f32;
-    let review_rate = sessions
-        .iter()
-        .filter(|session| session.reviewer_failures > 0)
-        .count() as f32
-        / total;
-    let eval_rate = sessions
-        .iter()
-        .filter(|session| session.eval_failures > 0)
-        .count() as f32
-        / total;
+    let review_rate =
+        sessions.iter().filter(|session| session.reviewer_failures > 0).count() as f32 / total;
+    let eval_rate =
+        sessions.iter().filter(|session| session.eval_failures > 0).count() as f32 / total;
     let loop_rate = sessions
         .iter()
         .filter(|session| session.outcome == "blocked_loop_guard")

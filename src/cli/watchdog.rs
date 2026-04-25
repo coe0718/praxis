@@ -203,23 +203,14 @@ fn watchdog_update(paths: &PraxisPaths, args: WatchdogUpdateArgs) -> Result<Stri
     let latest = release.tag_name.trim_start_matches('v');
 
     if latest == CURRENT_VERSION {
-        return Ok(format!(
-            "watchdog: already on latest version {CURRENT_VERSION}"
-        ));
+        return Ok(format!("watchdog: already on latest version {CURRENT_VERSION}"));
     }
 
     // Find an asset matching the current platform.
     let target = platform_asset_name();
-    let asset = release
-        .assets
-        .iter()
-        .find(|a| a.name.contains(target))
-        .with_context(|| {
-            format!(
-                "no asset matching '{target}' found in release {}",
-                release.tag_name
-            )
-        })?;
+    let asset = release.assets.iter().find(|a| a.name.contains(target)).with_context(|| {
+        format!("no asset matching '{target}' found in release {}", release.tag_name)
+    })?;
 
     let download_url = &asset.browser_download_url;
     let tmp_path = paths.data_dir.join(format!("praxis-{latest}.tmp"));
@@ -257,12 +248,8 @@ fn watchdog_update(paths: &PraxisPaths, args: WatchdogUpdateArgs) -> Result<Stri
     let current_exe = std::env::current_exe().context("failed to locate current binary")?;
     fs::create_dir_all(&paths.backups_dir).context("failed to create backups directory")?;
     let backup_path = paths.backups_dir.join("praxis.prev");
-    fs::copy(&current_exe, &backup_path).with_context(|| {
-        format!(
-            "failed to backup current binary to {}",
-            backup_path.display()
-        )
-    })?;
+    fs::copy(&current_exe, &backup_path)
+        .with_context(|| format!("failed to backup current binary to {}", backup_path.display()))?;
 
     // Replace.
     fs::copy(&tmp_path, &current_exe)
@@ -298,10 +285,7 @@ fn watchdog_rollback(paths: &PraxisPaths) -> Result<String> {
 
     let backup = PathBuf::from(&record.backup_path);
     if !backup.exists() {
-        bail!(
-            "backup binary not found at {} — cannot roll back",
-            backup.display()
-        );
+        bail!("backup binary not found at {} — cannot roll back", backup.display());
     }
 
     let current_exe = std::env::current_exe().context("failed to locate current binary")?;
@@ -459,9 +443,7 @@ fn install_launchd(paths: &PraxisPaths, interval_secs: u64) -> Result<String> {
     fs::write(&path, &plist).with_context(|| format!("failed to write {}", path.display()))?;
 
     // Unload first in case it was previously installed.
-    let _ = Command::new("launchctl")
-        .args(["unload", &path.to_string_lossy()])
-        .output();
+    let _ = Command::new("launchctl").args(["unload", &path.to_string_lossy()]).output();
 
     let load = Command::new("launchctl")
         .args(["load", &path.to_string_lossy()])
@@ -485,15 +467,10 @@ fn uninstall_launchd(_paths: &PraxisPaths) -> Result<String> {
     let label = plist_label();
 
     if !path.exists() {
-        return Ok(format!(
-            "watchdog: not installed (no plist at {})",
-            path.display()
-        ));
+        return Ok(format!("watchdog: not installed (no plist at {})", path.display()));
     }
 
-    let _ = Command::new("launchctl")
-        .args(["unload", &path.to_string_lossy()])
-        .output();
+    let _ = Command::new("launchctl").args(["unload", &path.to_string_lossy()]).output();
 
     fs::remove_file(&path).with_context(|| format!("failed to remove {}", path.display()))?;
 
@@ -528,9 +505,7 @@ fn unit_path(user: Option<&str>) -> Result<PathBuf> {
     } else {
         // User-level unit.
         let home = std::env::var("HOME").context("HOME is not set")?;
-        Ok(PathBuf::from(home)
-            .join(".config/systemd/user")
-            .join("praxis-agent.service"))
+        Ok(PathBuf::from(home).join(".config/systemd/user").join("praxis-agent.service"))
     }
 }
 
@@ -603,10 +578,9 @@ fn uninstall_systemd(_paths: &PraxisPaths) -> Result<String> {
     let user_path = unit_path(None)?;
     let system_path = PathBuf::from("/etc/systemd/system/praxis-agent.service");
 
-    for (path, args) in [
-        (&user_path, vec!["systemctl", "--user"]),
-        (&system_path, vec!["systemctl"]),
-    ] {
+    for (path, args) in
+        [(&user_path, vec!["systemctl", "--user"]), (&system_path, vec!["systemctl"])]
+    {
         if path.exists() {
             let timer = path.with_extension("timer");
             let _ = run_systemctl(&args, &["disable", "--now", "praxis-agent.timer"]);

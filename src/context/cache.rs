@@ -73,11 +73,7 @@ pub fn write_context_cache(path: &Path, cache: &ContextCache) -> Result<()> {
 pub fn load_context_cache(path: &Path, now: DateTime<Utc>) -> Option<ContextCache> {
     let raw = fs::read_to_string(path).ok()?;
     let cache: ContextCache = serde_json::from_str(&raw).ok()?;
-    if cache.is_fresh(now) {
-        Some(cache)
-    } else {
-        None
-    }
+    if cache.is_fresh(now) { Some(cache) } else { None }
 }
 
 /// Format the cache as a human-readable context block for injection into Orient.

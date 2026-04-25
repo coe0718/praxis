@@ -65,9 +65,7 @@ impl A2aClient {
     /// Cancel a previously submitted task.
     pub fn cancel_task(&self, task_id: &str) -> Result<CancelTaskResponse> {
         let url = format!("{}/tasks/cancel", self.agent_url.trim_end_matches('/'));
-        let req = CancelTaskRequest {
-            id: task_id.to_string(),
-        };
+        let req = CancelTaskRequest { id: task_id.to_string() };
         self.client
             .post(&url)
             .json(&req)

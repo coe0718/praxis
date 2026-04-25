@@ -13,11 +13,7 @@ pub enum GoalDecision {
 }
 
 pub fn choose_goal(goals: &[Goal], data_dir: &Path, now: DateTime<Utc>) -> Result<GoalDecision> {
-    let open_goals = goals
-        .iter()
-        .filter(|goal| !goal.completed)
-        .cloned()
-        .collect::<Vec<_>>();
+    let open_goals = goals.iter().filter(|goal| !goal.completed).cloned().collect::<Vec<_>>();
     if open_goals.is_empty() {
         return Ok(GoalDecision::Complete);
     }
@@ -31,10 +27,7 @@ pub fn choose_goal(goals: &[Goal], data_dir: &Path, now: DateTime<Utc>) -> Resul
         .iter()
         .filter_map(|goal| goal.parent_id.clone())
         .collect::<HashSet<_>>();
-    let goal_ids = goals
-        .iter()
-        .map(|goal| goal.id.clone())
-        .collect::<HashSet<_>>();
+    let goal_ids = goals.iter().map(|goal| goal.id.clone()).collect::<HashSet<_>>();
     let dependent_counts = dependency_counts(&open_goals);
     let mut ready = open_goals
         .iter()
@@ -45,17 +38,9 @@ pub fn choose_goal(goals: &[Goal], data_dir: &Path, now: DateTime<Utc>) -> Resul
         .collect::<Vec<_>>();
 
     ready.sort_by(|left, right| {
-        let left_count = dependent_counts
-            .get(left.id.as_str())
-            .copied()
-            .unwrap_or_default();
-        let right_count = dependent_counts
-            .get(right.id.as_str())
-            .copied()
-            .unwrap_or_default();
-        right_count
-            .cmp(&left_count)
-            .then(left.line_number.cmp(&right.line_number))
+        let left_count = dependent_counts.get(left.id.as_str()).copied().unwrap_or_default();
+        let right_count = dependent_counts.get(right.id.as_str()).copied().unwrap_or_default();
+        right_count.cmp(&left_count).then(left.line_number.cmp(&right.line_number))
     });
 
     if let Some(goal) = ready.into_iter().next() {

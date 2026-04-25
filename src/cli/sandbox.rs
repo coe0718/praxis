@@ -128,25 +128,16 @@ pub(super) fn handle_sandbox(
             let mut store = ChannelSandboxStore::load(&paths.sandbox_file)?;
             store.set(&a.channel, sandbox);
             store.save(&paths.sandbox_file)?;
-            Ok(format!(
-                "sandbox: policy '{}' applied to channel '{}'",
-                a.preset, a.channel
-            ))
+            Ok(format!("sandbox: policy '{}' applied to channel '{}'", a.preset, a.channel))
         }
 
         SandboxCommands::Remove(a) => {
             let mut store = ChannelSandboxStore::load(&paths.sandbox_file)?;
             if store.remove(&a.channel) {
                 store.save(&paths.sandbox_file)?;
-                Ok(format!(
-                    "sandbox: policy removed for channel '{}'",
-                    a.channel
-                ))
+                Ok(format!("sandbox: policy removed for channel '{}'", a.channel))
             } else {
-                Ok(format!(
-                    "sandbox: no policy found for channel '{}'",
-                    a.channel
-                ))
+                Ok(format!("sandbox: no policy found for channel '{}'", a.channel))
             }
         }
     }

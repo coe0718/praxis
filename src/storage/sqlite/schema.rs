@@ -10,18 +10,10 @@ pub(super) fn initialize(store: &SqliteSessionStore) -> Result<()> {
         .execute_batch(schema_data::BASE_SCHEMA)
         .context("failed to initialize SQLite schema")?;
     ensure_session_column(&connection, "reviewer_passes", "INTEGER NOT NULL DEFAULT 0")?;
-    ensure_session_column(
-        &connection,
-        "reviewer_failures",
-        "INTEGER NOT NULL DEFAULT 0",
-    )?;
+    ensure_session_column(&connection, "reviewer_failures", "INTEGER NOT NULL DEFAULT 0")?;
     ensure_session_column(&connection, "eval_passes", "INTEGER NOT NULL DEFAULT 0")?;
     ensure_session_column(&connection, "eval_failures", "INTEGER NOT NULL DEFAULT 0")?;
-    ensure_session_column(
-        &connection,
-        "repeated_reads_avoided",
-        "INTEGER NOT NULL DEFAULT 0",
-    )?;
+    ensure_session_column(&connection, "repeated_reads_avoided", "INTEGER NOT NULL DEFAULT 0")?;
     ensure_table_column(&connection, "opportunities", "goal_id", "TEXT")?;
     ensure_table_column(&connection, "approval_requests", "payload_json", "TEXT")?;
     ensure_table_column(
@@ -36,18 +28,8 @@ pub(super) fn initialize(store: &SqliteSessionStore) -> Result<()> {
         "memory_type",
         "TEXT NOT NULL DEFAULT 'episodic'",
     )?;
-    ensure_table_column(
-        &connection,
-        "hot_memories",
-        "embedding",
-        "BLOB",
-    )?;
-    ensure_table_column(
-        &connection,
-        "cold_memories",
-        "embedding",
-        "BLOB",
-    )?;
+    ensure_table_column(&connection, "hot_memories", "embedding", "BLOB")?;
+    ensure_table_column(&connection, "cold_memories", "embedding", "BLOB")?;
 
     connection
         .execute(
@@ -65,9 +47,7 @@ pub(super) fn validate(store: &SqliteSessionStore) -> Result<()> {
 
     let connection = store.connect()?;
     let version: Option<i64> = connection
-        .query_row("SELECT MAX(version) FROM schema_migrations", [], |row| {
-            row.get(0)
-        })
+        .query_row("SELECT MAX(version) FROM schema_migrations", [], |row| row.get(0))
         .optional()
         .context("failed to query schema migrations")?;
     if version.unwrap_or_default() < schema_data::SCHEMA_VERSION {
@@ -89,10 +69,7 @@ pub(super) fn validate(store: &SqliteSessionStore) -> Result<()> {
             .with_context(|| format!("failed to validate {table_name} table"))?;
 
         if table.as_deref() != Some(*table_name) {
-            bail!(
-                "{table_name} table is missing from {}",
-                store.path.display()
-            );
+            bail!("{table_name} table is missing from {}", store.path.display());
         }
     }
 
@@ -134,14 +111,9 @@ fn ensure_table_column(
     let mut statement = connection
         .prepare(&format!("PRAGMA table_info({table})"))
         .with_context(|| format!("failed to inspect {table} table"))?;
-    let mut rows = statement
-        .query([])
-        .with_context(|| format!("failed to query {table} table"))?;
+    let mut rows = statement.query([]).with_context(|| format!("failed to query {table} table"))?;
 
-    while let Some(row) = rows
-        .next()
-        .with_context(|| format!("failed to read {table} columns"))?
-    {
+    while let Some(row) = rows.next().with_context(|| format!("failed to read {table} columns"))? {
         let column_name: String = row.get(1).context("failed to read column name")?;
         if column_name == name {
             return Ok(());
@@ -149,10 +121,7 @@ fn ensure_table_column(
     }
 
     connection
-        .execute(
-            &format!("ALTER TABLE {table} ADD COLUMN {name} {definition}"),
-            [],
-        )
+        .execute(&format!("ALTER TABLE {table} ADD COLUMN {name} {definition}"), [])
         .with_context(|| format!("failed to add {table}.{name}"))?;
     Ok(())
 }

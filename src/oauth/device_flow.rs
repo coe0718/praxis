@@ -112,9 +112,8 @@ pub fn poll_for_token(
             .send()
             .context("failed to poll token endpoint")?;
 
-        let parsed: TokenPollResponse = response
-            .json()
-            .context("failed to parse token poll response")?;
+        let parsed: TokenPollResponse =
+            response.json().context("failed to parse token poll response")?;
 
         match parsed.error.as_deref() {
             None => {

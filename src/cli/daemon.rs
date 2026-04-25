@@ -55,9 +55,7 @@ pub(super) fn handle_daemon(
                 None => return Ok("daemon: no PID file found — daemon is not running".to_string()),
             };
             if !daemon_is_running(&paths) {
-                return Ok(format!(
-                    "daemon: stale PID file (pid={pid}) — daemon is not running"
-                ));
+                return Ok(format!("daemon: stale PID file (pid={pid}) — daemon is not running"));
             }
             send_sigterm(pid)?;
             Ok(format!("daemon: SIGTERM sent to pid={pid}"))

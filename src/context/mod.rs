@@ -4,6 +4,7 @@ pub mod cache;
 pub mod compaction;
 mod files;
 pub mod handoff;
+pub(crate) mod injection;
 mod loader;
 mod summarize;
 

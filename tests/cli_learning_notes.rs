@@ -36,9 +36,7 @@ fn learning_notes_append_structured_operational_entries() {
         .success()
         .stdout(predicate::str::contains("learning: noted"))
         .stdout(predicate::str::contains("kind: operational-note"))
-        .stdout(predicate::str::contains(
-            "summary: Prefer cargo test --locked before pushing.",
-        ));
+        .stdout(predicate::str::contains("summary: Prefer cargo test --locked before pushing."));
 
     praxis_command()
         .env("PRAXIS_FIXED_NOW", "2026-04-05T10:00:00Z")

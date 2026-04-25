@@ -146,10 +146,7 @@ pub fn select_branch(
     let best_score = &scores[best_idx];
 
     let rationale = if success_criteria.is_empty() && trust_constraints.is_empty() {
-        format!(
-            "Selected {} (first branch, no criteria provided).",
-            winner.id
-        )
+        format!("Selected {} (first branch, no criteria provided).", winner.id)
     } else {
         format!(
             "Selected {} — score {} ({}/{} criteria matched, {} trust violations).",
@@ -161,11 +158,7 @@ pub fn select_branch(
         )
     };
 
-    Some(SpeculativeResult {
-        winner,
-        scores,
-        rationale,
-    })
+    Some(SpeculativeResult { winner, scores, rationale })
 }
 
 #[cfg(test)]
@@ -204,10 +197,7 @@ mod tests {
 
     #[test]
     fn tie_broken_by_earliest_branch() {
-        let branches = vec![
-            branch("first", "check logs"),
-            branch("second", "check logs"),
-        ];
+        let branches = vec![branch("first", "check logs"), branch("second", "check logs")];
         let criteria = vec!["logs".to_string()];
         let result = select_branch(branches, &criteria, &[]).unwrap();
         assert_eq!(result.winner.id, "first");

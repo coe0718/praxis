@@ -107,14 +107,8 @@ impl UsageBudgetRule {
         mode: UsageBudgetMode,
     ) -> UsageBudgetDecision {
         let attempt_count = attempts.len();
-        let tokens_used = attempts
-            .iter()
-            .map(ProviderAttempt::tokens_used)
-            .sum::<i64>();
-        let cost_micros = attempts
-            .iter()
-            .map(|attempt| attempt.estimated_cost_micros)
-            .sum::<i64>();
+        let tokens_used = attempts.iter().map(ProviderAttempt::tokens_used).sum::<i64>();
+        let cost_micros = attempts.iter().map(|attempt| attempt.estimated_cost_micros).sum::<i64>();
         let blocked = attempt_count >= self.max_attempts
             || tokens_used >= self.max_tokens
             || cost_micros >= usd_to_micros(self.max_cost_usd);
@@ -168,11 +162,7 @@ impl UsageBudgetMode {
 }
 
 pub fn estimate_tokens(input: &str) -> i64 {
-    input
-        .split_whitespace()
-        .map(str::len)
-        .sum::<usize>()
-        .div_ceil(4) as i64
+    input.split_whitespace().map(str::len).sum::<usize>().div_ceil(4) as i64
 }
 
 fn usd_to_micros(value: f64) -> i64 {

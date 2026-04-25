@@ -78,11 +78,7 @@ pub(super) fn token_hotspots(
         .context("failed to prepare Argus token hotspot query")?;
     let rows = statement
         .query_map(params![limit as i64], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, i64>(2)?,
-            ))
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, i64>(2)?))
         })
         .context("failed to execute Argus token hotspot query")?;
 
@@ -142,15 +138,11 @@ pub(super) fn repeated_work_patterns(sessions: &[SessionRow]) -> Vec<RepeatedWor
 }
 
 fn work_label(session: &SessionRow) -> Option<String> {
-    session
-        .selected_task
-        .as_ref()
-        .map(|task| format!("task: {task}"))
-        .or_else(|| {
-            session
-                .selected_goal_id
-                .as_ref()
-                .zip(session.selected_goal_title.as_ref())
-                .map(|(id, title)| format!("goal: {id} {title}"))
-        })
+    session.selected_task.as_ref().map(|task| format!("task: {task}")).or_else(|| {
+        session
+            .selected_goal_id
+            .as_ref()
+            .zip(session.selected_goal_title.as_ref())
+            .map(|(id, title)| format!("goal: {id} {title}"))
+    })
 }

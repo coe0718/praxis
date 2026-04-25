@@ -6,10 +6,7 @@ pub fn render_status_report(report: &StatusReport) -> String {
         format!("instance: {}", report.instance_name),
         format!("backend: {}", report.backend),
         format!("profile: {}", report.profile),
-        format!(
-            "freeze_on_model_regression: {}",
-            report.freeze_on_model_regression
-        ),
+        format!("freeze_on_model_regression: {}", report.freeze_on_model_regression),
         format!("data_dir: {}", report.data_dir),
         format!("phase: {}", report.phase),
         format!("last_outcome: {}", report.last_outcome),
@@ -44,10 +41,7 @@ pub fn render_status_report(report: &StatusReport) -> String {
         lines.push(format!("last_boundary_review: {last_boundary_review}"));
     }
     if let Some(session) = &report.last_session {
-        lines.push(format!(
-            "last_session: #{} {}",
-            session.session_num, session.outcome
-        ));
+        lines.push(format!("last_session: #{} {}", session.session_num, session.outcome));
         lines.push(format!("last_session_ended_at: {}", session.ended_at));
     } else {
         lines.push("last_session: none".to_string());

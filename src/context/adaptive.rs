@@ -86,11 +86,7 @@ impl AdaptiveState {
     }
 
     fn apply(&self, budget: &[ContextSourceConfig]) -> Vec<ContextSourceConfig> {
-        let base_total = budget
-            .iter()
-            .map(|entry| entry.max_pct)
-            .sum::<f32>()
-            .max(f32::EPSILON);
+        let base_total = budget.iter().map(|entry| entry.max_pct).sum::<f32>().max(f32::EPSILON);
         let mut adjusted = budget
             .iter()
             .cloned()
@@ -99,11 +95,8 @@ impl AdaptiveState {
                 entry
             })
             .collect::<Vec<_>>();
-        let adjusted_total = adjusted
-            .iter()
-            .map(|entry| entry.max_pct)
-            .sum::<f32>()
-            .max(f32::EPSILON);
+        let adjusted_total =
+            adjusted.iter().map(|entry| entry.max_pct).sum::<f32>().max(f32::EPSILON);
         let scale = base_total / adjusted_total;
         for entry in &mut adjusted {
             entry.max_pct *= scale;
@@ -178,12 +171,7 @@ mod tests {
         assert!(new_task > original_task);
         assert!(
             (config.context.budget.iter().map(|e| e.max_pct).sum::<f32>()
-                - adjusted
-                    .context
-                    .budget
-                    .iter()
-                    .map(|e| e.max_pct)
-                    .sum::<f32>())
+                - adjusted.context.budget.iter().map(|e| e.max_pct).sum::<f32>())
             .abs()
                 < 0.0001
         );
@@ -200,10 +188,7 @@ mod tests {
             "deferred_quiet_hours",
         )
         .unwrap();
-        assert_eq!(
-            AdaptiveState::load(&state_path).unwrap(),
-            AdaptiveState::default()
-        );
+        assert_eq!(AdaptiveState::load(&state_path).unwrap(), AdaptiveState::default());
 
         record_context_feedback(
             &state_path,

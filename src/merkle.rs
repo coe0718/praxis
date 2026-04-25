@@ -34,9 +34,7 @@ pub struct MerkleTrail {
 
 impl MerkleTrail {
     pub fn new(path: &Path) -> Self {
-        Self {
-            path: path.to_path_buf(),
-        }
+        Self { path: path.to_path_buf() }
     }
 
     /// Append a new entry and return its hash.
@@ -64,7 +62,8 @@ impl MerkleTrail {
             .append(true)
             .open(&self.path)
             .with_context(|| format!("open audit trail {}", self.path.display()))?;
-        writeln!(file, "{line}").with_context(|| format!("write audit trail {}", self.path.display()))?;
+        writeln!(file, "{line}")
+            .with_context(|| format!("write audit trail {}", self.path.display()))?;
         Ok(hash)
     }
 
@@ -95,7 +94,8 @@ impl MerkleTrail {
         let entries = self.load()?;
         let mut prev_hash = String::new();
         for e in &entries {
-            let expected = compute_hash(e.seq, &e.timestamp, &e.action, &e.payload_json, &e.prev_hash);
+            let expected =
+                compute_hash(e.seq, &e.timestamp, &e.action, &e.payload_json, &e.prev_hash);
             if e.hash != expected {
                 log::error!("audit chain broken at seq {}: hash mismatch", e.seq);
                 return Ok(false);

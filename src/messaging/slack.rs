@@ -128,15 +128,11 @@ impl SlackClient {
             bail!("Slack chat.postMessage failed with {status}: {safe_body}");
         }
 
-        let parsed: SlackApiResponse = response
-            .json()
-            .context("failed to parse Slack chat.postMessage response")?;
+        let parsed: SlackApiResponse =
+            response.json().context("failed to parse Slack chat.postMessage response")?;
 
         if !parsed.ok {
-            bail!(
-                "Slack chat.postMessage error: {}",
-                parsed.error.as_deref().unwrap_or("unknown")
-            );
+            bail!("Slack chat.postMessage error: {}", parsed.error.as_deref().unwrap_or("unknown"));
         }
 
         Ok(parsed.ts.unwrap_or_default())
@@ -210,18 +206,15 @@ impl SlackClient {
         if let Some(ts) = oldest {
             req = req.query(&[("oldest", ts)]);
         }
-        let resp = req
-            .send()
-            .context("failed to GET Slack conversations.history")?;
+        let resp = req.send().context("failed to GET Slack conversations.history")?;
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().unwrap_or_default();
             let safe_body = body.chars().take(200).collect::<String>();
             bail!("Slack conversations.history failed with {status}: {safe_body}");
         }
-        let envelope: SlackHistoryEnvelope = resp
-            .json()
-            .context("failed to parse Slack conversations.history")?;
+        let envelope: SlackHistoryEnvelope =
+            resp.json().context("failed to parse Slack conversations.history")?;
         if !envelope.ok {
             bail!(
                 "Slack conversations.history error: {}",
@@ -265,21 +258,12 @@ struct SlackPollState {
 fn parse_slack_channel_ids() -> Result<Vec<String>> {
     let raw = std::env::var("PRAXIS_SLACK_CHANNEL_IDS")
         .context("PRAXIS_SLACK_CHANNEL_IDS is required for Slack polling")?;
-    Ok(raw
-        .split(',')
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .collect())
+    Ok(raw.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect())
 }
 
 pub fn parse_allowed_user_ids() -> Vec<String> {
     std::env::var("PRAXIS_SLACK_ALLOWED_USER_IDS")
-        .map(|raw| {
-            raw.split(',')
-                .map(|s| s.trim().to_string())
-                .filter(|s| !s.is_empty())
-                .collect()
-        })
+        .map(|raw| raw.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect())
         .unwrap_or_default()
 }
 

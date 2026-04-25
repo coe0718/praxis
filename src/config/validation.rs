@@ -41,11 +41,7 @@ impl AppConfig {
         }
 
         if matches!(self.agent.backend.as_str(), "claude" | "openai")
-            && self
-                .agent
-                .model_pin
-                .as_deref()
-                .is_some_and(|model| model.trim().is_empty())
+            && self.agent.model_pin.as_deref().is_some_and(|model| model.trim().is_empty())
         {
             bail!("agent.model_pin must not be blank when provided");
         }

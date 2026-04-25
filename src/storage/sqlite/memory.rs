@@ -14,9 +14,7 @@ impl MemoryStore for SqliteSessionStore {
         let mut connection = self.connect()?;
         let tags = serde_json::to_string(&memory.tags).context("failed to serialize tags")?;
 
-        let tx = connection
-            .transaction()
-            .context("failed to begin hot memory transaction")?;
+        let tx = connection.transaction().context("failed to begin hot memory transaction")?;
         tx.execute(
             "
                 INSERT INTO hot_memories(content, summary, importance, tags, last_accessed, access_count, expires_at, memory_type)
@@ -40,8 +38,7 @@ impl MemoryStore for SqliteSessionStore {
             params![id, memory.content, memory.summary, tags],
         )
         .context("failed to index hot memory")?;
-        tx.commit()
-            .context("failed to commit hot memory transaction")?;
+        tx.commit().context("failed to commit hot memory transaction")?;
 
         Ok(StoredMemory {
             id,
@@ -62,9 +59,7 @@ impl MemoryStore for SqliteSessionStore {
         let contradicts = serde_json::to_string(&memory.contradicts)
             .context("failed to serialize contradiction ids")?;
 
-        let tx = connection
-            .transaction()
-            .context("failed to begin cold memory transaction")?;
+        let tx = connection.transaction().context("failed to begin cold memory transaction")?;
         tx.execute(
             "
                 INSERT INTO cold_memories(content, weight, tags, source_ids, contradicts, last_reinforced, memory_type)
@@ -88,8 +83,7 @@ impl MemoryStore for SqliteSessionStore {
             params![id, memory.content, tags],
         )
         .context("failed to index cold memory")?;
-        tx.commit()
-            .context("failed to commit cold memory transaction")?;
+        tx.commit().context("failed to commit cold memory transaction")?;
 
         Ok(StoredMemory {
             id,
@@ -323,7 +317,9 @@ impl MemoryStore for SqliteSessionStore {
             Ok((m, sim))
         })?;
         for r in hot_rows {
-            if let Ok(item) = r { candidates.push(item); }
+            if let Ok(item) = r {
+                candidates.push(item);
+            }
         }
 
         // Cold memories with embeddings.
@@ -348,7 +344,9 @@ impl MemoryStore for SqliteSessionStore {
             Ok((m, sim))
         })?;
         for r in cold_rows {
-            if let Ok(item) = r { candidates.push(item); }
+            if let Ok(item) = r {
+                candidates.push(item);
+            }
         }
 
         // If no embeddings exist, fall back to FTS5 keyword search.

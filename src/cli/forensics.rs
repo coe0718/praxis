@@ -38,10 +38,7 @@ pub(crate) fn handle_forensics(
 fn render_latest(data_dir_override: Option<PathBuf>) -> Result<String> {
     let (_, paths) = load_initialized_config(data_dir_override)?;
     let started_at = latest_started_at(&paths.database_file)?.with_context(|| {
-        format!(
-            "no session snapshots found in {}",
-            paths.database_file.display()
-        )
+        format!("no session snapshots found in {}", paths.database_file.display())
     })?;
     render_snapshots(&paths.database_file, &started_at)
 }

@@ -90,12 +90,7 @@ fn append_section(
     lines.extend(opportunities.iter().map(|item| {
         item.goal_id.as_ref().map_or_else(
             || format!("- #{} [{}] {}", item.id, item.kind, item.title),
-            |goal_id| {
-                format!(
-                    "- #{} [{}] {} -> {}",
-                    item.id, item.kind, item.title, goal_id
-                )
-            },
+            |goal_id| format!("- #{} [{}] {} -> {}", item.id, item.kind, item.title, goal_id),
         )
     }));
 }

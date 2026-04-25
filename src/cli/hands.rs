@@ -55,27 +55,17 @@ pub(super) fn handle_hands(data_dir_override: Option<PathBuf>, args: HandsArgs) 
                         format!("description: {}", hand.description),
                     ];
                     if !hand.tools.required.is_empty() {
-                        lines.push(format!(
-                            "tools.required: {}",
-                            hand.tools.required.join(", ")
-                        ));
+                        lines.push(format!("tools.required: {}", hand.tools.required.join(", ")));
                     }
                     if !hand.tools.optional.is_empty() {
-                        lines.push(format!(
-                            "tools.optional: {}",
-                            hand.tools.optional.join(", ")
-                        ));
+                        lines.push(format!("tools.optional: {}", hand.tools.optional.join(", ")));
                     }
                     if !hand.skills.load.is_empty() {
                         lines.push(format!("skills: {}", hand.skills.load.join(", ")));
                     }
                     if !hand.schedule.quiet_hours.is_empty() {
-                        let hours: Vec<String> = hand
-                            .schedule
-                            .quiet_hours
-                            .iter()
-                            .map(|h| h.to_string())
-                            .collect();
+                        let hours: Vec<String> =
+                            hand.schedule.quiet_hours.iter().map(|h| h.to_string()).collect();
                         lines.push(format!("quiet_hours: {}", hours.join(", ")));
                     }
                     if !hand.metadata.tags.is_empty() {

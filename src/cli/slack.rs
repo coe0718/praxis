@@ -99,9 +99,7 @@ fn poll_loop(data_dir_override: Option<PathBuf>, args: SlackRunArgs) -> Result<S
         thread::sleep(delay);
     }
 
-    Ok(format!(
-        "slack: processed {total} messages across {cycles} cycles"
-    ))
+    Ok(format!("slack: processed {total} messages across {cycles} cycles"))
 }
 
 fn process_messages(

@@ -83,24 +83,14 @@ fn git_init(paths: &PraxisPaths) -> Result<String> {
 
     run_git(dir, &["init"])?;
     run_git(dir, &["add", ".gitignore"])?;
-    run_git(
-        dir,
-        &[
-            "commit",
-            "--allow-empty",
-            "-m",
-            "chore: initialize praxis data repo",
-        ],
-    )?;
+    run_git(dir, &["commit", "--allow-empty", "-m", "chore: initialize praxis data repo"])?;
 
     Ok(format!("git: initialized in {}", dir.display()))
 }
 
 fn git_commit(paths: &PraxisPaths, message: Option<&str>) -> Result<String> {
     ensure_git_repo(&paths.data_dir)?;
-    let msg = message
-        .map(str::to_string)
-        .unwrap_or_else(auto_commit_message);
+    let msg = message.map(str::to_string).unwrap_or_else(auto_commit_message);
     run_git(&paths.data_dir, &["add", "-A"])?;
     let result = run_git(&paths.data_dir, &["commit", "-m", &msg]);
     match result {
@@ -126,9 +116,7 @@ fn git_push(
     message: Option<&str>,
 ) -> Result<String> {
     ensure_git_repo(&paths.data_dir)?;
-    let msg = message
-        .map(str::to_string)
-        .unwrap_or_else(auto_commit_message);
+    let msg = message.map(str::to_string).unwrap_or_else(auto_commit_message);
     run_git(&paths.data_dir, &["add", "-A"])?;
     // Commit only if there's something staged; ignore "nothing to commit".
     let commit_out = Command::new("git")
@@ -141,9 +129,7 @@ fn git_push(
     run_git(&paths.data_dir, &["push", remote, branch])?;
 
     if committed {
-        Ok(format!(
-            "git: committed and pushed to {remote}/{branch}\nmessage: {msg}"
-        ))
+        Ok(format!("git: committed and pushed to {remote}/{branch}\nmessage: {msg}"))
     } else {
         Ok(format!("git: pushed to {remote}/{branch} (no new commit)"))
     }
@@ -161,10 +147,7 @@ fn git_status(paths: &PraxisPaths) -> Result<String> {
 
 fn ensure_git_repo(dir: &Path) -> Result<()> {
     if !dir.join(".git").exists() {
-        bail!(
-            "{} is not a git repository — run `praxis git init` first",
-            dir.display()
-        );
+        bail!("{} is not a git repository — run `praxis git init` first", dir.display());
     }
     Ok(())
 }

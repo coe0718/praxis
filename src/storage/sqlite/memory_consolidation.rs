@@ -26,10 +26,7 @@ pub(super) fn consolidate_memories(
 ) -> Result<ConsolidationSummary> {
     let consolidated = consolidate_hot_memories(store, now)?;
     let pruned = prune_cold_memories(store, now)?;
-    Ok(ConsolidationSummary {
-        consolidated,
-        pruned,
-    })
+    Ok(ConsolidationSummary { consolidated, pruned })
 }
 
 struct HotCandidate {
@@ -119,10 +116,8 @@ fn consolidate_hot_memories(store: &SqliteSessionStore, now: DateTime<Utc>) -> R
             members.iter().map(|m| m.importance).sum::<f32>() / members.len() as f32;
         let cold_weight = avg_importance.clamp(0.5, 1.5);
 
-        let mut all_tags: Vec<String> = members
-            .iter()
-            .flat_map(|m| m.tags.iter().cloned())
-            .collect();
+        let mut all_tags: Vec<String> =
+            members.iter().flat_map(|m| m.tags.iter().cloned()).collect();
         all_tags.sort();
         all_tags.dedup();
 
@@ -143,9 +138,7 @@ fn consolidate_hot_memories(store: &SqliteSessionStore, now: DateTime<Utc>) -> R
         {
             let connection = store.connect()?;
             for &id in &source_ids {
-                connection
-                    .execute("DELETE FROM hot_fts WHERE rowid = ?1", params![id])
-                    .ok();
+                connection.execute("DELETE FROM hot_fts WHERE rowid = ?1", params![id]).ok();
                 connection
                     .execute("DELETE FROM hot_memories WHERE id = ?1", params![id])
                     .with_context(|| format!("failed to delete consolidated hot memory {id}"))?;
@@ -174,11 +167,7 @@ fn prune_cold_memories(store: &SqliteSessionStore, now: DateTime<Utc>) -> Result
         )?;
 
         stmt.query_map(params![COLD_MEMORY_FLOOR + 0.001_f32], |row| {
-            Ok((
-                row.get::<_, i64>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?,
-            ))
+            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?))
         })?
         .collect::<rusqlite::Result<Vec<_>>>()
         .context("failed to query cold memories for pruning")?
@@ -195,9 +184,7 @@ fn prune_cold_memories(store: &SqliteSessionStore, now: DateTime<Utc>) -> Result
 
         if is_dead {
             let connection = store.connect()?;
-            connection
-                .execute("DELETE FROM cold_fts WHERE rowid = ?1", params![id])
-                .ok();
+            connection.execute("DELETE FROM cold_fts WHERE rowid = ?1", params![id]).ok();
             connection
                 .execute("DELETE FROM cold_memories WHERE id = ?1", params![id])
                 .with_context(|| format!("failed to prune cold memory {id}"))?;
@@ -229,12 +216,7 @@ fn dominant_memory_type(types: impl Iterator<Item = MemoryType>) -> MemoryType {
 fn build_consolidated_content(tag: &str, members: &[&HotCandidate]) -> String {
     let lines: Vec<String> = members
         .iter()
-        .map(|m| {
-            m.summary
-                .as_deref()
-                .unwrap_or(m.content.as_str())
-                .to_string()
-        })
+        .map(|m| m.summary.as_deref().unwrap_or(m.content.as_str()).to_string())
         .collect();
     format!(
         "Consolidated memory [{tag}] from {} sessions:\n{}",

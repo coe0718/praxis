@@ -89,9 +89,7 @@ fn run_once_defers_during_quiet_hours() {
         .assert()
         .success()
         .stdout(predicate::str::contains("last_session: none"))
-        .stdout(predicate::str::contains(
-            "last_outcome: deferred_quiet_hours",
-        ));
+        .stdout(predicate::str::contains("last_outcome: deferred_quiet_hours"));
 }
 
 #[test]
@@ -173,9 +171,7 @@ fn run_once_stops_when_all_goals_are_complete() {
         .assert()
         .success()
         .stdout(predicate::str::contains("outcome: stop_condition_met"))
-        .stdout(predicate::str::contains(
-            "summary: All current goals are complete",
-        ));
+        .stdout(predicate::str::contains("summary: All current goals are complete"));
 }
 
 #[test]

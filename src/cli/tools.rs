@@ -93,11 +93,7 @@ fn handle_list(data_dir_override: Option<PathBuf>) -> Result<String> {
         return Ok("tools: none".to_string());
     }
 
-    Ok(tools
-        .into_iter()
-        .map(|tool| tool.summary_line())
-        .collect::<Vec<_>>()
-        .join("\n"))
+    Ok(tools.into_iter().map(|tool| tool.summary_line()).collect::<Vec<_>>().join("\n"))
 }
 
 fn handle_register(data_dir_override: Option<PathBuf>, args: RegisterToolArgs) -> Result<String> {

@@ -69,10 +69,7 @@ impl ToolRegistry for FileToolRegistry {
     }
 
     fn get(&self, paths: &PraxisPaths, name: &str) -> Result<Option<ToolManifest>> {
-        Ok(self
-            .list(paths)?
-            .into_iter()
-            .find(|manifest| manifest.name == name))
+        Ok(self.list(paths)?.into_iter().find(|manifest| manifest.name == name))
     }
 
     fn register(&self, paths: &PraxisPaths, manifest: &ToolManifest) -> Result<PathBuf> {
@@ -236,6 +233,44 @@ fn default_manifests() -> Vec<ToolManifest> {
             timeout_secs: Some(30),
             endpoint: Some("{url}".to_string()),
             method: Some("GET".to_string()),
+            headers: Vec::new(),
+            body: None,
+            allowed_vault_keys: None,
+            allowed_oauth_providers: None,
+        },
+        ToolManifest {
+            name: "todo".to_string(),
+            description: "Manage an in-session task list. Use params.action (create, update, complete, cancel, list) with optional params.id, params.content, and params.status.".to_string(),
+            kind: ToolKind::Internal,
+            required_level: 1,
+            requires_approval: false,
+            rehearsal_required: false,
+            allowed_paths: Vec::new(),
+            allowed_read_paths: Vec::new(),
+            path: None,
+            args: Vec::new(),
+            timeout_secs: None,
+            endpoint: None,
+            method: None,
+            headers: Vec::new(),
+            body: None,
+            allowed_vault_keys: None,
+            allowed_oauth_providers: None,
+        },
+        ToolManifest {
+            name: "clarify".to_string(),
+            description: "Ask the operator a clarifying question when the agent encounters ambiguity. The agent pauses until the operator responds. Use params.question (required) and optional params.choices (comma-separated options).".to_string(),
+            kind: ToolKind::Internal,
+            required_level: 1,
+            requires_approval: false,
+            rehearsal_required: false,
+            allowed_paths: Vec::new(),
+            allowed_read_paths: Vec::new(),
+            path: None,
+            args: Vec::new(),
+            timeout_secs: Some(300),
+            endpoint: None,
+            method: None,
             headers: Vec::new(),
             body: None,
             allowed_vault_keys: None,

@@ -132,9 +132,7 @@ fn handle_request(
             // implementations, return an empty result.
             make_resp(Ok(Value::Null))
         }
-        "notifications/initialized" => {
-            make_resp(Ok(Value::Null))
-        }
+        "notifications/initialized" => make_resp(Ok(Value::Null)),
         _ if !*initialized => make_resp(Err(JsonRpcError::invalid_params(
             "server not initialized — call initialize first",
         ))),
@@ -294,7 +292,11 @@ fn handle_tool_call(
         summary: format!("mcp call to {} with {}", call.name, payload_json),
         requested_by: "mcp-client".to_string(),
         write_paths: manifest.allowed_paths.clone(),
-        payload_json: if payload_json.is_empty() { None } else { Some(payload_json) },
+        payload_json: if payload_json.is_empty() {
+            None
+        } else {
+            Some(payload_json)
+        },
         status: crate::storage::ApprovalStatus::Approved, // auto-approved for safe tools
         status_note: Some("auto-approved via mcp".to_string()),
         created_at: chrono::Utc::now().to_rfc3339(),

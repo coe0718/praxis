@@ -1,10 +1,10 @@
+pub mod a2a;
 pub mod anatomy;
 pub mod anomaly;
 pub mod archive;
 pub mod argus;
 pub mod attachments;
 pub mod backend;
-pub mod a2a;
 pub mod bench;
 pub mod boundaries;
 pub mod brief;

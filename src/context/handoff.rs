@@ -65,12 +65,7 @@ pub fn write_if_needed(
         return Ok(false);
     }
 
-    let note = HandoffNote::new(
-        goal.map(ToString::to_string),
-        action_summary,
-        pressure_pct,
-        now,
-    );
+    let note = HandoffNote::new(goal.map(ToString::to_string), action_summary, pressure_pct, now);
     let path = data_dir.join("handoff_note.json");
     let raw = serde_json::to_string_pretty(&note).context("failed to serialize handoff note")?;
     fs::write(&path, raw)

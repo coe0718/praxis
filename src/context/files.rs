@@ -4,6 +4,7 @@ use anyhow::{Context, Result};
 
 use crate::{
     anatomy::{build_entry, render_summary},
+    context::injection::scan_for_injection,
     state::{FileReadRecord, SessionState},
     storage::AnatomyStore,
 };
@@ -21,6 +22,13 @@ impl TrackedContextReader {
     ) -> Result<String> {
         let content = fs::read_to_string(path)
             .with_context(|| format!("failed to read {}", path.display()))?;
+
+        // Scan for prompt injection before loading into context.
+        scan_for_injection(
+            path.file_name().and_then(|n| n.to_str()).unwrap_or("unknown"),
+            &content,
+        )?;
+
         let entry = build_entry(path, &content, vec![reason.to_string()])?;
         store.upsert_anatomy_entry(&entry)?;
 

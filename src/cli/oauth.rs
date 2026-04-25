@@ -83,9 +83,7 @@ fn handle_login(store: &OAuthTokenStore, args: OAuthLoginArgs) -> Result<String>
                 .map(|t| t.format("%Y-%m-%d %H:%M UTC").to_string())
                 .unwrap_or_else(|| "never".to_string());
             store.save(&token)?;
-            Ok(format!(
-                "google: authorized\nscopes: {scopes_str}\nexpires: {expires}"
-            ))
+            Ok(format!("google: authorized\nscopes: {scopes_str}\nexpires: {expires}"))
         }
         "copilot" => {
             let scopes = args.scopes.as_deref().unwrap_or(COPILOT_DEFAULT_SCOPES);
@@ -97,9 +95,7 @@ fn handle_login(store: &OAuthTokenStore, args: OAuthLoginArgs) -> Result<String>
                 .map(|t| t.format("%Y-%m-%d %H:%M UTC").to_string())
                 .unwrap_or_else(|| "never".to_string());
             store.save(&token)?;
-            Ok(format!(
-                "copilot: authorized\nscopes: {scopes_str}\nexpires: {expires}"
-            ))
+            Ok(format!("copilot: authorized\nscopes: {scopes_str}\nexpires: {expires}"))
         }
         other => bail!("unknown provider '{other}' — supported: github, google, copilot"),
     }
@@ -174,11 +170,9 @@ fn handle_refresh(store: &OAuthTokenStore, provider: &str) -> Result<String> {
             store.save(&refreshed)?;
             Ok(format!("google: token refreshed\nexpires: {expires}"))
         }
-        "github" | "copilot" => Ok(
-            "tokens do not expire by default — no refresh needed.\n\
+        "github" | "copilot" => Ok("tokens do not expire by default — no refresh needed.\n\
              If your token was revoked, run `praxis oauth login {prov}` to re-authorize."
-                .to_string(),
-        ),
+            .to_string()),
         other => bail!("unknown provider '{other}' — supported: github, google, copilot"),
     }
 }

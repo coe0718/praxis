@@ -23,9 +23,7 @@ pub struct OAuthToken {
 
 impl OAuthToken {
     pub fn is_expired(&self) -> bool {
-        self.expires_at
-            .map(|exp| Utc::now() >= exp)
-            .unwrap_or(false)
+        self.expires_at.map(|exp| Utc::now() >= exp).unwrap_or(false)
     }
 
     /// True when the token will expire within 5 minutes.
@@ -42,9 +40,7 @@ pub struct OAuthTokenStore {
 
 impl OAuthTokenStore {
     pub fn new(data_dir: &Path) -> Self {
-        Self {
-            path: data_dir.join(FILENAME),
-        }
+        Self { path: data_dir.join(FILENAME) }
     }
 
     pub fn load(&self) -> Result<HashMap<String, OAuthToken>> {

@@ -29,8 +29,8 @@
 //! praxis oauth revoke github
 //! ```
 
-mod device_flow;
 pub mod copilot;
+mod device_flow;
 pub mod github;
 pub mod github_client;
 pub mod gmail;

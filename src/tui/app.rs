@@ -167,12 +167,7 @@ fn render(frame: &mut Frame, state: &TuiState) {
 
 fn render_header(frame: &mut Frame, area: Rect) {
     let title = Paragraph::new(Line::from(vec![
-        Span::styled(
-            " Praxis ",
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        ),
+        Span::styled(" Praxis ", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
         Span::styled("— live dashboard", Style::default().fg(Color::DarkGray)),
     ]))
     .block(Block::default().borders(Borders::ALL));
@@ -194,9 +189,7 @@ fn render_status(frame: &mut Frame, area: Rect, state: &TuiState) {
             Span::styled("phase     ", Style::default().fg(Color::DarkGray)),
             Span::styled(
                 &state.phase,
-                Style::default()
-                    .fg(phase_color)
-                    .add_modifier(Modifier::BOLD),
+                Style::default().fg(phase_color).add_modifier(Modifier::BOLD),
             ),
         ])),
         ListItem::new(Line::from(vec![
@@ -209,10 +202,7 @@ fn render_status(frame: &mut Frame, area: Rect, state: &TuiState) {
         ])),
         ListItem::new(Line::from(vec![
             Span::styled("heartbeat ", Style::default().fg(Color::DarkGray)),
-            Span::raw(format!(
-                "{} @ {}",
-                state.heartbeat_phase, state.heartbeat_time
-            )),
+            Span::raw(format!("{} @ {}", state.heartbeat_phase, state.heartbeat_time)),
         ])),
         ListItem::new(Line::from(vec![
             Span::styled("tools     ", Style::default().fg(Color::DarkGray)),
@@ -241,14 +231,12 @@ fn render_status(frame: &mut Frame, area: Rect, state: &TuiState) {
 }
 
 fn render_action(frame: &mut Frame, area: Rect, state: &TuiState) {
-    let paragraph = Paragraph::new(state.action.as_str())
-        .wrap(Wrap { trim: true })
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(" Last Action ")
-                .title_style(Style::default().fg(Color::Cyan)),
-        );
+    let paragraph = Paragraph::new(state.action.as_str()).wrap(Wrap { trim: true }).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title(" Last Action ")
+            .title_style(Style::default().fg(Color::Cyan)),
+    );
     frame.render_widget(paragraph, area);
 }
 
@@ -291,9 +279,6 @@ fn truncate(s: &str, max: usize) -> String {
     if s.chars().count() <= max {
         s.to_string()
     } else {
-        format!(
-            "{}…",
-            s.chars().take(max.saturating_sub(1)).collect::<String>()
-        )
+        format!("{}…", s.chars().take(max.saturating_sub(1)).collect::<String>())
     }
 }

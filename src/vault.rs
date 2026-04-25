@@ -184,13 +184,7 @@ pub fn resolve_with_fallback(vault: &Vault, name: &str) -> Result<String> {
     // Env-var fallback: uppercase the name, replacing hyphens with underscores.
     let env_key: String = name
         .chars()
-        .map(|c| {
-            if c == '-' {
-                '_'
-            } else {
-                c.to_ascii_uppercase()
-            }
-        })
+        .map(|c| if c == '-' { '_' } else { c.to_ascii_uppercase() })
         .collect();
     env::var(&env_key).with_context(|| {
         format!("vault: secret '{name}' not in vault and env var '{env_key}' is unset")
@@ -220,12 +214,7 @@ mod tests {
     #[test]
     fn literal_entry_resolves() {
         let mut vault = Vault::default();
-        vault.set(
-            "test_key",
-            VaultEntry::Literal {
-                value: "secret123".to_string(),
-            },
-        );
+        vault.set("test_key", VaultEntry::Literal { value: "secret123".to_string() });
         assert_eq!(vault.resolve("test_key").unwrap(), "secret123");
     }
 
@@ -290,12 +279,7 @@ mod tests {
     #[test]
     fn audit_literals_reports_literal_entries() {
         let mut vault = Vault::default();
-        vault.set(
-            "literal_key",
-            VaultEntry::Literal {
-                value: "oops".to_string(),
-            },
-        );
+        vault.set("literal_key", VaultEntry::Literal { value: "oops".to_string() });
         let warnings = audit_literals(&vault);
         assert_eq!(warnings.len(), 1);
         assert!(warnings[0].contains("literal_key"));

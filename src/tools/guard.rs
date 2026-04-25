@@ -84,10 +84,8 @@ mod tests {
 
     #[test]
     fn blocks_repeated_invocations() {
-        let mut state = SessionState::new(
-            chrono::Utc.with_ymd_and_hms(2026, 3, 31, 12, 0, 0).unwrap(),
-            None,
-        );
+        let mut state =
+            SessionState::new(chrono::Utc.with_ymd_and_hms(2026, 3, 31, 12, 0, 0).unwrap(), None);
         let guard = LoopGuard;
 
         assert_eq!(
@@ -109,10 +107,8 @@ mod tests {
 
     #[test]
     fn blocks_repeated_two_step_patterns() {
-        let mut state = SessionState::new(
-            chrono::Utc.with_ymd_and_hms(2026, 3, 31, 12, 0, 0).unwrap(),
-            None,
-        );
+        let mut state =
+            SessionState::new(chrono::Utc.with_ymd_and_hms(2026, 3, 31, 12, 0, 0).unwrap(), None);
         let guard = LoopGuard;
 
         for invocation in ["tool:a", "tool:b", "tool:a", "tool:b", "tool:a"] {

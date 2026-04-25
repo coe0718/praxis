@@ -40,11 +40,7 @@ pub(super) fn process_sources(
         )
         .to_rfc3339();
         let byte_len = metadata.len() as i64;
-        let relative = path
-            .strip_prefix(&paths.data_dir)
-            .unwrap_or(&path)
-            .display()
-            .to_string();
+        let relative = path.strip_prefix(&paths.data_dir).unwrap_or(&path).display().to_string();
 
         if known.get(&relative).is_some_and(|existing| {
             existing.last_modified_at == last_modified_at && existing.byte_len == byte_len

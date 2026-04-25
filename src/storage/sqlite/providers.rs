@@ -62,8 +62,7 @@ pub(super) fn record_attempts(
         )
         .context("failed to insert token ledger row")?;
     }
-    tx.commit()
-        .context("failed to commit provider recording transaction")?;
+    tx.commit().context("failed to commit provider recording transaction")?;
     Ok(())
 }
 

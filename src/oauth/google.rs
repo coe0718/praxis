@@ -136,9 +136,8 @@ impl GoogleOAuth {
             token_type: Option<String>,
         }
 
-        let parsed: RefreshResponse = response
-            .json()
-            .context("failed to parse Google token refresh response")?;
+        let parsed: RefreshResponse =
+            response.json().context("failed to parse Google token refresh response")?;
 
         let expires_at: Option<DateTime<Utc>> = parsed
             .expires_in

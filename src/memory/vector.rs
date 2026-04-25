@@ -61,9 +61,7 @@ pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
 
 /// Serialise a Vec<f32> into a little-endian byte blob for SQLite.
 pub fn embedding_to_blob(vec: &[f32]) -> Vec<u8> {
-    vec.iter()
-        .flat_map(|f| f.to_le_bytes())
-        .collect()
+    vec.iter().flat_map(|f| f.to_le_bytes()).collect()
 }
 
 /// Deserialise a little-endian byte blob back into Vec<f32>.

@@ -59,15 +59,33 @@ impl Default for LiteMode {
     }
 }
 
-fn default_context_ceiling_pct() -> f32 { 0.60 }
-fn default_disable_speculative() -> bool { true }
-fn default_disable_subagent_reviewers() -> bool { true }
-fn default_disable_synthetic_examples() -> bool { true }
-fn default_disable_learning() -> bool { true }
-fn default_disable_brief() -> bool { true }
-fn default_anatomy_refresh_hours() -> u64 { 48 }
-fn default_disable_sse() -> bool { true }
-fn default_disable_deterministic() -> bool { false }
+fn default_context_ceiling_pct() -> f32 {
+    0.60
+}
+fn default_disable_speculative() -> bool {
+    true
+}
+fn default_disable_subagent_reviewers() -> bool {
+    true
+}
+fn default_disable_synthetic_examples() -> bool {
+    true
+}
+fn default_disable_learning() -> bool {
+    true
+}
+fn default_disable_brief() -> bool {
+    true
+}
+fn default_anatomy_refresh_hours() -> u64 {
+    48
+}
+fn default_disable_sse() -> bool {
+    true
+}
+fn default_disable_deterministic() -> bool {
+    false
+}
 
 impl LiteMode {
     /// Load lite mode settings from a `praxis.toml` file.
@@ -95,10 +113,12 @@ impl LiteMode {
             if let Some(v) = t.get("lite_disable_speculative").and_then(toml::Value::as_bool) {
                 lite.disable_speculative = v;
             }
-            if let Some(v) = t.get("lite_disable_subagent_reviewers").and_then(toml::Value::as_bool) {
+            if let Some(v) = t.get("lite_disable_subagent_reviewers").and_then(toml::Value::as_bool)
+            {
                 lite.disable_subagent_reviewers = v;
             }
-            if let Some(v) = t.get("lite_disable_synthetic_examples").and_then(toml::Value::as_bool) {
+            if let Some(v) = t.get("lite_disable_synthetic_examples").and_then(toml::Value::as_bool)
+            {
                 lite.disable_synthetic_examples = v;
             }
             if let Some(v) = t.get("lite_disable_learning").and_then(toml::Value::as_bool) {

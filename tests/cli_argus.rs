@@ -103,10 +103,6 @@ fn argus_surfaces_repeated_work_across_days() {
         .success()
         .stdout(predicate::str::contains("drift_status:"))
         .stdout(predicate::str::contains("repeated_work:"))
-        .stdout(predicate::str::contains(
-            "task: triage recurring inbox sessions=2 days=2",
-        ))
-        .stdout(predicate::str::contains(
-            "Recurring work is resurfacing across multiple days",
-        ));
+        .stdout(predicate::str::contains("task: triage recurring inbox sessions=2 days=2"))
+        .stdout(predicate::str::contains("Recurring work is resurfacing across multiple days"));
 }

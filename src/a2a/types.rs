@@ -87,7 +87,12 @@ pub enum Part {
     #[serde(rename = "text")]
     Text { text: String },
     #[serde(rename = "file")]
-    File { name: String, mime_type: String, bytes: Option<String>, uri: Option<String> },
+    File {
+        name: String,
+        mime_type: String,
+        bytes: Option<String>,
+        uri: Option<String>,
+    },
     #[serde(rename = "data")]
     Data { data: Value },
 }

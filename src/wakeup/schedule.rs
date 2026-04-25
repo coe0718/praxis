@@ -67,9 +67,7 @@ impl OperatorSchedule {
         }
         let peak = *self.hourly_counts.iter().max().unwrap_or(&1).max(&1);
         let threshold = (peak as f64 * QUIET_THRESHOLD_PCT) as u64;
-        (0u32..24)
-            .filter(|&h| self.hourly_counts[h as usize] <= threshold)
-            .collect()
+        (0u32..24).filter(|&h| self.hourly_counts[h as usize] <= threshold).collect()
     }
 
     /// Find the next non-quiet UTC hour at or after `from`.

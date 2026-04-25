@@ -20,9 +20,12 @@ pub(super) fn query_recent_sessions(
     )?;
     let rows = stmt.query_map([limit as i64], |row| {
         let phase_durations_raw: String = row.get(10)?;
-        let phase_durations: Value = serde_json::from_str(&phase_durations_raw)
-            .unwrap_or_else(|e| {
-                log::warn!("Invalid phase_durations JSON for session {}: {e}", row.get::<_, i64>(0).unwrap_or(-1));
+        let phase_durations: Value =
+            serde_json::from_str(&phase_durations_raw).unwrap_or_else(|e| {
+                log::warn!(
+                    "Invalid phase_durations JSON for session {}: {e}",
+                    row.get::<_, i64>(0).unwrap_or(-1)
+                );
                 json!({})
             });
         Ok(json!({
@@ -39,8 +42,7 @@ pub(super) fn query_recent_sessions(
             "phase_durations": phase_durations,
         }))
     })?;
-    rows.collect::<rusqlite::Result<Vec<_>>>()
-        .map_err(anyhow::Error::from)
+    rows.collect::<rusqlite::Result<Vec<_>>>().map_err(anyhow::Error::from)
 }
 
 pub(super) fn parse_goals_file(path: &std::path::Path) -> anyhow::Result<Vec<GoalRow>> {
@@ -48,16 +50,11 @@ pub(super) fn parse_goals_file(path: &std::path::Path) -> anyhow::Result<Vec<Goa
     let mut goals = Vec::new();
     for line in raw.lines() {
         let trimmed = line.trim();
-        if let Some(rest) = trimmed
-            .strip_prefix("- [x] ")
-            .or_else(|| trimmed.strip_prefix("- [X] "))
+        if let Some(rest) =
+            trimmed.strip_prefix("- [x] ").or_else(|| trimmed.strip_prefix("- [X] "))
         {
             let (raw_id, title) = split_goal_id(rest);
-            goals.push(GoalRow {
-                raw_id,
-                title,
-                completed: true,
-            });
+            goals.push(GoalRow { raw_id, title, completed: true });
         } else if let Some(rest) = trimmed.strip_prefix("- [ ] ") {
             let (raw_id, title) = split_goal_id(rest);
             goals.push(GoalRow {

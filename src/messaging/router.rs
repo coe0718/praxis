@@ -308,9 +308,7 @@ fn handle_link(
     let link_type = MemoryLinkType::parse(link_type_str)
         .with_context(|| format!("unknown link type: {link_type_str}"))?;
     store.add_memory_link(from_id, to_id, link_type)?;
-    Ok(format!(
-        "memory: linked [{from_id}] --{link_type_str}--> [{to_id}]"
-    ))
+    Ok(format!("memory: linked [{from_id}] --{link_type_str}--> [{to_id}]"))
 }
 
 fn handle_decisions(data_dir: std::path::PathBuf) -> Result<String> {
@@ -324,16 +322,8 @@ fn handle_decisions(data_dir: std::path::PathBuf) -> Result<String> {
 
     let mut lines = vec!["decisions (oldest first):".to_string()];
     for r in &receipts {
-        let goal = r
-            .goal_id
-            .as_deref()
-            .map(|id| format!(" [{id}]"))
-            .unwrap_or_default();
-        let approval = if r.approval_required {
-            " ⚠ approval"
-        } else {
-            ""
-        };
+        let goal = r.goal_id.as_deref().map(|id| format!(" [{id}]")).unwrap_or_default();
+        let approval = if r.approval_required { " ⚠ approval" } else { "" };
         let action = if r.chosen_action.len() > 80 {
             format!("{}…", &r.chosen_action[..80])
         } else {
@@ -360,9 +350,7 @@ fn handle_approve_sender(data_dir: std::path::PathBuf, code: &str) -> Result<Str
     match store.approve_by_code(code.trim()) {
         Some((chat_id, queued_text)) => {
             store.save(&paths.sender_pairing_file)?;
-            Ok(format!(
-                "sender approved\nchat: {chat_id}\nqueued message: {queued_text}"
-            ))
+            Ok(format!("sender approved\nchat: {chat_id}\nqueued message: {queued_text}"))
         }
         None => Ok(format!("no pending request with code {code}")),
     }
@@ -433,10 +421,7 @@ mod tests {
 
     #[test]
     fn parses_action_commands() {
-        assert_eq!(
-            parse_telegram_command("/approve 12"),
-            TelegramCommand::Approve(12)
-        );
+        assert_eq!(parse_telegram_command("/approve 12"), TelegramCommand::Approve(12));
         assert_eq!(parse_telegram_command("/queue"), TelegramCommand::Queue);
         assert_eq!(parse_telegram_command("/unknown"), TelegramCommand::Help);
     }

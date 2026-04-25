@@ -161,9 +161,7 @@ mod tests {
 
     #[test]
     fn requires_append_text_for_data_write() {
-        let error = build_payload(&write_manifest(), None, HashMap::new())
-            .unwrap_err()
-            .to_string();
+        let error = build_payload(&write_manifest(), None, HashMap::new()).unwrap_err().to_string();
         assert!(error.contains("--append-text"));
     }
 

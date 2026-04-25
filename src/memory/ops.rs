@@ -58,10 +58,9 @@ impl OperationalMemoryLoader {
     ) -> anyhow::Result<LoadedOperationalContext> {
         let query = build_lookup_query(requested_task, open_goals);
         let (do_not_repeat, known_bugs) = match query.as_deref() {
-            Some(query) => (
-                store.search_do_not_repeat(query, 3)?,
-                store.search_known_bugs(query, 3)?,
-            ),
+            Some(query) => {
+                (store.search_do_not_repeat(query, 3)?, store.search_known_bugs(query, 3)?)
+            }
             None => (store.recent_do_not_repeat(2)?, store.recent_known_bugs(2)?),
         };
 

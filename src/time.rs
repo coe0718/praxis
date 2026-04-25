@@ -100,11 +100,7 @@ mod tests {
 
     #[test]
     fn ignores_quiet_hours_outside_window() {
-        let clock = FixedClock::new(
-            chrono::Utc
-                .with_ymd_and_hms(2026, 3, 31, 12, 30, 0)
-                .unwrap(),
-        );
+        let clock = FixedClock::new(chrono::Utc.with_ymd_and_hms(2026, 3, 31, 12, 30, 0).unwrap());
 
         let quiet = is_quiet_hours(clock.now_utc(), "UTC", "23:00", "07:00").unwrap();
         assert!(!quiet);

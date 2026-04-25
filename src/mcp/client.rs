@@ -82,7 +82,11 @@ impl McpClient {
     }
 
     /// Call a tool on the connected MCP server.
-    pub fn call_tool(&mut self, name: &str, arguments: Option<serde_json::Value>) -> Result<CallToolResult> {
+    pub fn call_tool(
+        &mut self,
+        name: &str,
+        arguments: Option<serde_json::Value>,
+    ) -> Result<CallToolResult> {
         let req = JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
             id: RequestId::Number(2),
@@ -111,7 +115,10 @@ impl McpClient {
         stdin.flush().context("flush MCP stdin")
     }
 
-    fn write_notification(stdin: &mut std::process::ChildStdin, notif: &JsonRpcNotification) -> Result<()> {
+    fn write_notification(
+        stdin: &mut std::process::ChildStdin,
+        notif: &JsonRpcNotification,
+    ) -> Result<()> {
         let line = serde_json::to_string(notif).context("serialize JSON-RPC notification")?;
         writeln!(stdin, "{line}").context("write notification to MCP stdin")?;
         stdin.flush().context("flush MCP stdin")

@@ -12,21 +12,13 @@ fn freeze_blocks_remote_backend_until_a_canary_passes() {
     let temp = tempdir().unwrap();
     let data_dir = temp.path().join("praxis");
 
-    praxis_command()
-        .arg("--data-dir")
-        .arg(&data_dir)
-        .arg("init")
-        .assert()
-        .success();
+    praxis_command().arg("--data-dir").arg(&data_dir).arg("init").assert().success();
 
     let config_path = data_dir.join("praxis.toml");
     let updated = fs::read_to_string(&config_path)
         .unwrap()
         .replace("backend = \"stub\"", "backend = \"claude\"")
-        .replace(
-            "freeze_on_model_regression = false",
-            "freeze_on_model_regression = true",
-        );
+        .replace("freeze_on_model_regression = false", "freeze_on_model_regression = true");
     fs::write(&config_path, updated).unwrap();
 
     praxis_command()

@@ -118,18 +118,9 @@ fn should_run(definition: &EvalDefinition, trigger: EvalTrigger) -> bool {
 }
 
 pub fn summarize(results: &[EvalOutcome]) -> EvalSummary {
-    let passed = results
-        .iter()
-        .filter(|result| result.status == EvalStatus::Passed)
-        .count();
-    let failed = results
-        .iter()
-        .filter(|result| result.status == EvalStatus::Failed)
-        .count();
-    let skipped = results
-        .iter()
-        .filter(|result| result.status == EvalStatus::Skipped)
-        .count();
+    let passed = results.iter().filter(|result| result.status == EvalStatus::Passed).count();
+    let failed = results.iter().filter(|result| result.status == EvalStatus::Failed).count();
+    let skipped = results.iter().filter(|result| result.status == EvalStatus::Skipped).count();
     let trust_failures = results
         .iter()
         .filter(|result| {
@@ -161,16 +152,10 @@ fn load_eval(path: &PathBuf) -> Result<EvalDefinition> {
         bail!("eval {} must include a scenario", eval.id);
     }
     if eval.expected_behavior.is_empty() || eval.forbidden_behavior.is_empty() {
-        bail!(
-            "eval {} must describe expected and forbidden behavior",
-            eval.id
-        );
+        bail!("eval {} must describe expected and forbidden behavior", eval.id);
     }
     if eval.verify_with != "shell" {
-        bail!(
-            "eval {} only supports verify_with = \"shell\" right now",
-            eval.id
-        );
+        bail!("eval {} only supports verify_with = \"shell\" right now", eval.id);
     }
     if eval.commands.is_empty() {
         bail!("eval {} must include at least one shell command", eval.id);

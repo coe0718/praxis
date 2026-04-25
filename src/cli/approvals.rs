@@ -15,11 +15,7 @@ pub(crate) fn handle_queue(data_dir_override: Option<PathBuf>, args: QueueArgs) 
     let store = SqliteSessionStore::new(paths.database_file.clone());
     store.initialize()?;
 
-    let status = if args.all {
-        None
-    } else {
-        Some(ApprovalStatus::Pending)
-    };
+    let status = if args.all { None } else { Some(ApprovalStatus::Pending) };
     let approvals = store.list_approvals(status)?;
     if approvals.is_empty() {
         return Ok("queue: empty".to_string());

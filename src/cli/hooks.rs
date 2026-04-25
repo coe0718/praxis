@@ -88,11 +88,7 @@ pub(super) fn handle_hooks(data_dir_override: Option<PathBuf>, args: HooksArgs) 
                     )
                 })
                 .collect();
-            Ok(format!(
-                "hooks: {} registered\n{}",
-                lines.len(),
-                lines.join("\n")
-            ))
+            Ok(format!("hooks: {} registered\n{}", lines.len(), lines.join("\n")))
         }
 
         HooksCommands::Add(a) => {
@@ -116,10 +112,7 @@ pub(super) fn handle_hooks(data_dir_override: Option<PathBuf>, args: HooksArgs) 
         HooksCommands::Remove(a) => {
             let removed = remove_hook(&paths, &a.script)?;
             if removed > 0 {
-                Ok(format!(
-                    "hooks: removed {removed} hook(s) matching {}",
-                    a.script.display()
-                ))
+                Ok(format!("hooks: removed {removed} hook(s) matching {}", a.script.display()))
             } else {
                 Ok(format!("hooks: no hooks found for {}", a.script.display()))
             }

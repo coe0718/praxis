@@ -81,18 +81,12 @@ pub fn encrypt(key: &[u8; 32], plaintext: &[u8]) -> Result<String> {
     let ciphertext = cipher
         .encrypt(&nonce, plaintext)
         .map_err(|e| anyhow::anyhow!("encryption failed: {e}"))?;
-    Ok(format!(
-        "{MAGIC}{}{}",
-        to_hex(nonce.as_slice()),
-        to_hex(&ciphertext)
-    ))
+    Ok(format!("{MAGIC}{}{}", to_hex(nonce.as_slice()), to_hex(&ciphertext)))
 }
 
 /// Decrypt a `PRAXISENC1:`-prefixed blob produced by [`encrypt`].
 pub fn decrypt(key: &[u8; 32], encoded: &str) -> Result<Vec<u8>> {
-    let hex = encoded
-        .strip_prefix(MAGIC)
-        .context("not a praxis encrypted blob")?;
+    let hex = encoded.strip_prefix(MAGIC).context("not a praxis encrypted blob")?;
     if hex.len() < NONCE_HEX_LEN {
         bail!("encrypted blob is too short");
     }
@@ -141,9 +135,7 @@ pub fn maybe_encrypt(path: &Path, raw: &str) -> Result<String> {
 }
 
 fn key_path_for(file: &Path) -> std::path::PathBuf {
-    file.parent()
-        .unwrap_or_else(|| Path::new("."))
-        .join("master.key")
+    file.parent().unwrap_or_else(|| Path::new(".")).join("master.key")
 }
 
 // ── Hex helpers ───────────────────────────────────────────────────────────────

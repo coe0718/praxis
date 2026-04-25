@@ -21,14 +21,7 @@ pub(super) fn summarize_to_tokens(content: &str, max_tokens: usize) -> String {
     let mut seen = HashSet::new();
     let anchors = anchor_lines(&lines);
     let anchor_line_limit = (max_chars.saturating_sub(40) / anchors.len().max(1)).clamp(16, 48);
-    append_section(
-        &mut summary,
-        &mut seen,
-        "Anchors",
-        anchors,
-        max_chars,
-        Some(anchor_line_limit),
-    );
+    append_section(&mut summary, &mut seen, "Anchors", anchors, max_chars, Some(anchor_line_limit));
     append_section(
         &mut summary,
         &mut seen,
@@ -67,9 +60,8 @@ fn append_section(
         if normalized.is_empty() || !seen.insert(normalized.clone()) {
             continue;
         }
-        let rendered = line_limit
-            .map(|limit| truncate_chars(&normalized, limit))
-            .unwrap_or(normalized);
+        let rendered =
+            line_limit.map(|limit| truncate_chars(&normalized, limit)).unwrap_or(normalized);
 
         let prefix = if added_any {
             "\n- ".to_string()
@@ -103,11 +95,7 @@ fn append_section(
 }
 
 fn anchor_lines<'a>(lines: &[&'a str]) -> Vec<&'a str> {
-    let mut anchors = lines
-        .iter()
-        .copied()
-        .filter(|line| is_anchor(line))
-        .collect::<Vec<_>>();
+    let mut anchors = lines.iter().copied().filter(|line| is_anchor(line)).collect::<Vec<_>>();
     anchors.sort_by_key(|line| std::cmp::Reverse(anchor_score(line)));
     anchors.truncate(8);
     anchors
@@ -138,12 +126,7 @@ fn contains_goal_id(line: &str) -> bool {
     let bytes = line.as_bytes();
     bytes.windows(2).enumerate().any(|(index, pair)| {
         pair == b"G-"
-            && bytes
-                .iter()
-                .skip(index + 2)
-                .take_while(|value| value.is_ascii_digit())
-                .count()
-                >= 3
+            && bytes.iter().skip(index + 2).take_while(|value| value.is_ascii_digit()).count() >= 3
     })
 }
 
@@ -171,10 +154,7 @@ fn truncate_chars(content: &str, max_chars: usize) -> String {
         return content.to_string();
     }
 
-    let truncated = content
-        .chars()
-        .take(max_chars.saturating_sub(3))
-        .collect::<String>();
+    let truncated = content.chars().take(max_chars.saturating_sub(3)).collect::<String>();
     format!("{}...", truncated.trim_end())
 }
 

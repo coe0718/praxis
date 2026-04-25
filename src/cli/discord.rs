@@ -106,9 +106,7 @@ fn poll_loop(data_dir_override: Option<PathBuf>, args: DiscordRunArgs) -> Result
         thread::sleep(delay);
     }
 
-    Ok(format!(
-        "discord: processed {total} messages across {cycles} cycles"
-    ))
+    Ok(format!("discord: processed {total} messages across {cycles} cycles"))
 }
 
 fn process_messages(

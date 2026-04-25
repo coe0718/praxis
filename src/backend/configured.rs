@@ -77,11 +77,7 @@ impl ConfiguredBackend {
         if config.agent.backend == "router" {
             return settings.validate();
         }
-        validate_provider(&route_for(
-            config.agent.backend.as_str(),
-            config,
-            &settings,
-        )?)
+        validate_provider(&route_for(config.agent.backend.as_str(), config, &settings)?)
     }
 }
 
@@ -236,8 +232,7 @@ impl RouterBackend {
         class: Option<&RouteClass>,
         phase: &str,
     ) -> Result<Vec<ProviderRoute>> {
-        self.canary_gate
-            .filter_routes(self.routes_for_class(class, phase))
+        self.canary_gate.filter_routes(self.routes_for_class(class, phase))
     }
 }
 

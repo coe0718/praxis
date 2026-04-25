@@ -91,11 +91,7 @@ pub(super) fn handle_evolve(
             if proposals.is_empty() {
                 return Ok("evolve: no proposals".to_string());
             }
-            Ok(proposals
-                .iter()
-                .map(|p| p.summary_line())
-                .collect::<Vec<_>>()
-                .join("\n"))
+            Ok(proposals.iter().map(|p| p.summary_line()).collect::<Vec<_>>().join("\n"))
         }
 
         EvolveCommands::Show(a) => match store.get(&a.id)? {
@@ -129,9 +125,7 @@ pub(super) fn handle_evolve(
             let id = proposal.id.clone();
             store.propose(&proposal)?;
             render_self_evolution_doc(&paths)?;
-            Ok(format!(
-                "evolve: proposal '{id}' written\nreview with: praxis evolve show {id}"
-            ))
+            Ok(format!("evolve: proposal '{id}' written\nreview with: praxis evolve show {id}"))
         }
 
         EvolveCommands::Approve(a) => {

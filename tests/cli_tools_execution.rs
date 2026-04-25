@@ -115,9 +115,7 @@ fn unsupported_approved_tools_fall_back_to_safe_stub_execution() {
         .assert()
         .success()
         .stdout(predicate::str::contains("outcome: tool_executed"))
-        .stdout(predicate::str::contains(
-            "No execution adapter is installed",
-        ));
+        .stdout(predicate::str::contains("No execution adapter is installed"));
 
     praxis_command()
         .arg("--data-dir")
@@ -168,10 +166,7 @@ fn legacy_data_write_approvals_with_null_payload_do_not_deadlock_queue() {
 
     let connection = rusqlite::Connection::open(data_dir.join("praxis.db")).unwrap();
     connection
-        .execute(
-            "UPDATE approval_requests SET payload_json = NULL WHERE id = 1",
-            [],
-        )
+        .execute("UPDATE approval_requests SET payload_json = NULL WHERE id = 1", [])
         .unwrap();
 
     praxis_command()
@@ -183,9 +178,7 @@ fn legacy_data_write_approvals_with_null_payload_do_not_deadlock_queue() {
         .assert()
         .success()
         .stdout(predicate::str::contains("outcome: tool_executed"))
-        .stdout(predicate::str::contains(
-            "Legacy approved request had no structured payload",
-        ));
+        .stdout(predicate::str::contains("Legacy approved request had no structured payload"));
 
     praxis_command()
         .arg("--data-dir")
@@ -207,12 +200,8 @@ fn retries_skip_files_that_already_contain_the_append_block() {
     fs::create_dir_all(&paths.data_dir).unwrap();
     fs::write(&paths.journal_file, "Approved operator note\n").unwrap();
 
-    execute_request(
-        &paths,
-        &write_manifest(),
-        &write_request(vec!["JOURNAL.md", "PROPOSALS.md"]),
-    )
-    .unwrap();
+    execute_request(&paths, &write_manifest(), &write_request(vec!["JOURNAL.md", "PROPOSALS.md"]))
+        .unwrap();
 
     let journal = fs::read_to_string(&paths.journal_file).unwrap();
     let proposals = fs::read_to_string(&paths.proposals_file).unwrap();

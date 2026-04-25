@@ -93,11 +93,9 @@ impl ProviderSettings {
         let has_ollama = settings.providers.iter().any(|r| r.provider == "ollama");
 
         if !has_claude && std::env::var("ANTHROPIC_API_KEY").is_ok() {
-            settings.providers.push(ProviderRoute::new(
-                "claude",
-                "claude-3-5-sonnet-latest",
-                None,
-            ));
+            settings
+                .providers
+                .push(ProviderRoute::new("claude", "claude-3-5-sonnet-latest", None));
         }
 
         if !has_openai && std::env::var("OPENAI_API_KEY").is_ok() {
@@ -108,9 +106,7 @@ impl ProviderSettings {
         }
 
         if !has_ollama && let Ok(host) = std::env::var("OLLAMA_HOST") {
-            settings
-                .providers
-                .push(ProviderRoute::new("ollama", "llama3.2", Some(&host)));
+            settings.providers.push(ProviderRoute::new("ollama", "llama3.2", Some(&host)));
         }
 
         settings
@@ -140,10 +136,7 @@ impl ProviderSettings {
     }
 
     pub fn first_for(&self, provider: &str) -> Option<ProviderRoute> {
-        self.providers
-            .iter()
-            .find(|route| route.provider == provider)
-            .cloned()
+        self.providers.iter().find(|route| route.provider == provider).cloned()
     }
 
     /// Return the first route matching the given class, or fall back to the

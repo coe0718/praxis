@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::providers::ProviderRoute;
 
-use super::{ProviderRequest};
+use super::ProviderRequest;
 use super::openai::{resolve_api_key, resolve_endpoint};
 
 const OPENAI_CHAT_URL: &str = "https://api.openai.com/v1/chat/completions";
@@ -21,7 +21,10 @@ const OPENAI_CHAT_URL: &str = "https://api.openai.com/v1/chat/completions";
 #[derive(Debug, Clone)]
 pub enum StreamEvent {
     Token(String),
-    Usage { input_tokens: i64, output_tokens: i64 },
+    Usage {
+        input_tokens: i64,
+        output_tokens: i64,
+    },
     Done,
 }
 

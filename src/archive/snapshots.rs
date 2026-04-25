@@ -23,9 +23,7 @@ pub fn maybe_create_daily_snapshot(
     paths: &PraxisPaths,
     now: DateTime<Utc>,
 ) -> Result<Option<SnapshotExportSummary>> {
-    let output_dir = paths
-        .backups_dir
-        .join(format!("snapshot-{}", now.format("%Y%m%d")));
+    let output_dir = paths.backups_dir.join(format!("snapshot-{}", now.format("%Y%m%d")));
     if output_dir.exists() {
         return Ok(None);
     }
@@ -57,16 +55,9 @@ fn export_snapshot(
     let data_files = tree::copy_dir_tree(
         &paths.data_dir,
         &data_root,
-        &[
-            paths.database_file.clone(),
-            paths.state_file.clone(),
-            paths.backups_dir.clone(),
-        ],
+        &[paths.database_file.clone(), paths.state_file.clone(), paths.backups_dir.clone()],
     )?;
-    tree::copy_file(
-        &paths.database_file,
-        &runtime_root.join(DATABASE_EXPORT_NAME),
-    )?;
+    tree::copy_file(&paths.database_file, &runtime_root.join(DATABASE_EXPORT_NAME))?;
     let state_present = paths.state_file.exists();
     if state_present {
         tree::copy_file(&paths.state_file, &runtime_root.join(STATE_EXPORT_NAME))?;
@@ -86,12 +77,7 @@ fn export_snapshot(
         output_dir.join(MANIFEST_FILE),
         serde_json::to_string_pretty(&manifest).context("failed to serialize snapshot manifest")?,
     )
-    .with_context(|| {
-        format!(
-            "failed to write {}",
-            output_dir.join(MANIFEST_FILE).display()
-        )
-    })?;
+    .with_context(|| format!("failed to write {}", output_dir.join(MANIFEST_FILE).display()))?;
 
     Ok(SnapshotExportSummary {
         output_dir: output_dir.to_path_buf(),

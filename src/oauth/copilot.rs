@@ -37,9 +37,10 @@ impl CopilotOAuth {
     /// and set the callback URL to `http://localhost` (device flow does not
     /// actually redirect).
     pub fn from_env() -> Result<Self> {
-        let client_id = std::env::var("PRAXIS_COPILOT_OAUTH_CLIENT_ID")
-            .context("PRAXIS_COPILOT_OAUTH_CLIENT_ID is required for Copilot OAuth.
-Register an OAuth App at https://github.com/settings/developers")?;
+        let client_id = std::env::var("PRAXIS_COPILOT_OAUTH_CLIENT_ID").context(
+            "PRAXIS_COPILOT_OAUTH_CLIENT_ID is required for Copilot OAuth.
+Register an OAuth App at https://github.com/settings/developers",
+        )?;
         Ok(Self {
             client_id,
             client: Client::builder()

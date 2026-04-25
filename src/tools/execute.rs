@@ -17,14 +17,16 @@ use crate::{
     vault::Vault,
 };
 
-use super::{ToolKind, ToolManifest, policy::normalize_relative, request::parse_payload};
+use super::{
+    ToolKind, ToolManifest, clarify::execute_clarify, policy::normalize_relative,
+    request::parse_payload, todo::execute_todo_action,
+};
 
 const DEFAULT_TIMEOUT_SECS: u64 = 30;
 
 /// Shell metacharacters that enable command injection when passed to `bash -c`.
-const DANGEROUS_SHELL_CHARS: &[char] = &[
-    ';', '|', '&', '`', '$', '(', ')', '<', '>', '\n', '\r', '\\',
-];
+const DANGEROUS_SHELL_CHARS: &[char] =
+    &[';', '|', '&', '`', '$', '(', ')', '<', '>', '\n', '\r', '\\'];
 const MAX_OUTPUT_BYTES: usize = 1024 * 1024; // 1 MB cap on command output
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -47,20 +49,14 @@ pub fn execute_request(
         "shell-exec" => exec_shell_command(paths, &vault, manifest, request),
         "github-issues" => github_list_issues(paths, request),
         "github-prs" => github_list_prs(paths, request),
+        "todo" => execute_todo_tool(paths, request),
+        "clarify" => execute_clarify_tool(paths, request),
         _ => match manifest.kind {
-            ToolKind::Shell
-                if manifest
-                    .path
-                    .as_deref()
-                    .is_some_and(|p| !p.trim().is_empty()) =>
-            {
+            ToolKind::Shell if manifest.path.as_deref().is_some_and(|p| !p.trim().is_empty()) => {
                 run_shell(paths, &vault, manifest, request)
             }
             ToolKind::Http
-                if manifest
-                    .endpoint
-                    .as_deref()
-                    .is_some_and(|e| !e.trim().is_empty()) =>
+                if manifest.endpoint.as_deref().is_some_and(|e| !e.trim().is_empty()) =>
             {
                 run_http(paths, &vault, manifest, request)
             }
@@ -79,21 +75,11 @@ fn run_shell(
     manifest: &ToolManifest,
     request: &StoredApprovalRequest,
 ) -> Result<ToolExecutionResult> {
-    let exe = manifest
-        .path
-        .as_deref()
-        .filter(|p| !p.trim().is_empty())
-        .ok_or_else(|| {
-            anyhow::anyhow!(
-                "shell tool {} has no 'path' field in its manifest",
-                manifest.name
-            )
-        })?;
+    let exe = manifest.path.as_deref().filter(|p| !p.trim().is_empty()).ok_or_else(|| {
+        anyhow::anyhow!("shell tool {} has no 'path' field in its manifest", manifest.name)
+    })?;
 
-    let timeout_secs = manifest
-        .timeout_secs
-        .unwrap_or(DEFAULT_TIMEOUT_SECS)
-        .clamp(1, 300);
+    let timeout_secs = manifest.timeout_secs.unwrap_or(DEFAULT_TIMEOUT_SECS).clamp(1, 300);
 
     // Parse any extra arguments from the structured payload.
     let payload = parse_payload(request.payload_json.as_deref())?;
@@ -102,11 +88,10 @@ fn run_shell(
         .get("args")
         .map(|s| s.split_whitespace().map(str::to_string).collect())
         .or_else(|| {
-            payload.append_text.as_deref().map(|text| {
-                text.split_whitespace()
-                    .map(str::to_string)
-                    .collect::<Vec<_>>()
-            })
+            payload
+                .append_text
+                .as_deref()
+                .map(|text| text.split_whitespace().map(str::to_string).collect::<Vec<_>>())
         })
         .unwrap_or_default();
 
@@ -171,11 +156,7 @@ fn run_shell(
             Some(_) => break,
             None if std::time::Instant::now() >= deadline => {
                 let _ = child.kill();
-                bail!(
-                    "shell tool {} timed out after {}s (pid {pid})",
-                    manifest.name,
-                    timeout_secs
-                );
+                bail!("shell tool {} timed out after {}s (pid {pid})", manifest.name, timeout_secs);
             }
             None => std::thread::sleep(Duration::from_millis(100)),
         }
@@ -197,10 +178,7 @@ fn run_shell(
         } else {
             stderr.chars().take(200).collect::<String>()
         };
-        bail!(
-            "shell tool {} exited with code {code}: {detail}",
-            manifest.name
-        );
+        bail!("shell tool {} exited with code {code}: {detail}", manifest.name);
     }
 
     let output_snippet = if stdout.is_empty() {
@@ -223,35 +201,19 @@ fn run_http(
     manifest: &ToolManifest,
     request: &StoredApprovalRequest,
 ) -> Result<ToolExecutionResult> {
-    let endpoint_template = manifest
-        .endpoint
-        .as_deref()
-        .filter(|e| !e.trim().is_empty())
-        .ok_or_else(|| {
-            anyhow::anyhow!(
-                "http tool {} has no 'endpoint' field in its manifest",
-                manifest.name
-            )
+    let endpoint_template =
+        manifest.endpoint.as_deref().filter(|e| !e.trim().is_empty()).ok_or_else(|| {
+            anyhow::anyhow!("http tool {} has no 'endpoint' field in its manifest", manifest.name)
         })?;
 
-    let method = manifest
-        .method
-        .as_deref()
-        .unwrap_or("GET")
-        .to_ascii_uppercase();
+    let method = manifest.method.as_deref().unwrap_or("GET").to_ascii_uppercase();
 
-    let timeout_secs = manifest
-        .timeout_secs
-        .unwrap_or(DEFAULT_TIMEOUT_SECS)
-        .clamp(1, 120);
+    let timeout_secs = manifest.timeout_secs.unwrap_or(DEFAULT_TIMEOUT_SECS).clamp(1, 120);
 
     let payload = parse_payload(request.payload_json.as_deref())?;
 
     // Substitute {param} placeholders then $VAULT{name} references in the URL.
-    let url = substitute_vault(
-        &substitute_params(endpoint_template, &payload.params),
-        vault,
-    );
+    let url = substitute_vault(&substitute_params(endpoint_template, &payload.params), vault);
 
     log::info!("executing http tool {} {} {}", manifest.name, method, url);
 
@@ -304,17 +266,13 @@ fn run_http(
     }
 
     // Attach body: explicit payload.body beats manifest.body template.
-    let body_str = payload.body.clone().or_else(|| {
-        manifest
-            .body
-            .as_ref()
-            .map(|t| substitute_params(t, &payload.params))
-    });
+    let body_str = payload
+        .body
+        .clone()
+        .or_else(|| manifest.body.as_ref().map(|t| substitute_params(t, &payload.params)));
 
     if let Some(body) = body_str {
-        builder = builder
-            .header("Content-Type", "application/json")
-            .body(body);
+        builder = builder.header("Content-Type", "application/json").body(body);
     }
 
     let response = builder
@@ -322,9 +280,7 @@ fn run_http(
         .with_context(|| format!("failed to send request for http tool {}", manifest.name))?;
 
     let status = response.status();
-    let body_text = response
-        .text()
-        .unwrap_or_else(|_| "(unreadable body)".to_string());
+    let body_text = response.text().unwrap_or_else(|_| "(unreadable body)".to_string());
 
     if !status.is_success() {
         bail!(
@@ -337,10 +293,7 @@ fn run_http(
 
     let snippet = body_text.chars().take(500).collect::<String>();
     Ok(ToolExecutionResult {
-        summary: format!(
-            "HTTP tool {} completed ({}).\n{}",
-            manifest.name, status, snippet
-        ),
+        summary: format!("HTTP tool {} completed ({}).\n{}", manifest.name, status, snippet),
     })
 }
 
@@ -397,9 +350,7 @@ fn is_ssrf_blocked(url: &str) -> bool {
 /// Extract the host portion from a URL string.
 fn extract_host(url: &str) -> Option<String> {
     // Strip scheme.
-    let rest = url
-        .strip_prefix("http://")
-        .or_else(|| url.strip_prefix("https://"))?;
+    let rest = url.strip_prefix("http://").or_else(|| url.strip_prefix("https://"))?;
     // Strip credentials.
     let rest = if let Some(at_pos) = rest.find('@') {
         &rest[at_pos + 1..]
@@ -481,20 +432,14 @@ fn read_file(
             }
         }
         resolved.ok_or_else(|| {
-            anyhow::anyhow!(
-                "file-read path {} is not within any allowed_read_paths root",
-                raw_path
-            )
+            anyhow::anyhow!("file-read path {} is not within any allowed_read_paths root", raw_path)
         })?
     };
 
     if let Ok(meta) = fs::symlink_metadata(&full_path)
         && meta.file_type().is_symlink()
     {
-        anyhow::bail!(
-            "file-read refuses to follow symlink at {}",
-            full_path.display()
-        );
+        anyhow::bail!("file-read refuses to follow symlink at {}", full_path.display());
     }
 
     let content =
@@ -552,10 +497,7 @@ fn exec_shell_command(
 
     validate_shell_command(command)?;
 
-    let timeout_secs = manifest
-        .timeout_secs
-        .unwrap_or(DEFAULT_TIMEOUT_SECS)
-        .clamp(1, 300);
+    let timeout_secs = manifest.timeout_secs.unwrap_or(DEFAULT_TIMEOUT_SECS).clamp(1, 300);
 
     log::info!(
         "executing shell-exec (timeout {}s): {}",
@@ -616,9 +558,7 @@ fn exec_shell_command(
         }
     }
 
-    let output = child
-        .wait_with_output()
-        .context("failed to collect shell-exec output")?;
+    let output = child.wait_with_output().context("failed to collect shell-exec output")?;
 
     let stdout_bytes = &output.stdout[..output.stdout.len().min(MAX_OUTPUT_BYTES)];
     let stderr_bytes = &output.stderr[..output.stderr.len().min(MAX_OUTPUT_BYTES)];
@@ -717,10 +657,7 @@ fn ensure_safe_destination(root: &Path, relative: &Path) -> Result<()> {
         let metadata = fs::symlink_metadata(&candidate)
             .with_context(|| format!("failed to inspect {}", candidate.display()))?;
         if metadata.file_type().is_symlink() {
-            bail!(
-                "refusing to write through symlink target {}",
-                candidate.display()
-            );
+            bail!("refusing to write through symlink target {}", candidate.display());
         }
     }
     Ok(())
@@ -769,11 +706,10 @@ fn github_list_issues(
     })?;
 
     let payload = parse_payload(request.payload_json.as_deref())?;
-    let repo = payload
-        .params
-        .get("repo")
-        .map(|s| s.as_str())
-        .ok_or_else(|| anyhow::anyhow!("github-issues: 'repo' param required (e.g. owner/repo)"))?;
+    let repo =
+        payload.params.get("repo").map(|s| s.as_str()).ok_or_else(|| {
+            anyhow::anyhow!("github-issues: 'repo' param required (e.g. owner/repo)")
+        })?;
 
     let (owner, repo_name) = repo
         .split_once('/')
@@ -799,11 +735,7 @@ fn github_list_issues(
         .collect();
 
     Ok(ToolExecutionResult {
-        summary: format!(
-            "open issues in {repo} ({}):\n{}",
-            issues.len(),
-            lines.join("\n")
-        ),
+        summary: format!("open issues in {repo} ({}):\n{}", issues.len(), lines.join("\n")),
     })
 }
 
@@ -819,11 +751,10 @@ fn github_list_prs(
     })?;
 
     let payload = parse_payload(request.payload_json.as_deref())?;
-    let repo = payload
-        .params
-        .get("repo")
-        .map(|s| s.as_str())
-        .ok_or_else(|| anyhow::anyhow!("github-prs: 'repo' param required (e.g. owner/repo)"))?;
+    let repo =
+        payload.params.get("repo").map(|s| s.as_str()).ok_or_else(|| {
+            anyhow::anyhow!("github-prs: 'repo' param required (e.g. owner/repo)")
+        })?;
 
     let (owner, repo_name) = repo
         .split_once('/')
@@ -866,4 +797,42 @@ fn fallback_result(
             request.write_paths.len()
         ),
     }
+}
+
+fn execute_todo_tool(
+    paths: &PraxisPaths,
+    request: &StoredApprovalRequest,
+) -> Result<ToolExecutionResult> {
+    let payload = parse_payload(request.payload_json.as_deref())?;
+    let action = payload
+        .params
+        .get("action")
+        .map(|s| s.as_str())
+        .ok_or_else(|| anyhow::anyhow!("todo requires 'action' parameter"))?;
+    let id = payload.params.get("id").map(|s| s.as_str());
+    let content = payload.params.get("content").map(|s| s.as_str());
+    let status = payload.params.get("status").map(|s| s.as_str());
+
+    let summary = execute_todo_action(&paths.todo_file, action, id, content, status)?;
+    Ok(ToolExecutionResult { summary })
+}
+
+fn execute_clarify_tool(
+    paths: &PraxisPaths,
+    request: &StoredApprovalRequest,
+) -> Result<ToolExecutionResult> {
+    let payload = parse_payload(request.payload_json.as_deref())?;
+    let question = payload
+        .params
+        .get("question")
+        .map(|s| s.as_str())
+        .ok_or_else(|| anyhow::anyhow!("clarify requires 'question' parameter"))?;
+    let choices: Vec<String> = if let Some(raw) = payload.params.get("choices") {
+        raw.split(',').map(|s| s.trim().to_string()).collect()
+    } else {
+        Vec::new()
+    };
+
+    let summary = execute_clarify(&paths.bus_file, question, &choices)?;
+    Ok(ToolExecutionResult { summary })
 }

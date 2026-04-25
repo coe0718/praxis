@@ -166,9 +166,7 @@ impl PidFile {
         }
         fs::write(path, pid.to_string())
             .with_context(|| format!("failed to write PID file {}", path.display()))?;
-        Ok(Self {
-            path: path.to_path_buf(),
-        })
+        Ok(Self { path: path.to_path_buf() })
     }
 }
 
@@ -296,11 +294,7 @@ async fn async_daemon_loop(
         // ── Reactive triggers (highest priority) ───────────────────────────
 
         let trigger = if let Some(intent) = crate::wakeup::consume_intent(&paths.data_dir)? {
-            log::info!(
-                "daemon: wake intent from '{}': {}",
-                intent.source,
-                intent.reason
-            );
+            log::info!("daemon: wake intent from '{}': {}", intent.source, intent.reason);
             Some(SessionTrigger::WakeIntent { task: intent.task })
         } else if bus_watcher.has_new_events() {
             log::info!("daemon: new bus event(s) — triggering reactive session");

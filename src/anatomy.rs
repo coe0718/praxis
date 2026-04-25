@@ -42,11 +42,7 @@ pub fn render_summary(path: &str, description: &str, token_estimate: i64) -> Str
 }
 
 fn describe(path: &Path, content: &str) -> String {
-    let first_line = content
-        .lines()
-        .map(str::trim)
-        .find(|line| !line.is_empty())
-        .unwrap_or("");
+    let first_line = content.lines().map(str::trim).find(|line| !line.is_empty()).unwrap_or("");
     if let Some(title) = first_line.strip_prefix("# ") {
         return title.trim().to_string();
     }
@@ -70,11 +66,7 @@ fn modified_at(path: &Path) -> Result<String> {
 
 fn estimate_tokens(content: &str) -> i64 {
     let chars = content.chars().count();
-    if chars == 0 {
-        0
-    } else {
-        chars.div_ceil(4) as i64
-    }
+    if chars == 0 { 0 } else { chars.div_ceil(4) as i64 }
 }
 
 /// Scan identity and tool files for changes since their last indexed
@@ -97,9 +89,7 @@ pub fn refresh_stale_anatomy(paths: &PraxisPaths) -> Result<usize> {
     {
         for entry in entries.flatten() {
             let p = entry.path();
-            if p.extension()
-                .is_some_and(|ext| ext == "toml" || ext == "json")
-            {
+            if p.extension().is_some_and(|ext| ext == "toml" || ext == "json") {
                 candidates.push(p);
             }
         }
@@ -132,10 +122,7 @@ pub fn refresh_stale_anatomy(paths: &PraxisPaths) -> Result<usize> {
 
         let entry = build_entry(candidate, &content, Vec::new())?;
         if let Err(e) = store.upsert_anatomy_entry(&entry) {
-            log::warn!(
-                "anatomy refresh: failed to upsert {}: {e}",
-                candidate.display()
-            );
+            log::warn!("anatomy refresh: failed to upsert {}: {e}", candidate.display());
             continue;
         }
         refreshed += 1;

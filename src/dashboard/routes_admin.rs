@@ -31,10 +31,7 @@ pub(super) async fn api_agents_add(
     let section_header = format!("## {}", body.section);
     if content.contains(&section_header) {
         if let Some(pos) = content.find(&section_header) {
-            let end = content[pos..]
-                .find("\n## ")
-                .map(|i| pos + i)
-                .unwrap_or(content.len());
+            let end = content[pos..].find("\n## ").map(|i| pos + i).unwrap_or(content.len());
             content.insert_str(end, &format!("\n- {}", body.note.trim()));
         }
     } else {
@@ -88,10 +85,7 @@ pub(super) async fn api_vault_set(
             let Some(env) = body.env else {
                 return (StatusCode::BAD_REQUEST, "env required for env kind").into_response();
             };
-            VaultEntry::EnvVar {
-                env,
-                fallback: body.fallback,
-            }
+            VaultEntry::EnvVar { env, fallback: body.fallback }
         }
         _ => return (StatusCode::BAD_REQUEST, "kind must be 'literal' or 'env'").into_response(),
     };

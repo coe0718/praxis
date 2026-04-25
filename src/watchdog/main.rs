@@ -10,7 +10,10 @@
 //!   rolls back to the previous binary and notifies the operator.
 
 use std::{
-    env, path::PathBuf, process::{self, Command, Stdio}, time::Duration,
+    env,
+    path::PathBuf,
+    process::{self, Command, Stdio},
+    time::Duration,
 };
 
 use anyhow::{Context, Result};
@@ -46,10 +49,7 @@ fn parse_args() -> Result<WatchdogArgs> {
     }
 
     let data_dir = data_dir.unwrap_or_else(|| PathBuf::from("/var/lib/praxis"));
-    Ok(WatchdogArgs {
-        data_dir,
-        check_interval_secs,
-    })
+    Ok(WatchdogArgs { data_dir, check_interval_secs })
 }
 
 // ── Update record ─────────────────────────────────────────────────────────────
@@ -113,8 +113,8 @@ fn spawn_praxis(data_dir: &std::path::Path) -> Result<process::Child> {
 // ── Rollback ──────────────────────────────────────────────────────────────────
 
 fn rollback(data_dir: &std::path::Path) -> Result<()> {
-    let record = load_update_record(data_dir)
-        .context("no update record found — cannot rollback")?;
+    let record =
+        load_update_record(data_dir).context("no update record found — cannot rollback")?;
 
     let praxis_bin = env::current_exe()
         .ok()
@@ -126,10 +126,7 @@ fn rollback(data_dir: &std::path::Path) -> Result<()> {
 
     clear_update_record(data_dir)?;
 
-    log::warn!(
-        "watchdog: rolled back praxis binary to {}",
-        record.previous_binary.display()
-    );
+    log::warn!("watchdog: rolled back praxis binary to {}", record.previous_binary.display());
     Ok(())
 }
 
@@ -137,10 +134,7 @@ fn rollback(data_dir: &std::path::Path) -> Result<()> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    env_logger::Builder::from_env(
-        env_logger::Env::default().default_filter_or("info"),
-    )
-    .init();
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     let args = parse_args()?;
     log::info!("watchdog: starting — data_dir={}", args.data_dir.display());

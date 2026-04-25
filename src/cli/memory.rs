@@ -37,10 +37,7 @@ pub(crate) fn handle_memory(
             let now = SystemClock::from_env()?.now_utc();
             let summary = store.consolidate_memories(now)?;
             if summary.consolidated == 0 && summary.pruned == 0 {
-                Ok(
-                    "No consolidation needed — no qualifying clusters or dead memories."
-                        .to_string(),
-                )
+                Ok("No consolidation needed — no qualifying clusters or dead memories.".to_string())
             } else {
                 Ok(format!(
                     "Consolidated {} hot cluster(s) into cold memories. Pruned {} dead cold memory/memories.",

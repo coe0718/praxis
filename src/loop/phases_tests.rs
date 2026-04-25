@@ -41,8 +41,5 @@ fn payload_changes_tool_invocation_key() {
     let mut second = first.clone();
     second.payload_json = Some("{\"append_text\":\"second\"}".to_string());
 
-    assert_ne!(
-        invocation_key(&manifest, &first),
-        invocation_key(&manifest, &second)
-    );
+    assert_ne!(invocation_key(&manifest, &first), invocation_key(&manifest, &second));
 }

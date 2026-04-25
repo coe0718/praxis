@@ -238,9 +238,7 @@ pub enum CanaryStatus {
 impl ModelCanaryLedger {
     pub fn load_or_default(path: &Path) -> Result<Self> {
         if !path.exists() {
-            return Ok(Self {
-                records: Vec::new(),
-            });
+            return Ok(Self { records: Vec::new() });
         }
         let raw = fs::read_to_string(path)
             .with_context(|| format!("failed to read {}", path.display()))?;
@@ -275,11 +273,7 @@ impl ModelCanaryLedger {
                 bail!("canary records must include provider and model");
             }
             if !keys.insert((record.provider.clone(), record.model.clone())) {
-                bail!(
-                    "duplicate canary record for {}/{}",
-                    record.provider,
-                    record.model
-                );
+                bail!("duplicate canary record for {}/{}", record.provider, record.model);
             }
         }
         Ok(())
@@ -302,9 +296,7 @@ impl ModelCanaryLedger {
         });
         self.records.push(record);
         self.records.sort_by(|left, right| {
-            left.provider
-                .cmp(&right.provider)
-                .then(left.model.cmp(&right.model))
+            left.provider.cmp(&right.provider).then(left.model.cmp(&right.model))
         });
     }
 
@@ -406,10 +398,7 @@ fn run_provider_canary(
     match backend.answer_prompt(CANARY_PROMPT) {
         Ok(output) => {
             let evals = LocalEvalSuite.run_trigger(paths, EvalTrigger::Canary)?;
-            let failed = evals
-                .iter()
-                .filter(|result| result.status == EvalStatus::Failed)
-                .count();
+            let failed = evals.iter().filter(|result| result.status == EvalStatus::Failed).count();
             let trust_failed = evals.iter().any(|result| {
                 result.status == EvalStatus::Failed
                     && result.severity == EvalSeverity::TrustDamaging
@@ -462,9 +451,7 @@ mod tests {
 
     #[test]
     fn replacing_records_keeps_latest_status_per_provider_model() {
-        let mut ledger = ModelCanaryLedger {
-            records: Vec::new(),
-        };
+        let mut ledger = ModelCanaryLedger { records: Vec::new() };
         ledger.replace(ModelCanaryRecord {
             provider: "claude".to_string(),
             model: "sonnet".to_string(),

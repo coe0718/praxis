@@ -77,11 +77,8 @@ impl WaveGraph {
     ///
     /// Returns `Err` if the graph contains cycles or unknown dependency IDs.
     pub fn into_waves(self) -> Result<Vec<Vec<WaveNode>>> {
-        let node_map: HashMap<String, WaveNode> = self
-            .nodes
-            .iter()
-            .map(|n| (n.id.clone(), n.clone()))
-            .collect();
+        let node_map: HashMap<String, WaveNode> =
+            self.nodes.iter().map(|n| (n.id.clone(), n.clone())).collect();
 
         // Validate: all deps must reference known nodes.
         for node in &self.nodes {
@@ -93,29 +90,20 @@ impl WaveGraph {
         }
 
         // Kahn's algorithm for topological sort into levels.
-        let mut in_degree: HashMap<&str, usize> = self
-            .nodes
-            .iter()
-            .map(|n| (n.id.as_str(), n.deps.len()))
-            .collect();
+        let mut in_degree: HashMap<&str, usize> =
+            self.nodes.iter().map(|n| (n.id.as_str(), n.deps.len())).collect();
 
         // adjacency: node → nodes that depend on it
         let mut dependents: HashMap<&str, Vec<&str>> = HashMap::new();
         for node in &self.nodes {
             dependents.entry(node.id.as_str()).or_default();
             for dep in &node.deps {
-                dependents
-                    .entry(dep.as_str())
-                    .or_default()
-                    .push(node.id.as_str());
+                dependents.entry(dep.as_str()).or_default().push(node.id.as_str());
             }
         }
 
-        let mut queue: VecDeque<&str> = in_degree
-            .iter()
-            .filter(|(_, deg)| **deg == 0)
-            .map(|(&id, _)| id)
-            .collect();
+        let mut queue: VecDeque<&str> =
+            in_degree.iter().filter(|(_, deg)| **deg == 0).map(|(&id, _)| id).collect();
         // Sort for deterministic output.
         let mut initial: Vec<&str> = queue.drain(..).collect();
         initial.sort_unstable();
@@ -201,10 +189,7 @@ where
     for (wave_index, wave) in waves.iter().enumerate() {
         for node in wave {
             // Skip if any dependency failed.
-            let blocked = node
-                .deps
-                .iter()
-                .any(|dep| failed_ids.contains(dep.as_str()));
+            let blocked = node.deps.iter().any(|dep| failed_ids.contains(dep.as_str()));
 
             if blocked {
                 results.push(WaveNodeResult {
@@ -250,18 +235,9 @@ where
 
 /// Format a wave execution summary for logging.
 pub fn summarize_waves(results: &[WaveNodeResult]) -> String {
-    let success = results
-        .iter()
-        .filter(|r| r.outcome == WaveOutcome::Success)
-        .count();
-    let failed = results
-        .iter()
-        .filter(|r| r.outcome == WaveOutcome::Failed)
-        .count();
-    let skipped = results
-        .iter()
-        .filter(|r| r.outcome == WaveOutcome::Skipped)
-        .count();
+    let success = results.iter().filter(|r| r.outcome == WaveOutcome::Success).count();
+    let failed = results.iter().filter(|r| r.outcome == WaveOutcome::Failed).count();
+    let skipped = results.iter().filter(|r| r.outcome == WaveOutcome::Skipped).count();
     format!(
         "Wave execution: {}/{} succeeded, {} failed, {} skipped",
         success,
@@ -295,11 +271,7 @@ mod tests {
 
     #[test]
     fn chain_produces_one_node_per_wave() {
-        let graph = WaveGraph::new(vec![
-            node("a"),
-            node_deps("b", &["a"]),
-            node_deps("c", &["b"]),
-        ]);
+        let graph = WaveGraph::new(vec![node("a"), node_deps("b", &["a"]), node_deps("c", &["b"])]);
         let waves = graph.into_waves().unwrap();
         assert_eq!(waves.len(), 3);
         assert_eq!(waves[0][0].id, "a");
@@ -345,11 +317,7 @@ mod tests {
 
     #[test]
     fn failed_node_causes_dependents_to_be_skipped() {
-        let graph = WaveGraph::new(vec![
-            node("a"),
-            node_deps("b", &["a"]),
-            node_deps("c", &["b"]),
-        ]);
+        let graph = WaveGraph::new(vec![node("a"), node_deps("b", &["a"]), node_deps("c", &["b"])]);
         let results = execute_waves(graph, |n| {
             if n.id == "a" {
                 bail!("a failed")

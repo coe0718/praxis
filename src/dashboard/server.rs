@@ -127,10 +127,7 @@ pub async fn serve_dashboard(data_dir: PathBuf, host: String, port: u16) -> Resu
         // Core
         .route("/api/summary", get(routes_core::api_summary))
         .route("/api/sessions", get(routes_core::api_sessions))
-        .route(
-            "/api/goals",
-            get(routes_core::api_goals).post(routes_core::api_goals_add),
-        )
+        .route("/api/goals", get(routes_core::api_goals).post(routes_core::api_goals_add))
         .route(
             "/api/identity/:file",
             get(routes_core::api_identity_read).put(routes_core::api_identity_write),
@@ -142,32 +139,17 @@ pub async fn serve_dashboard(data_dir: PathBuf, host: String, port: u16) -> Resu
         .route("/api/report", get(routes_core::api_report))
         .route("/api/canary", get(routes_core::api_canary))
         .route("/api/tokens", get(routes_core::api_tokens))
-        .route(
-            "/api/tokens/sessions",
-            get(routes_core::api_tokens_sessions),
-        )
+        .route("/api/tokens/sessions", get(routes_core::api_tokens_sessions))
         .route("/api/health", get(routes_core::api_health))
         // Memory & approvals
         .route("/api/memories/hot", get(routes_memory::api_memories_hot))
         .route("/api/memories/cold", get(routes_memory::api_memories_cold))
         .route("/api/memories/search", get(routes_memory::api_memories_search))
-        .route(
-            "/api/memories/consolidate",
-            post(routes_memory::api_memories_consolidate),
-        )
-        .route(
-            "/api/memories/:id/reinforce",
-            post(routes_memory::api_memory_reinforce),
-        )
-        .route(
-            "/api/memories/:id/forget",
-            post(routes_memory::api_memory_forget),
-        )
+        .route("/api/memories/consolidate", post(routes_memory::api_memories_consolidate))
+        .route("/api/memories/:id/reinforce", post(routes_memory::api_memory_reinforce))
+        .route("/api/memories/:id/forget", post(routes_memory::api_memory_forget))
         .route("/api/approvals", get(routes_memory::api_approvals))
-        .route(
-            "/api/approvals/:id/approve",
-            post(routes_memory::api_approve),
-        )
+        .route("/api/approvals/:id/approve", post(routes_memory::api_approve))
         .route("/api/approvals/:id/reject", post(routes_memory::api_reject))
         // Control
         .route("/api/wake", post(routes_control::api_wake))
@@ -175,26 +157,14 @@ pub async fn serve_dashboard(data_dir: PathBuf, host: String, port: u16) -> Resu
         .route("/api/ask", post(routes_control::api_ask))
         .route("/api/canary/run", post(routes_control::api_canary_run))
         .route("/api/evolution", get(routes_control::api_evolution))
-        .route(
-            "/api/evolution/:id/approve",
-            post(routes_control::api_evolution_approve),
-        )
+        .route("/api/evolution/:id/approve", post(routes_control::api_evolution_approve))
         .route("/api/delegation", get(routes_control::api_delegation))
         // Learning
         .route("/api/learning", get(routes_learning::api_learning_list))
-        .route(
-            "/api/learning/note",
-            post(routes_learning::api_learning_note),
-        )
+        .route("/api/learning/note", post(routes_learning::api_learning_note))
         .route("/api/learning/run", post(routes_learning::api_learning_run))
-        .route(
-            "/api/learning/:id/accept",
-            post(routes_learning::api_learning_accept),
-        )
-        .route(
-            "/api/learning/:id/dismiss",
-            post(routes_learning::api_learning_dismiss),
-        )
+        .route("/api/learning/:id/accept", post(routes_learning::api_learning_accept))
+        .route("/api/learning/:id/dismiss", post(routes_learning::api_learning_dismiss))
         // Admin
         .route(
             "/api/agents",
@@ -209,18 +179,12 @@ pub async fn serve_dashboard(data_dir: PathBuf, host: String, port: u16) -> Resu
             "/api/boundaries",
             get(routes_admin::api_boundaries_list).post(routes_admin::api_boundaries_add),
         )
-        .route(
-            "/api/boundaries/confirm",
-            post(routes_admin::api_boundaries_confirm),
-        )
+        .route("/api/boundaries/confirm", post(routes_admin::api_boundaries_confirm))
         .route("/api/forensics", get(routes_admin::api_forensics))
         .route("/api/argus", get(routes_admin::api_argus));
 
     let app = app
-        .layer(axum::middleware::from_fn_with_state(
-            state.clone(),
-            require_auth,
-        ))
+        .layer(axum::middleware::from_fn_with_state(state.clone(), require_auth))
         .with_state(state);
 
     let app = Router::new()

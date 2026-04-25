@@ -55,10 +55,7 @@ pub fn export_bundle(
         &data_root,
         &[paths.database_file.clone(), paths.state_file.clone()],
     )?;
-    tree::copy_file(
-        &paths.database_file,
-        &runtime_root.join(DATABASE_EXPORT_NAME),
-    )?;
+    tree::copy_file(&paths.database_file, &runtime_root.join(DATABASE_EXPORT_NAME))?;
     let state_present = paths.state_file.exists();
     if state_present {
         tree::copy_file(&paths.state_file, &runtime_root.join(STATE_EXPORT_NAME))?;
@@ -78,12 +75,7 @@ pub fn export_bundle(
         output_dir.join(MANIFEST_FILE),
         serde_json::to_string_pretty(&manifest).context("failed to serialize export manifest")?,
     )
-    .with_context(|| {
-        format!(
-            "failed to write {}",
-            output_dir.join(MANIFEST_FILE).display()
-        )
-    })?;
+    .with_context(|| format!("failed to write {}", output_dir.join(MANIFEST_FILE).display()))?;
 
     Ok(BundleExportSummary {
         output_dir: output_dir.to_path_buf(),
@@ -117,26 +109,17 @@ pub fn import_bundle(
         &manifest.source_data_dir,
         DATABASE_EXPORT_NAME,
     );
-    let state_relative = rebase_runtime_path(
-        &manifest.state_file,
-        &manifest.source_data_dir,
-        STATE_EXPORT_NAME,
-    );
+    let state_relative =
+        rebase_runtime_path(&manifest.state_file, &manifest.source_data_dir, STATE_EXPORT_NAME);
 
     config.instance.data_dir = data_dir.to_path_buf();
     config.database.path = db_relative.clone();
     config.runtime.state_file = state_relative.clone();
     config.save(&config_path)?;
 
-    tree::copy_file(
-        &runtime_root.join(DATABASE_EXPORT_NAME),
-        &data_dir.join(&db_relative),
-    )?;
+    tree::copy_file(&runtime_root.join(DATABASE_EXPORT_NAME), &data_dir.join(&db_relative))?;
     if manifest.state_present {
-        tree::copy_file(
-            &runtime_root.join(STATE_EXPORT_NAME),
-            &data_dir.join(&state_relative),
-        )?;
+        tree::copy_file(&runtime_root.join(STATE_EXPORT_NAME), &data_dir.join(&state_relative))?;
     }
 
     let config = AppConfig::load(&config_path)?.with_overridden_data_dir(data_dir.to_path_buf());
@@ -157,11 +140,7 @@ pub(super) fn schema_version(database_file: &Path) -> Result<i64> {
     let connection = Connection::open(database_file)
         .with_context(|| format!("failed to open {}", database_file.display()))?;
     connection
-        .query_row(
-            "SELECT COALESCE(MAX(version), 0) FROM schema_migrations",
-            [],
-            |row| row.get(0),
-        )
+        .query_row("SELECT COALESCE(MAX(version), 0) FROM schema_migrations", [], |row| row.get(0))
         .context("failed to query schema version")
 }
 
@@ -172,10 +151,7 @@ fn rebase_runtime_path(raw: &Path, source_data_dir: &Path, fallback: &str) -> Pa
         {
             return relative;
         }
-        return raw
-            .file_name()
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from(fallback));
+        return raw.file_name().map(PathBuf::from).unwrap_or_else(|| PathBuf::from(fallback));
     }
     normalize_relative(raw).unwrap_or_else(|_| PathBuf::from(fallback))
 }

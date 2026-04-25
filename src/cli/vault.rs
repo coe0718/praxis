@@ -111,10 +111,8 @@ pub(super) fn handle_vault(data_dir_override: Option<PathBuf>, args: VaultArgs) 
             let vault = Vault::load(&paths.vault_file)?;
             let warnings = audit_literals(&vault);
             if warnings.is_empty() {
-                Ok(
-                    "vault: no literal entries found — all secrets use env-var references"
-                        .to_string(),
-                )
+                Ok("vault: no literal entries found — all secrets use env-var references"
+                    .to_string())
             } else {
                 Ok(warnings.join("\n"))
             }

@@ -89,10 +89,7 @@ pub(super) async fn api_identity_write(
         return (StatusCode::FORBIDDEN, "SOUL.md is immutable").into_response();
     }
     if body.content.len() > MAX_IDENTITY_FILE_SIZE {
-        return (
-            StatusCode::PAYLOAD_TOO_LARGE,
-            "content exceeds maximum file size",
-        )
+        return (StatusCode::PAYLOAD_TOO_LARGE, "content exceeds maximum file size")
             .into_response();
     }
     let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
@@ -177,16 +174,14 @@ pub(super) async fn api_tokens(State(state): State<DashboardState>) -> impl Into
     let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
     let store = SqliteSessionStore::new(paths.database_file.clone());
 
-    let summary = store
-        .token_summary_all_time()
-        .unwrap_or_else(|e| {
-            log::warn!("token summary query failed: {e:#}");
-            crate::usage::TokenSummaryAllTime {
-                total_tokens: 0,
-                total_cost_micros: 0,
-                total_sessions: 0,
-            }
-        });
+    let summary = store.token_summary_all_time().unwrap_or_else(|e| {
+        log::warn!("token summary query failed: {e:#}");
+        crate::usage::TokenSummaryAllTime {
+            total_tokens: 0,
+            total_cost_micros: 0,
+            total_sessions: 0,
+        }
+    });
     let by_provider = store.token_usage_by_provider().unwrap_or_else(|e| {
         log::warn!("token usage by provider query failed: {e:#}");
         Vec::new()
@@ -261,19 +256,17 @@ pub(super) async fn api_health(State(state): State<DashboardState>) -> impl Into
     let (hb_age, hb_status) = hb
         .as_ref()
         .and_then(|h| {
-            DateTime::parse_from_rfc3339(&h.updated_at)
-                .ok()
-                .map(|ts| {
-                    let age = (now - ts.with_timezone(&Utc)).num_seconds().max(0);
-                    let status = if age < 300 {
-                        "ok"
-                    } else if age < 900 {
-                        "warn"
-                    } else {
-                        "error"
-                    };
-                    (Some(age), status)
-                })
+            DateTime::parse_from_rfc3339(&h.updated_at).ok().map(|ts| {
+                let age = (now - ts.with_timezone(&Utc)).num_seconds().max(0);
+                let status = if age < 300 {
+                    "ok"
+                } else if age < 900 {
+                    "warn"
+                } else {
+                    "error"
+                };
+                (Some(age), status)
+            })
         })
         .unwrap_or((None, "unknown"));
 

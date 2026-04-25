@@ -133,11 +133,7 @@ impl BudgetedContext {
             "Context used {}/{} tokens. Included: {}. Dropped: {}.",
             self.used_tokens,
             self.total_budget_tokens,
-            if included.is_empty() {
-                "none"
-            } else {
-                &included
-            },
+            if included.is_empty() { "none" } else { &included },
             dropped,
         )
     }
@@ -155,9 +151,7 @@ fn total_budget_tokens(config: &AppConfig) -> usize {
 }
 
 fn max_tokens_for(total_budget_tokens: usize, source: &ContextSourceConfig) -> usize {
-    ((total_budget_tokens as f32) * source.max_pct)
-        .round()
-        .max(1.0) as usize
+    ((total_budget_tokens as f32) * source.max_pct).round().max(1.0) as usize
 }
 
 #[cfg(test)]

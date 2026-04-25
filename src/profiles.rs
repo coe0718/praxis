@@ -120,10 +120,7 @@ impl ProfileSettings {
                 bail!("duplicate model profile {}", profile.name);
             }
             if let Some(backend) = &profile.backend_override
-                && !matches!(
-                    backend.as_str(),
-                    "stub" | "claude" | "openai" | "ollama" | "router"
-                )
+                && !matches!(backend.as_str(), "stub" | "claude" | "openai" | "ollama" | "router")
             {
                 bail!("unsupported backend override {}", backend);
             }

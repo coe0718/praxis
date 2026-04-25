@@ -44,30 +44,17 @@ fn render_capabilities(manifests: &[ToolManifest], approvals: &[StoredApprovalRe
         lines.push(format!("- Description: {}", manifest.description));
         lines.push(format!("- Kind: {}", manifest.kind.as_str()));
         lines.push(format!("- Required level: {}", manifest.required_level));
-        lines.push(format!(
-            "- Approval: {}",
-            yes_no(manifest.requires_approval)
-        ));
-        lines.push(format!(
-            "- Rehearsal: {}",
-            yes_no(manifest.rehearsal_required)
-        ));
-        lines.push(format!(
-            "- Allowed paths: {}",
-            comma_or_none(&manifest.allowed_paths)
-        ));
+        lines.push(format!("- Approval: {}", yes_no(manifest.requires_approval)));
+        lines.push(format!("- Rehearsal: {}", yes_no(manifest.rehearsal_required)));
+        lines.push(format!("- Allowed paths: {}", comma_or_none(&manifest.allowed_paths)));
         lines.push(format!(
             "- Reliability: {}",
             reliability_line(grouped.get(manifest.name.as_str()).map(Vec::as_slice))
         ));
         lines.push("- Recent examples:".to_string());
-        lines.extend(example_lines(
-            grouped.get(manifest.name.as_str()).map(Vec::as_slice),
-        ));
+        lines.extend(example_lines(grouped.get(manifest.name.as_str()).map(Vec::as_slice)));
         lines.push("- Failure modes:".to_string());
-        lines.extend(failure_lines(
-            grouped.get(manifest.name.as_str()).map(Vec::as_slice),
-        ));
+        lines.extend(failure_lines(grouped.get(manifest.name.as_str()).map(Vec::as_slice)));
     }
 
     lines.join("\n")
@@ -95,12 +82,7 @@ fn example_lines(history: Option<&[&StoredApprovalRequest]>) -> Vec<String> {
     items
         .into_iter()
         .map(|item| {
-            format!(
-                "  - [{} @ {}] {}",
-                item.status.as_str(),
-                item.updated_at,
-                item.summary
-            )
+            format!("  - [{} @ {}] {}", item.status.as_str(), item.updated_at, item.summary)
         })
         .collect()
 }

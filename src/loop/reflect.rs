@@ -48,10 +48,7 @@ where
 {
     pub(super) fn reflect(&self, state: &mut SessionState) -> Result<()> {
         let ended_at = self.clock.now_utc();
-        let initial_outcome = state
-            .last_outcome
-            .clone()
-            .unwrap_or_else(|| "idle".to_string());
+        let initial_outcome = state.last_outcome.clone().unwrap_or_else(|| "idle".to_string());
         let record = SessionRecord {
             day: self.identity.read_day_count(self.paths)?,
             started_at: state.started_at,
@@ -72,8 +69,7 @@ where
         };
         let mut stored = self.store.record_session(&record)?;
         attach_session_id(&self.paths.database_file, state.started_at, stored.id)?;
-        self.store
-            .record_provider_attempts(stored.id, &state.provider_attempts)?;
+        self.store.record_provider_attempts(stored.id, &state.provider_attempts)?;
 
         let review = LocalReviewer.review(self.paths, stored.selected_goal_id.as_deref())?;
         self.store.record_review(&ReviewRecord {
@@ -198,10 +194,8 @@ where
         stored: &crate::storage::StoredSession,
         outcome: &str,
     ) -> Result<()> {
-        let memory_summary = format!(
-            "Session outcome {} with summary: {}",
-            outcome, stored.action_summary
-        );
+        let memory_summary =
+            format!("Session outcome {} with summary: {}", outcome, stored.action_summary);
         self.store.insert_hot_memory(NewHotMemory {
             content: memory_summary,
             summary: Some(outcome.to_string()),
@@ -295,10 +289,7 @@ where
             "agent:eval_passed"
         };
         self.emit(eval_kind, "Reflect completed operator eval checks.")?;
-        self.emit(
-            "agent:session_complete",
-            "Reflect finalized the session outcome.",
-        )
+        self.emit("agent:session_complete", "Reflect finalized the session outcome.")
     }
 }
 
@@ -308,10 +299,7 @@ fn maybe_propose_evolution(
     score: &SessionScore,
     session_id: i64,
 ) -> Result<()> {
-    if matches!(
-        outcome,
-        "idle" | "skipped" | "deferred" | "approved_tool_selected"
-    ) {
+    if matches!(outcome, "idle" | "skipped" | "deferred" | "approved_tool_selected") {
         return Ok(());
     }
 
@@ -325,10 +313,7 @@ fn maybe_propose_evolution(
 
     let proposal = if outcome == "review_failed" {
         let title = "Review quality gate criteria after session review failure";
-        if pending
-            .iter()
-            .any(|p| p.title.starts_with("Review quality gate"))
-        {
+        if pending.iter().any(|p| p.title.starts_with("Review quality gate")) {
             return Ok(());
         }
         EvolutionProposal::new(
@@ -344,10 +329,7 @@ fn maybe_propose_evolution(
         .with_evidence(vec![session_id])
     } else if outcome == "eval_failed" {
         let title = "Address recurring eval failures";
-        if pending
-            .iter()
-            .any(|p| p.title.starts_with("Address recurring eval"))
-        {
+        if pending.iter().any(|p| p.title.starts_with("Address recurring eval")) {
             return Ok(());
         }
         EvolutionProposal::new(
@@ -363,10 +345,7 @@ fn maybe_propose_evolution(
         .with_evidence(vec![session_id])
     } else if score.composite < 0.5 && score.follow_through < 0.5 {
         let title = "Improve goal follow-through rate";
-        if pending
-            .iter()
-            .any(|p| p.title.starts_with("Improve goal follow-through"))
-        {
+        if pending.iter().any(|p| p.title.starts_with("Improve goal follow-through")) {
             return Ok(());
         }
         EvolutionProposal::new(

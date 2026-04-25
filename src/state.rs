@@ -133,8 +133,6 @@ impl SessionState {
     }
 
     pub fn selected_task_label(&self) -> Option<String> {
-        self.requested_task
-            .clone()
-            .or_else(|| self.selected_tool_name.clone())
+        self.requested_task.clone().or_else(|| self.selected_tool_name.clone())
     }
 }

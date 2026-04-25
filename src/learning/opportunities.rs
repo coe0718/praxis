@@ -69,11 +69,7 @@ fn candidates(report: &ArgusReport) -> Result<Vec<OpportunityCandidate>> {
         });
     }
 
-    for pattern in report
-        .repeated_work
-        .iter()
-        .filter(|pattern| pattern.distinct_days >= 2)
-    {
+    for pattern in report.repeated_work.iter().filter(|pattern| pattern.distinct_days >= 2) {
         items.push(OpportunityCandidate {
             signature: format!("repeated-work:{}", pattern.label.to_lowercase()),
             kind: "automation".to_string(),

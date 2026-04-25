@@ -23,19 +23,13 @@ pub(super) fn decay_cold_memories(store: &SqliteSessionStore, now: DateTime<Utc>
 
         statement
             .query_map([], |row| {
-                Ok((
-                    row.get::<_, i64>(0)?,
-                    row.get::<_, f32>(1)?,
-                    row.get::<_, String>(2)?,
-                ))
+                Ok((row.get::<_, i64>(0)?, row.get::<_, f32>(1)?, row.get::<_, String>(2)?))
             })?
             .collect::<rusqlite::Result<Vec<_>>>()
             .context("failed to collect cold memories for decay")?
     };
 
-    let tx = connection
-        .transaction()
-        .context("failed to begin memory decay transaction")?;
+    let tx = connection.transaction().context("failed to begin memory decay transaction")?;
     let mut decayed = 0usize;
     for (id, weight, mt_str) in &candidates {
         let memory_type = MemoryType::parse(mt_str);
@@ -59,8 +53,7 @@ pub(super) fn decay_cold_memories(store: &SqliteSessionStore, now: DateTime<Utc>
             decayed += 1;
         }
     }
-    tx.commit()
-        .context("failed to commit memory decay transaction")?;
+    tx.commit().context("failed to commit memory decay transaction")?;
 
     Ok(decayed)
 }

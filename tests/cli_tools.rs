@@ -172,12 +172,16 @@ fn tool_registry_validates_duplicate_on_runtime() {
 
     // Write another file with same tool name to trigger duplicate error
     let tool_path = data_dir.join("tools").join("my-tool-copy.toml");
-    fs::write(&tool_path, r#"
+    fs::write(
+        &tool_path,
+        r#"
 name = "my-tool"
 description = "Duplicate tool"
 kind = "internal"
 required_level = 1
-"#).unwrap();
+"#,
+    )
+    .unwrap();
 
     // Doctor command validates tools and should fail on duplicate
     praxis_command()
@@ -204,7 +208,8 @@ fn tool_registry_rejects_invalid_manifest() {
 
     // Write an invalid manifest directly
     let tool_path = data_dir.join("tools").join("bad-tool.toml");
-    fs::write(&tool_path, "name = ''\ndescription = ''\nkind = 'internal'\nrequired_level = 5").unwrap();
+    fs::write(&tool_path, "name = ''\ndescription = ''\nkind = 'internal'\nrequired_level = 5")
+        .unwrap();
 
     // Doctor command validates tools and should fail on invalid manifest
     praxis_command()

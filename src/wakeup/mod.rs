@@ -96,10 +96,8 @@ pub fn consume_intent(data_dir: &Path) -> Result<Option<WakeIntent>> {
         Ok(content) => content,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(e) => {
-            return Err(anyhow::Error::new(e).context(format!(
-                "failed to read wake intent from {}",
-                path.display()
-            )));
+            return Err(anyhow::Error::new(e)
+                .context(format!("failed to read wake intent from {}", path.display())));
         }
     };
 
@@ -135,16 +133,8 @@ pub fn is_pending(data_dir: &Path) -> bool {
 
 /// Format a wake intent summary for logging.
 pub fn format_summary(intent: &WakeIntent) -> String {
-    let priority = if intent.is_urgent() {
-        "urgent"
-    } else {
-        "normal"
-    };
-    let task = intent
-        .task
-        .as_deref()
-        .map(|t| format!(" task=\"{t}\""))
-        .unwrap_or_default();
+    let priority = if intent.is_urgent() { "urgent" } else { "normal" };
+    let task = intent.task.as_deref().map(|t| format!(" task=\"{t}\"")).unwrap_or_default();
     format!(
         "[wake-on-intent] source={} priority={priority}{task} reason=\"{}\"",
         intent.source, intent.reason
@@ -160,9 +150,7 @@ mod tests {
     #[test]
     fn round_trips_a_wake_intent() {
         let tmp = tempdir().unwrap();
-        let intent = WakeIntent::new("PR merged", "webhook")
-            .with_task("run tests")
-            .urgent();
+        let intent = WakeIntent::new("PR merged", "webhook").with_task("run tests").urgent();
 
         request_wake(tmp.path(), &intent).unwrap();
         assert!(is_pending(tmp.path()));

@@ -131,11 +131,7 @@ pub fn evaluate_tool(
     // Check allowed tool kinds.
     if !sandbox.allowed_tool_kinds.is_empty() {
         let kind_str = tool_kind_str(tool_kind);
-        if !sandbox
-            .allowed_tool_kinds
-            .iter()
-            .any(|k| k == kind_str || k == "*")
-        {
+        if !sandbox.allowed_tool_kinds.iter().any(|k| k == kind_str || k == "*") {
             return SandboxVerdict::Block(format!(
                 "tool kind '{kind_str}' is not in sandbox allowed_tool_kinds"
             ));
@@ -207,19 +203,12 @@ impl ChannelSandboxStore {
         if self.policies.is_empty() {
             return "sandbox: no channel policies configured".to_string();
         }
-        let mut lines = vec![format!(
-            "sandbox: {} channel policy/policies",
-            self.policies.len()
-        )];
+        let mut lines = vec![format!("sandbox: {} channel policy/policies", self.policies.len())];
         let mut ids: Vec<&str> = self.policies.keys().map(String::as_str).collect();
         ids.sort();
         for id in ids {
             let p = &self.policies[id];
-            let label = if p.label.is_empty() {
-                id
-            } else {
-                p.label.as_str()
-            };
+            let label = if p.label.is_empty() { id } else { p.label.as_str() };
             let kinds = if p.allowed_tool_kinds.is_empty() {
                 "all kinds".to_string()
             } else {
@@ -229,11 +218,7 @@ impl ChannelSandboxStore {
                 .max_security_level
                 .map(|l| format!("max-level={l}"))
                 .unwrap_or_else(|| "no level cap".to_string());
-            let approval = if p.force_approval {
-                " force-approval"
-            } else {
-                ""
-            };
+            let approval = if p.force_approval { " force-approval" } else { "" };
             lines.push(format!("  {id} ({label}): {kinds} {level}{approval}"));
         }
         lines.join("\n")
@@ -335,18 +320,12 @@ mod tests {
             evaluate_tool(&sandbox, "risky-delete", ToolKind::Shell, 1),
             SandboxVerdict::Block(_)
         ));
-        assert_eq!(
-            evaluate_tool(&sandbox, "safe-read", ToolKind::Shell, 1),
-            SandboxVerdict::Allow
-        );
+        assert_eq!(evaluate_tool(&sandbox, "safe-read", ToolKind::Shell, 1), SandboxVerdict::Allow);
     }
 
     #[test]
     fn default_sandbox_allows_everything() {
         let sandbox = ChannelSandbox::default();
-        assert_eq!(
-            evaluate_tool(&sandbox, "any-tool", ToolKind::Http, 3),
-            SandboxVerdict::Allow
-        );
+        assert_eq!(evaluate_tool(&sandbox, "any-tool", ToolKind::Http, 3), SandboxVerdict::Allow);
     }
 }

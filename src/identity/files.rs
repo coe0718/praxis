@@ -62,10 +62,7 @@ impl IdentityPolicy for LocalIdentityPolicy {
         writeln!(file, "- Outcome: {}", session.outcome)?;
 
         if let Some(goal_id) = &session.selected_goal_id {
-            let title = session
-                .selected_goal_title
-                .as_deref()
-                .unwrap_or("unknown goal");
+            let title = session.selected_goal_title.as_deref().unwrap_or("unknown goal");
             writeln!(file, "- Goal: {goal_id}: {title}")?;
         }
 
@@ -95,10 +92,7 @@ impl IdentityPolicy for LocalIdentityPolicy {
         let raw = fs::read_to_string(&paths.day_count_file)
             .with_context(|| format!("failed to read {}", paths.day_count_file.display()))?;
         raw.trim().parse::<i64>().with_context(|| {
-            format!(
-                "invalid DAY_COUNT value in {}",
-                paths.day_count_file.display()
-            )
+            format!("invalid DAY_COUNT value in {}", paths.day_count_file.display())
         })
     }
 }

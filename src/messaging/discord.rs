@@ -93,10 +93,7 @@ impl DiscordClient {
             .as_deref()
             .context("PRAXIS_DISCORD_WEBHOOK_URL is not set — cannot send via webhook")?;
 
-        let payload = WebhookPayload {
-            content: text,
-            username,
-        };
+        let payload = WebhookPayload { content: text, username };
 
         let response = self
             .client
@@ -142,9 +139,7 @@ impl DiscordClient {
             bail!("Discord send_message failed with {status}: {safe_body}");
         }
 
-        response
-            .json()
-            .context("failed to parse Discord message response")
+        response.json().context("failed to parse Discord message response")
     }
 
     /// Poll one or more watched channels for new messages since the last run.
@@ -182,9 +177,7 @@ impl DiscordClient {
                     .cloned()
                     .unwrap_or_else(|| "0".to_string());
                 if msg.id > current_max {
-                    state
-                        .last_message_ids
-                        .insert(channel_id.clone(), msg.id.clone());
+                    state.last_message_ids.insert(channel_id.clone(), msg.id.clone());
                 }
 
                 let author_id = msg.author_id().unwrap_or_default();
@@ -223,9 +216,7 @@ impl DiscordClient {
         if let Some(after_id) = after {
             req = req.query(&[("after", after_id)]);
         }
-        let resp = req
-            .send()
-            .context("failed to GET Discord channel messages")?;
+        let resp = req.send().context("failed to GET Discord channel messages")?;
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().unwrap_or_default();
@@ -275,21 +266,12 @@ struct DiscordPollState {
 fn parse_channel_ids() -> Result<Vec<String>> {
     let raw = std::env::var("PRAXIS_DISCORD_CHANNEL_IDS")
         .context("PRAXIS_DISCORD_CHANNEL_IDS is required for Discord polling")?;
-    Ok(raw
-        .split(',')
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .collect())
+    Ok(raw.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect())
 }
 
 pub fn parse_allowed_user_ids() -> Vec<String> {
     std::env::var("PRAXIS_DISCORD_ALLOWED_USER_IDS")
-        .map(|raw| {
-            raw.split(',')
-                .map(|s| s.trim().to_string())
-                .filter(|s| !s.is_empty())
-                .collect()
-        })
+        .map(|raw| raw.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect())
         .unwrap_or_default()
 }
 

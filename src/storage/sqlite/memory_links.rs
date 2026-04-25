@@ -113,22 +113,14 @@ impl MemoryLinkStore for SqliteSessionStore {
 fn fetch_memory_content(connection: &rusqlite::Connection, id: i64) -> Result<Option<String>> {
     use rusqlite::OptionalExtension;
     let hot: Option<String> = connection
-        .query_row(
-            "SELECT content FROM hot_memories WHERE id = ?1",
-            params![id],
-            |row| row.get(0),
-        )
+        .query_row("SELECT content FROM hot_memories WHERE id = ?1", params![id], |row| row.get(0))
         .optional()
         .context("failed to fetch hot memory content")?;
     if hot.is_some() {
         return Ok(hot);
     }
     let cold: Option<String> = connection
-        .query_row(
-            "SELECT content FROM cold_memories WHERE id = ?1",
-            params![id],
-            |row| row.get(0),
-        )
+        .query_row("SELECT content FROM cold_memories WHERE id = ?1", params![id], |row| row.get(0))
         .optional()
         .context("failed to fetch cold memory content")?;
     Ok(cold)

@@ -13,12 +13,7 @@ fn oversized_attachments_reject_by_default() {
     let data_dir = temp.path().join("praxis");
     let attachment = temp.path().join("large.txt");
 
-    praxis_command()
-        .arg("--data-dir")
-        .arg(&data_dir)
-        .arg("init")
-        .assert()
-        .success();
+    praxis_command().arg("--data-dir").arg(&data_dir).arg("init").assert().success();
 
     fs::write(&attachment, "a".repeat(100_500)).unwrap();
 
@@ -41,12 +36,7 @@ fn oversized_attachments_can_be_chunked_or_summarized() {
     let data_dir = temp.path().join("praxis");
     let attachment = temp.path().join("large.txt");
 
-    praxis_command()
-        .arg("--data-dir")
-        .arg(&data_dir)
-        .arg("init")
-        .assert()
-        .success();
+    praxis_command().arg("--data-dir").arg(&data_dir).arg("init").assert().success();
 
     fs::write(&attachment, "Heading\n".to_string() + &"x".repeat(100_500)).unwrap();
 

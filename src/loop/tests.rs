@@ -34,11 +34,7 @@ fn runtime_runs_single_session() {
     let store = SqliteSessionStore::new(paths.database_file.clone());
     store.initialize().unwrap();
 
-    let clock = FixedClock::new(
-        chrono::Utc
-            .with_ymd_and_hms(2026, 3, 31, 12, 30, 0)
-            .unwrap(),
-    );
+    let clock = FixedClock::new(chrono::Utc.with_ymd_and_hms(2026, 3, 31, 12, 30, 0).unwrap());
 
     let runtime = PraxisRuntime {
         config: &config,
@@ -66,12 +62,7 @@ fn runtime_runs_single_session() {
     assert!(!store.recent_hot_memories(5).unwrap().is_empty());
 
     let state = SessionState::load(&paths.state_file).unwrap().unwrap();
-    assert!(
-        state
-            .orientation_summary
-            .unwrap_or_default()
-            .contains("Context used")
-    );
+    assert!(state.orientation_summary.unwrap_or_default().contains("Context used"));
 }
 
 #[test]
@@ -82,9 +73,7 @@ fn runtime_reaches_stop_condition_when_all_goals_are_done() {
     let identity = LocalIdentityPolicy;
     let started_at = chrono::Utc.with_ymd_and_hms(2026, 4, 3, 12, 0, 0).unwrap();
 
-    identity
-        .ensure_foundation(&paths, &config, started_at)
-        .unwrap();
+    identity.ensure_foundation(&paths, &config, started_at).unwrap();
     std::fs::write(&paths.goals_file, "# Goals\n\n- [x] G-001: Done already\n").unwrap();
     FileToolRegistry.ensure_foundation(&paths).unwrap();
 

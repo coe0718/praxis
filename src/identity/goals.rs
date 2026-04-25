@@ -78,19 +78,13 @@ pub fn ensure_goal(path: &Path, title: &str) -> Result<GoalPromotion> {
     raw.push_str(&format!("- [ ] {goal_id}: {title}\n"));
     fs::write(path, raw).with_context(|| format!("failed to write {}", path.display()))?;
 
-    Ok(GoalPromotion {
-        goal_id,
-        created: true,
-    })
+    Ok(GoalPromotion { goal_id, created: true })
 }
 
 fn parse_goal_line(line: &str, line_number: usize) -> Result<Option<Goal>> {
     let (completed, remainder) = if let Some(rest) = line.strip_prefix("- [ ] ") {
         (false, rest)
-    } else if let Some(rest) = line
-        .strip_prefix("- [x] ")
-        .or_else(|| line.strip_prefix("- [X] "))
-    {
+    } else if let Some(rest) = line.strip_prefix("- [x] ").or_else(|| line.strip_prefix("- [X] ")) {
         (true, rest)
     } else {
         return Ok(None);

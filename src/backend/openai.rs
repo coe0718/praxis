@@ -60,10 +60,7 @@ pub(super) fn execute(
         let status = response.status();
         let body = response.text().unwrap_or_default();
         let safe_body = body.chars().take(200).collect::<String>();
-        bail!(
-            "provider {} request failed with {status}: {safe_body}",
-            route.provider
-        );
+        bail!("provider {} request failed with {status}: {safe_body}", route.provider);
     }
 
     let parsed = response
@@ -80,11 +77,7 @@ pub(super) fn execute(
         .with_context(|| format!("provider {} returned no text content", route.provider))?;
 
     let input_tokens = parsed.usage.as_ref().map(|u| u.prompt_tokens).unwrap_or(0);
-    let output_tokens = parsed
-        .usage
-        .as_ref()
-        .map(|u| u.completion_tokens)
-        .unwrap_or(0);
+    let output_tokens = parsed.usage.as_ref().map(|u| u.completion_tokens).unwrap_or(0);
 
     Ok(ProviderResponse {
         summary: text,
@@ -120,15 +113,18 @@ pub(super) fn resolve_api_key(provider: &str) -> Result<String> {
 
 /// Load an OAuth token from the token store for providers that use OAuth.
 fn resolve_oauth_token(provider: &str) -> Result<String> {
-    use crate::paths::{PraxisPaths, default_data_dir};
     use crate::oauth::OAuthTokenStore;
+    use crate::paths::{PraxisPaths, default_data_dir};
     let data_dir = default_data_dir()?;
     let paths = PraxisPaths::for_data_dir(data_dir);
     let store = OAuthTokenStore::new(&paths.data_dir);
-    let token = store.get(provider)?
-        .with_context(|| format!("no OAuth token for '{provider}' — run `praxis oauth login {provider}`"))?;
+    let token = store.get(provider)?.with_context(|| {
+        format!("no OAuth token for '{provider}' — run `praxis oauth login {provider}`")
+    })?;
     if token.is_expired() {
-        bail!("OAuth token for '{provider}' has expired — run `praxis oauth login {provider}` or `praxis oauth refresh {provider}`");
+        bail!(
+            "OAuth token for '{provider}' has expired — run `praxis oauth login {provider}` or `praxis oauth refresh {provider}`"
+        );
     }
     Ok(token.access_token)
 }

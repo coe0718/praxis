@@ -76,12 +76,8 @@ fn learning_runtime_ingests_sources_and_throttles_opportunities() {
         .assert()
         .success()
         .stdout(predicate::str::contains("pending_opportunities: 2"))
-        .stdout(predicate::str::contains(
-            "Automate recurring work: task: clean notes",
-        ))
-        .stdout(predicate::str::contains(
-            "Automate recurring work: task: review backlog",
-        ));
+        .stdout(predicate::str::contains("Automate recurring work: task: clean notes"))
+        .stdout(predicate::str::contains("Automate recurring work: task: review backlog"));
 
     let proposals = fs::read_to_string(data_dir.join("PROPOSALS.md")).unwrap();
     assert!(proposals.contains("## Pending"));
@@ -128,18 +124,14 @@ fn learning_runtime_ingests_sources_and_throttles_opportunities() {
         .stdout(predicate::str::contains("dismissed_opportunities: 1"))
         .stdout(predicate::str::contains("accepted:"))
         .stdout(predicate::str::contains("dismissed:"))
-        .stdout(predicate::str::contains(
-            "Automate recurring work: task: clean notes -> G-002",
-        ));
+        .stdout(predicate::str::contains("Automate recurring work: task: clean notes -> G-002"));
 
     fs::write(
         data_dir.join("GOALS.md"),
-        fs::read_to_string(data_dir.join("GOALS.md"))
-            .unwrap()
-            .replace(
-                "- [ ] G-001: Complete the first Praxis foundation run",
-                "- [x] G-001: Complete the first Praxis foundation run",
-            ),
+        fs::read_to_string(data_dir.join("GOALS.md")).unwrap().replace(
+            "- [ ] G-001: Complete the first Praxis foundation run",
+            "- [x] G-001: Complete the first Praxis foundation run",
+        ),
     )
     .unwrap();
 
@@ -162,9 +154,7 @@ fn learning_runtime_ingests_sources_and_throttles_opportunities() {
         .assert()
         .success()
         .stdout(predicate::str::contains("pending_opportunities: 0"))
-        .stdout(predicate::str::contains(
-            "last_learning: processed=1 changed=1 opportunities=2",
-        ))
+        .stdout(predicate::str::contains("last_learning: processed=1 changed=1 opportunities=2"))
         .stdout(predicate::str::contains("drift_status: insufficient_data"));
 
     let proposals = fs::read_to_string(data_dir.join("PROPOSALS.md")).unwrap();

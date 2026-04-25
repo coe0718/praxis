@@ -35,10 +35,7 @@ fn initializes_and_records_sessions() {
 
     let stored = store.record_session(&record).unwrap();
     assert_eq!(stored.session_num, 1);
-    assert_eq!(
-        store.last_session().unwrap().unwrap().outcome,
-        "goal_selected"
-    );
+    assert_eq!(store.last_session().unwrap().unwrap().outcome, "goal_selected");
 }
 
 #[test]
@@ -137,10 +134,7 @@ fn queues_and_updates_approval_requests() {
         .unwrap()
         .unwrap();
     assert_eq!(approved.status, ApprovalStatus::Approved);
-    assert_eq!(
-        store.next_approved_request().unwrap().unwrap().tool_name,
-        "praxis-data-write"
-    );
+    assert_eq!(store.next_approved_request().unwrap().unwrap().tool_name, "praxis-data-write");
 
     store.mark_approval_consumed(queued.id).unwrap();
     let executed = store.get_approval(queued.id).unwrap().unwrap();
@@ -203,10 +197,7 @@ fn records_review_and_eval_quality_metadata() {
         )
         .unwrap();
 
-    assert_eq!(
-        store.last_review().unwrap().unwrap().status,
-        ReviewStatus::Passed
-    );
+    assert_eq!(store.last_review().unwrap().unwrap().status, ReviewStatus::Passed);
     assert_eq!(store.latest_eval_summary().unwrap().unwrap().passed, 1);
 }
 

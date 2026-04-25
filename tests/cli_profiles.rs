@@ -28,10 +28,7 @@ fn offline_profile_forces_local_backend_and_surfaces_in_status() {
     fs::write(&config_path, updated).unwrap();
 
     praxis_command()
-        .env(
-            "PRAXIS_OLLAMA_STUB_RESPONSE",
-            "Offline profile local answer",
-        )
+        .env("PRAXIS_OLLAMA_STUB_RESPONSE", "Offline profile local answer")
         .arg("--data-dir")
         .arg(&data_dir)
         .arg("ask")
@@ -39,9 +36,7 @@ fn offline_profile_forces_local_backend_and_surfaces_in_status() {
         .arg("check")
         .assert()
         .success()
-        .stdout(predicate::str::contains(
-            "answer: Offline profile local answer",
-        ));
+        .stdout(predicate::str::contains("answer: Offline profile local answer"));
 
     praxis_command()
         .arg("--data-dir")

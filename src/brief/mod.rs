@@ -138,10 +138,7 @@ fn pending_approvals_section(paths: &PraxisPaths) -> Result<String> {
         out.push_str(&format!("\n• [#{}] {}", a.id, summary));
     }
     if approvals.len() > 3 {
-        out.push_str(&format!(
-            "\n  … and {} more. Use /queue to view.",
-            approvals.len() - 3
-        ));
+        out.push_str(&format!("\n  … and {} more. Use /queue to view.", approvals.len() - 3));
     }
     Ok(out)
 }
@@ -166,12 +163,8 @@ fn journal_excerpt_section(paths: &PraxisPaths) -> Result<String> {
         Err(_) => return Ok(String::new()),
     };
 
-    let recent_lines: Vec<&str> = content
-        .lines()
-        .rev()
-        .filter(|line| !line.trim().is_empty())
-        .take(4)
-        .collect();
+    let recent_lines: Vec<&str> =
+        content.lines().rev().filter(|line| !line.trim().is_empty()).take(4).collect();
 
     if recent_lines.is_empty() {
         return Ok(String::new());

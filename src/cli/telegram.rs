@@ -82,21 +82,15 @@ fn run_poll_loop(data_dir_override: Option<PathBuf>, args: TelegramRunArgs) -> R
         thread::sleep(delay);
     }
 
-    Ok(format!(
-        "telegram: processed {processed_total} messages across {cycles} cycles"
-    ))
+    Ok(format!("telegram: processed {processed_total} messages across {cycles} cycles"))
 }
 
 fn process_messages(bot: &TelegramBot, paths: &crate::paths::PraxisPaths) -> Result<usize> {
     let bus = FileBus::new(&paths.bus_file);
     let activation = ActivationStore::load(&paths.activation_file)?;
 
-    let messages = bot.poll_once(
-        &paths.telegram_state_file,
-        &paths.sender_pairing_file,
-        &bus,
-        &activation,
-    )?;
+    let messages =
+        bot.poll_once(&paths.telegram_state_file, &paths.sender_pairing_file, &bus, &activation)?;
 
     for message in &messages {
         // Emit typing indicator while processing the command.

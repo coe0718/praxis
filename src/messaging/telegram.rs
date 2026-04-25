@@ -105,22 +105,11 @@ impl TelegramBot {
         let _lock = acquire_poll_lock(state_path)?;
         let offset = load_offset(state_path).unwrap_or(0);
         let updates = self.fetch_updates(offset + 1)?;
-        let next_offset = updates
-            .iter()
-            .map(|update| update.update_id)
-            .max()
-            .unwrap_or(offset);
+        let next_offset = updates.iter().map(|update| update.update_id).max().unwrap_or(offset);
         if next_offset > offset {
             save_offset(state_path, next_offset)?;
         }
-        filter_messages(
-            self,
-            &self.allowed_chat_ids,
-            pairing_path,
-            &updates,
-            bus,
-            activation,
-        )
+        filter_messages(self, &self.allowed_chat_ids, pairing_path, &updates, bus, activation)
     }
 
     /// Return the first configured chat ID — the primary operator chat.
@@ -231,13 +220,8 @@ fn save_offset(path: &Path, last_update_id: i64) -> Result<()> {
     let temp_path = path.with_extension("tmp");
     fs::write(&temp_path, raw)
         .with_context(|| format!("failed to write {}", temp_path.display()))?;
-    fs::rename(&temp_path, path).with_context(|| {
-        format!(
-            "failed to rename {} to {}",
-            temp_path.display(),
-            path.display()
-        )
-    })
+    fs::rename(&temp_path, path)
+        .with_context(|| format!("failed to rename {} to {}", temp_path.display(), path.display()))
 }
 
 /// Advisory lock file to prevent concurrent `poll_once` calls.
@@ -258,18 +242,12 @@ fn acquire_poll_lock(state_path: &Path) -> Result<PollLock> {
     // If a lock exists and is stale, remove it.
     if let Ok(meta) = fs::metadata(&lock_path)
         && let Ok(modified) = meta.modified()
-        && std::time::SystemTime::now()
-            .duration_since(modified)
-            .unwrap_or_default()
+        && std::time::SystemTime::now().duration_since(modified).unwrap_or_default()
             > Duration::from_secs(300)
     {
         let _ = fs::remove_file(&lock_path);
     }
-    match fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&lock_path)
-    {
+    match fs::OpenOptions::new().write(true).create_new(true).open(&lock_path) {
         Ok(_) => Ok(PollLock { path: lock_path }),
         Err(e) => {
             anyhow::bail!("another Telegram poll is already in progress (lock file exists): {e}")
@@ -279,8 +257,7 @@ fn acquire_poll_lock(state_path: &Path) -> Result<PollLock> {
 
 fn has_mention_entity(entities: &Option<Vec<TelegramMessageEntity>>) -> bool {
     entities.as_deref().is_some_and(|ents| {
-        ents.iter()
-            .any(|e| e.r#type == "mention" || e.r#type == "text_mention")
+        ents.iter().any(|e| e.r#type == "mention" || e.r#type == "text_mention")
     })
 }
 
@@ -350,13 +327,8 @@ fn filter_messages(
             continue;
         }
 
-        let event = BusEvent::new(
-            "message",
-            "telegram",
-            &conversation_id,
-            sender_id.to_string(),
-            text,
-        );
+        let event =
+            BusEvent::new("message", "telegram", &conversation_id, sender_id.to_string(), text);
         bus.publish(&event)?;
 
         accepted.push(TelegramMessage {

@@ -27,10 +27,7 @@ fn state_export_and_import_restore_portable_runtime_state() {
     let config_path = source_dir.join("praxis.toml");
     let updated = fs::read_to_string(&config_path)
         .unwrap()
-        .replace(
-            "path = \"praxis.db\"",
-            &format!("path = \"{}\"", absolute_db.display()),
-        )
+        .replace("path = \"praxis.db\"", &format!("path = \"{}\"", absolute_db.display()))
         .replace(
             "state_file = \"session_state.json\"",
             &format!("state_file = \"{}\"", absolute_state.display()),
@@ -100,9 +97,7 @@ fn state_export_and_import_restore_portable_runtime_state() {
         .assert()
         .success()
         .stdout(predicate::str::contains("last_session: #1"))
-        .stdout(predicate::str::contains(
-            "last_session_ended_at: 2026-04-04T12:15:00+00:00",
-        ));
+        .stdout(predicate::str::contains("last_session_ended_at: 2026-04-04T12:15:00+00:00"));
 }
 
 #[test]

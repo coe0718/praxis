@@ -55,10 +55,7 @@ where
         deferred_state.save(&self.paths.state_file)?;
         self.emit(
             "agent:sleep_deferred",
-            deferred_state
-                .action_summary
-                .as_deref()
-                .unwrap_or("quiet hours"),
+            deferred_state.action_summary.as_deref().unwrap_or("quiet hours"),
         )?;
 
         Ok(RunSummary {

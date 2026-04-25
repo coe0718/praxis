@@ -73,10 +73,7 @@ impl SkillSynthesizer {
 
     fn should_draft(&self, input: &SkillSynthesisInput<'_>) -> bool {
         // Must be a successful outcome.
-        let success = matches!(
-            input.outcome,
-            "completed" | "success" | "done" | "reviewer_passed"
-        );
+        let success = matches!(input.outcome, "completed" | "success" | "done" | "reviewer_passed");
         if !success {
             return false;
         }
@@ -97,11 +94,7 @@ impl SkillSynthesizer {
 
 fn render_draft(goal_title: &str, input: &SkillSynthesisInput<'_>) -> String {
     let tags = infer_tags(goal_title, input.action_summary);
-    let tags_toml = tags
-        .iter()
-        .map(|t| format!("{t:?}"))
-        .collect::<Vec<_>>()
-        .join(", ");
+    let tags_toml = tags.iter().map(|t| format!("{t:?}")).collect::<Vec<_>>().join(", ");
 
     format!(
         r#"+++
@@ -220,12 +213,7 @@ mod tests {
         let result = synth
             .maybe_draft(
                 &drafts,
-                &input(
-                    "completed",
-                    Some("morning brief delivery"),
-                    5,
-                    "Pushed brief to Telegram.",
-                ),
+                &input("completed", Some("morning brief delivery"), 5, "Pushed brief to Telegram."),
             )
             .unwrap();
 

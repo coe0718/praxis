@@ -43,8 +43,7 @@ pub(super) fn record_session(
     .context("failed to insert session row")?;
 
     let id = tx.last_insert_rowid();
-    tx.commit()
-        .context("failed to commit session recording transaction")?;
+    tx.commit().context("failed to commit session recording transaction")?;
 
     Ok(StoredSession {
         id,

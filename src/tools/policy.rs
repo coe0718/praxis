@@ -46,11 +46,7 @@ impl SecurityPolicy {
         let mut unique_paths = HashSet::new();
         for requested in &request.write_paths {
             if !unique_paths.insert(requested) {
-                bail!(
-                    "tool request {} repeats write path {}",
-                    request.id,
-                    requested
-                );
+                bail!("tool request {} repeats write path {}", request.id, requested);
             }
 
             let requested_path = normalize_relative(requested)?;
@@ -58,11 +54,7 @@ impl SecurityPolicy {
                 protected_writes += 1;
             }
             if is_locked_path(&requested_path) {
-                bail!(
-                    "tool request {} targets locked path {}",
-                    request.id,
-                    requested
-                );
+                bail!("tool request {} targets locked path {}", request.id, requested);
             }
 
             if !path_allowed(&requested_path, &manifest.allowed_paths)? {
@@ -75,10 +67,7 @@ impl SecurityPolicy {
 
             let full_path = paths.data_dir.join(&requested_path);
             if !full_path.starts_with(&paths.data_dir) {
-                bail!(
-                    "tool request {} escapes the Praxis data directory",
-                    request.id
-                );
+                bail!("tool request {} escapes the Praxis data directory", request.id);
             }
         }
         if protected_writes > MAX_PROTECTED_WRITES_PER_REQUEST {
@@ -233,10 +222,7 @@ mod tests {
                 &config,
                 &paths,
                 &manifest(&["JOURNAL.md", "PROPOSALS.md", "METRICS.md"]),
-                &request(
-                    &["JOURNAL.md", "PROPOSALS.md", "METRICS.md"],
-                    "safe note".to_string(),
-                ),
+                &request(&["JOURNAL.md", "PROPOSALS.md", "METRICS.md"], "safe note".to_string()),
             )
             .unwrap_err()
             .to_string();

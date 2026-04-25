@@ -34,10 +34,7 @@ pub fn analyze(database_file: &Path, limit: usize) -> Result<ArgusReport> {
         .with_context(|| format!("failed to open {}", database_file.display()))?;
     let sessions = recent_sessions(&connection, limit.max(1))?;
     let session_count = sessions.len();
-    let review_failures = sessions
-        .iter()
-        .map(|session| session.reviewer_failures)
-        .sum();
+    let review_failures = sessions.iter().map(|session| session.reviewer_failures).sum();
     let eval_failures = sessions.iter().map(|session| session.eval_failures).sum();
     let loop_guard_blocks = sessions
         .iter()
@@ -47,10 +44,8 @@ pub fn analyze(database_file: &Path, limit: usize) -> Result<ArgusReport> {
         .iter()
         .filter(|session| session.outcome == "waiting_on_dependencies")
         .count();
-    let repeated_reads_avoided = sessions
-        .iter()
-        .map(|session| session.repeated_reads_avoided)
-        .sum();
+    let repeated_reads_avoided =
+        sessions.iter().map(|session| session.repeated_reads_avoided).sum();
     let drift = detect_drift(&sessions, 5);
     let repeated_work = repeated_work_patterns(&sessions);
     let failure_clusters = cluster_failures(&sessions);

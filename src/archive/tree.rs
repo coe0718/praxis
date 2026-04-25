@@ -17,10 +17,7 @@ pub(super) fn ensure_no_overlap(left: &Path, right: &Path, label: &str) -> Resul
 pub(super) fn prepare_fresh_dir(path: &Path, overwrite: bool) -> Result<()> {
     if path.exists() {
         if !overwrite {
-            bail!(
-                "{} already exists; pass --overwrite to replace it",
-                path.display()
-            );
+            bail!("{} already exists; pass --overwrite to replace it", path.display());
         }
         fs::remove_dir_all(path).with_context(|| format!("failed to remove {}", path.display()))?;
     }
@@ -51,10 +48,7 @@ pub(super) fn copy_dir_tree(
     dst_root: &Path,
     skip: &[PathBuf],
 ) -> Result<Vec<String>> {
-    let skip = skip
-        .iter()
-        .map(|path| absoluteish(path))
-        .collect::<Result<Vec<_>>>()?;
+    let skip = skip.iter().map(|path| absoluteish(path)).collect::<Result<Vec<_>>>()?;
     let mut copied = Vec::new();
     visit(src_root, src_root, dst_root, &skip, &mut copied)?;
     copied.sort();
@@ -128,8 +122,6 @@ fn absoluteish(path: &Path) -> Result<PathBuf> {
     if path.is_absolute() {
         Ok(path.to_path_buf())
     } else {
-        Ok(env::current_dir()
-            .context("failed to resolve current directory")?
-            .join(path))
+        Ok(env::current_dir().context("failed to resolve current directory")?.join(path))
     }
 }

@@ -30,10 +30,7 @@ fn router_falls_back_to_openai_and_reports_provider_usage() {
         .env("PRAXIS_FIXED_NOW", "2026-04-03T12:30:00Z")
         .env("ANTHROPIC_API_KEY", "test-key")
         .env("PRAXIS_CLAUDE_FORCE_ERROR", "simulated rate limit")
-        .env(
-            "PRAXIS_OPENAI_STUB_RESPONSE",
-            "OpenAI fallback planned the next safe step.",
-        )
+        .env("PRAXIS_OPENAI_STUB_RESPONSE", "OpenAI fallback planned the next safe step.")
         .arg("--data-dir")
         .arg(&data_dir)
         .arg("run")
@@ -41,9 +38,7 @@ fn router_falls_back_to_openai_and_reports_provider_usage() {
         .assert()
         .success()
         .stdout(predicate::str::contains("outcome: goal_selected"))
-        .stdout(predicate::str::contains(
-            "summary: OpenAI fallback planned the next safe step.",
-        ));
+        .stdout(predicate::str::contains("summary: OpenAI fallback planned the next safe step."));
 
     praxis_command()
         .arg("--data-dir")
@@ -74,18 +69,12 @@ fn local_first_fallback_prefers_ollama_for_low_risk_asks() {
     let updated = fs::read_to_string(&config_path)
         .unwrap()
         .replace("backend = \"stub\"", "backend = \"claude\"")
-        .replace(
-            "local_first_fallback = false",
-            "local_first_fallback = true",
-        );
+        .replace("local_first_fallback = false", "local_first_fallback = true");
     fs::write(&config_path, updated).unwrap();
 
     praxis_command()
         .env("PRAXIS_CLAUDE_STUB_RESPONSE", "Claude cloud answer")
-        .env(
-            "PRAXIS_OLLAMA_STUB_RESPONSE",
-            "Ollama local fallback answer",
-        )
+        .env("PRAXIS_OLLAMA_STUB_RESPONSE", "Ollama local fallback answer")
         .arg("--data-dir")
         .arg(&data_dir)
         .arg("ask")
@@ -95,7 +84,5 @@ fn local_first_fallback_prefers_ollama_for_low_risk_asks() {
         .arg("brief")
         .assert()
         .success()
-        .stdout(predicate::str::contains(
-            "answer: Ollama local fallback answer",
-        ));
+        .stdout(predicate::str::contains("answer: Ollama local fallback answer"));
 }

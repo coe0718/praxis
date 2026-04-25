@@ -160,9 +160,7 @@ fn load_do_not_repeat<P>(
 where
     P: rusqlite::Params,
 {
-    let mut statement = connection
-        .prepare(sql)
-        .context("failed to prepare note query")?;
+    let mut statement = connection.prepare(sql).context("failed to prepare note query")?;
     let rows = statement
         .query_map(params, |row| {
             let tags =
@@ -187,9 +185,7 @@ fn load_known_bugs<P>(
 where
     P: rusqlite::Params,
 {
-    let mut statement = connection
-        .prepare(sql)
-        .context("failed to prepare bug query")?;
+    let mut statement = connection.prepare(sql).context("failed to prepare bug query")?;
     let rows = statement
         .query_map(params, |row| {
             let tags =

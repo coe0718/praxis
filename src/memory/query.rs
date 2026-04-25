@@ -59,10 +59,7 @@ mod tests {
     fn strips_punctuation_from_lookup_queries() {
         let query = build_lookup_query(Some("Automate recurring work: task: clean notes"), &[]);
 
-        assert_eq!(
-            query.as_deref(),
-            Some("Automate recurring work task clean notes")
-        );
+        assert_eq!(query.as_deref(), Some("Automate recurring work task clean notes"));
     }
 
     #[test]

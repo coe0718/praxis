@@ -12,9 +12,7 @@ pub fn route_for(
     config: &AppConfig,
     settings: &ProviderSettings,
 ) -> Result<ProviderRoute> {
-    let mut route = settings
-        .first_for(provider)
-        .unwrap_or_else(|| default_route(provider));
+    let mut route = settings.first_for(provider).unwrap_or_else(|| default_route(provider));
     if config.agent.model_pin.is_some() && provider == config.agent.backend {
         route.model = config.agent.model_pin.clone().unwrap_or(route.model);
     }
@@ -23,18 +21,16 @@ pub fn route_for(
 }
 
 pub fn default_route(provider: &str) -> ProviderRoute {
-    ProviderSettings::default()
-        .first_for(provider)
-        .unwrap_or(ProviderRoute {
-            provider: provider.to_string(),
-            model: "unknown".to_string(),
-            base_url: None,
-            protocol: None,
-            class: None,
-            input_cost_per_million_usd: None,
-            output_cost_per_million_usd: None,
-            weight: None,
-        })
+    ProviderSettings::default().first_for(provider).unwrap_or(ProviderRoute {
+        provider: provider.to_string(),
+        model: "unknown".to_string(),
+        base_url: None,
+        protocol: None,
+        class: None,
+        input_cost_per_million_usd: None,
+        output_cost_per_million_usd: None,
+        weight: None,
+    })
 }
 
 /// Check that the required credentials are present for this route.
@@ -62,7 +58,8 @@ pub fn validate_provider(route: &ProviderRoute) -> Result<()> {
                     if let Err(e) = check_oauth_token(&route.provider) {
                         bail!(
                             "no API key or OAuth token for provider '{}': set {specific}, OPENAI_API_KEY, or run `praxis oauth login {}` ({e})",
-                            route.provider, route.provider
+                            route.provider,
+                            route.provider
                         );
                     }
                 } else {
@@ -84,7 +81,8 @@ fn check_oauth_token(provider: &str) -> Result<()> {
     let data_dir = default_data_dir()?;
     let paths = PraxisPaths::for_data_dir(data_dir);
     let store = OAuthTokenStore::new(&paths.data_dir);
-    let token = store.get(provider)?
+    let token = store
+        .get(provider)?
         .with_context(|| format!("no OAuth token for '{provider}'"))?;
     if token.is_expired() {
         bail!("OAuth token for '{provider}' has expired");

@@ -156,10 +156,7 @@ pub(super) async fn api_approvals(
     let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
     let store = SqliteSessionStore::new(paths.database_file.clone());
 
-    let status = query
-        .status
-        .as_deref()
-        .and_then(|s| ApprovalStatus::parse(s).ok());
+    let status = query.status.as_deref().and_then(|s| ApprovalStatus::parse(s).ok());
 
     match store.search_approvals(query.q.as_deref(), query.tool.as_deref(), status) {
         Ok(rows) => {

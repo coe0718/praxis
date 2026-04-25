@@ -162,10 +162,7 @@ impl HookContext {
     fn to_env(&self) -> Vec<(String, String)> {
         let mut vars = vec![
             ("PRAXIS_EVENT".into(), self.event.clone()),
-            (
-                "PRAXIS_DATA_DIR".into(),
-                self.data_dir.display().to_string(),
-            ),
+            ("PRAXIS_DATA_DIR".into(), self.data_dir.display().to_string()),
         ];
         if let Some(id) = self.session_id {
             vars.push(("PRAXIS_SESSION_ID".into(), id.to_string()));
@@ -216,9 +213,7 @@ impl HookRunner {
             Ok(raw) => {
                 let config: HookConfig = toml::from_str(&raw)
                     .with_context(|| format!("invalid TOML in hooks file {}", path.display()))?;
-                Ok(Self {
-                    hooks: config.hooks,
-                })
+                Ok(Self { hooks: config.hooks })
             }
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Self::default()),
             Err(e) => Err(e).with_context(|| format!("failed to read {}", path.display())),
@@ -258,10 +253,7 @@ impl HookRunner {
                         let _ = wait_with_timeout(&mut child, timeout);
                     });
                 }
-                Err(e) => log::warn!(
-                    "hooks: observer '{}' failed to spawn: {e}",
-                    script.display()
-                ),
+                Err(e) => log::warn!("hooks: observer '{}' failed to spawn: {e}", script.display()),
             }
         }
     }
@@ -327,10 +319,7 @@ impl HookRunner {
             {
                 Ok(c) => c,
                 Err(e) => {
-                    log::warn!(
-                        "approval hook '{}' spawn failed: {e}",
-                        hook.script.display()
-                    );
+                    log::warn!("approval hook '{}' spawn failed: {e}", hook.script.display());
                     continue;
                 }
             };
@@ -389,17 +378,11 @@ impl HookRunner {
 
 fn validate_hook_script(script: &Path) -> bool {
     if !script.is_absolute() {
-        log::warn!(
-            "hooks: script '{}' must be an absolute path — skipping",
-            script.display()
-        );
+        log::warn!("hooks: script '{}' must be an absolute path — skipping", script.display());
         return false;
     }
     if script.is_symlink() {
-        log::warn!(
-            "hooks: script '{}' is a symlink — skipping for security",
-            script.display()
-        );
+        log::warn!("hooks: script '{}' is a symlink — skipping for security", script.display());
         return false;
     }
     true
@@ -526,12 +509,7 @@ mod tests {
         let ctx = HookContext::new("session.end", "/tmp".into());
         // Should not panic.
         runner.fire_observer("session.end", &ctx, "*");
-        runner
-            .fire_interceptor("phase.act.start", &ctx, "*")
-            .unwrap();
-        assert_eq!(
-            runner.fire_approval_hooks("any-tool", &ctx, None),
-            ApprovalVerdict::Defer
-        );
+        runner.fire_interceptor("phase.act.start", &ctx, "*").unwrap();
+        assert_eq!(runner.fire_approval_hooks("any-tool", &ctx, None), ApprovalVerdict::Defer);
     }
 }

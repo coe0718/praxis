@@ -86,10 +86,7 @@ pub fn confirm_review(
 ) -> Result<BoundaryReviewState> {
     let state = BoundaryReviewState {
         last_confirmed_at: Some(now.to_rfc3339()),
-        last_note: note
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .map(ToString::to_string),
+        last_note: note.map(str::trim).filter(|value| !value.is_empty()).map(ToString::to_string),
     };
     state.save(path)?;
     Ok(state)

@@ -119,15 +119,10 @@ pub fn build_status_report(config: &AppConfig, paths: &PraxisPaths) -> Result<St
     let last_token_summary = store.latest_token_summary()?;
     let last_token_hotspot = store.latest_phase_token_usage(1)?.into_iter().next();
     let last_learning_run = store.latest_learning_run()?;
-    let drift_status = analyze(&paths.database_file, 10)?
-        .drift
-        .status
-        .as_str()
-        .to_string();
+    let drift_status = analyze(&paths.database_file, 10)?.drift.status.as_str().to_string();
     let heartbeat = crate::heartbeat::read_heartbeat(&paths.heartbeat_file).ok();
-    let canary_records = ModelCanaryLedger::load_or_default(&paths.model_canary_file)?
-        .records
-        .len();
+    let canary_records =
+        ModelCanaryLedger::load_or_default(&paths.model_canary_file)?.records.len();
     let boundary_review = BoundaryReviewState::load_or_default(&paths.boundary_review_file)?;
     let boundary_review_due =
         review_prompt(&boundary_review, SystemClock::from_env()?.now_utc()).is_some();

@@ -100,12 +100,7 @@ impl GmailClient {
             .json()
             .context("failed to parse Gmail list response")?;
 
-        Ok(resp
-            .messages
-            .unwrap_or_default()
-            .into_iter()
-            .map(|m| m.id)
-            .collect())
+        Ok(resp.messages.unwrap_or_default().into_iter().map(|m| m.id).collect())
     }
 
     fn get_message_summary(&self, id: &str) -> Result<EmailSummary> {
@@ -114,10 +109,7 @@ impl GmailClient {
             .client
             .get(&url)
             .bearer_auth(&self.access_token)
-            .query(&[
-                ("format", "metadata"),
-                ("metadataHeaders", "Subject,From,Date"),
-            ])
+            .query(&[("format", "metadata"), ("metadataHeaders", "Subject,From,Date")])
             .send()
             .context("failed to GET Gmail message")?
             .error_for_status()

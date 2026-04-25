@@ -83,10 +83,7 @@ where
                 }
                 if let Err(e) = self.emit(
                     "agent:delegation_received",
-                    &format!(
-                        "{} inbound delegation task(s) queued for approval.",
-                        tasks.len()
-                    ),
+                    &format!("{} inbound delegation task(s) queued for approval.", tasks.len()),
                 ) {
                     log::warn!("failed to emit delegation event: {e}");
                 }
@@ -100,10 +97,7 @@ where
         }
 
         let goals = self.goal_parser.load_goals(&self.paths.goals_file)?;
-        let open_goals = goals
-            .into_iter()
-            .filter(|goal| !goal.completed)
-            .collect::<Vec<_>>();
+        let open_goals = goals.into_iter().filter(|goal| !goal.completed).collect::<Vec<_>>();
         let tool_summary = self.tools.summary(self.paths)?;
         let requested_task = state.requested_task.clone();
         let context = LocalContextLoader.load(
@@ -117,11 +111,7 @@ where
                 open_goals: &open_goals,
             },
         )?;
-        state.context_sources = context
-            .included_sources
-            .iter()
-            .map(|s| s.source.clone())
-            .collect();
+        state.context_sources = context.included_sources.iter().map(|s| s.source.clone()).collect();
         state.rendered_context = Some(context.render());
 
         // Context-rot prevention: write a handoff note when pressure exceeds 50%.
@@ -165,8 +155,7 @@ where
             state.selected_goal_id = None;
             state.selected_goal_title = None;
             let output =
-                self.backend
-                    .plan_action(None, Some(&task), state.rendered_context.as_deref())?;
+                self.backend.plan_action(None, Some(&task), state.rendered_context.as_deref())?;
             state.provider_attempts.extend(output.attempts);
             state.action_summary = Some(output.summary);
             state.updated_at = self.clock.now_utc();
@@ -276,10 +265,7 @@ where
             .action_summary
             .clone()
             .unwrap_or_else(|| "No action was selected.".to_string());
-        let task_key = state
-            .selected_goal_title
-            .as_deref()
-            .unwrap_or(summary.as_str());
+        let task_key = state.selected_goal_title.as_deref().unwrap_or(summary.as_str());
         if let Some(delegated_to) =
             self.try_delegate(state, task_key, &summary, self.clock.now_utc())?
         {
@@ -358,11 +344,9 @@ where
             "--force".to_string(),
         ];
 
-        let Some(result) = select_branch(
-            vec![branch_a, branch_b],
-            &success_criteria,
-            &trust_constraints,
-        ) else {
+        let Some(result) =
+            select_branch(vec![branch_a, branch_b], &success_criteria, &trust_constraints)
+        else {
             return Ok(primary_summary.to_string());
         };
 
@@ -382,11 +366,8 @@ where
     ) -> Result<Option<String>> {
         let mut store =
             crate::delegation::DelegationStore::load(&self.paths.delegation_links_file)?;
-        let available: Vec<String> = store
-            .available_outbound(task_key)
-            .into_iter()
-            .map(|l| l.name.clone())
-            .collect();
+        let available: Vec<String> =
+            store.available_outbound(task_key).into_iter().map(|l| l.name.clone()).collect();
         let Some(link_name) = available.into_iter().next() else {
             return Ok(None);
         };
@@ -397,18 +378,13 @@ where
         // in-memory state inconsistent with the on-disk store.
         store.save(&self.paths.delegation_links_file)?;
         store.acquire(&link_name);
-        let endpoint = store
-            .links
-            .get(&link_name)
-            .map(|l| l.endpoint.as_str())
-            .unwrap_or("unknown");
+        let endpoint =
+            store.links.get(&link_name).map(|l| l.endpoint.as_str()).unwrap_or("unknown");
         self.emit(
             "agent:delegated",
             &format!("task delegated to {link_name} ({endpoint}): {task_summary}"),
         )?;
-        Ok(Some(format!(
-            "Task delegated to {link_name}: {task_summary}"
-        )))
+        Ok(Some(format!("Task delegated to {link_name}: {task_summary}")))
     }
 
     fn execute_tool_request(&self, state: &mut SessionState, request_id: i64) -> Result<()> {
@@ -426,10 +402,7 @@ where
 
         match LoopGuard.record(state, &invocation_key, DEFAULT_LOOP_GUARD_LIMIT) {
             GuardDecision::Allow => {}
-            GuardDecision::Blocked {
-                consecutive_count,
-                pattern_len,
-            } => {
+            GuardDecision::Blocked { consecutive_count, pattern_len } => {
                 let detail = if pattern_len > 1 {
                     format!("{pattern_len}-step pattern x{consecutive_count}")
                 } else {
@@ -455,10 +428,7 @@ where
         let execution = execute_request(self.paths, &manifest, &request)?;
         self.store.mark_approval_consumed(request.id)?;
         sync_capabilities(self.tools, self.store, self.paths)?;
-        self.emit(
-            "agent:tool_call",
-            &format!("{} {}", manifest.name, request.summary),
-        )?;
+        self.emit("agent:tool_call", &format!("{} {}", manifest.name, request.summary))?;
         state.last_outcome = Some("tool_executed".to_string());
         state.action_summary = Some(execution.summary);
         state.updated_at = self.clock.now_utc();
@@ -471,19 +441,14 @@ where
         mode: UsageBudgetMode,
     ) -> Result<bool> {
         let budgets = UsageBudgetPolicy::load_or_default(&self.paths.budgets_file)?;
-        let decision = budgets
-            .rule(mode)
-            .check_attempts(&state.provider_attempts, mode);
+        let decision = budgets.rule(mode).check_attempts(&state.provider_attempts, mode);
         if !decision.blocked {
             return Ok(false);
         }
         state.last_outcome = Some("budget_exhausted".to_string());
         state.action_summary = Some(decision.summary);
         state.updated_at = self.clock.now_utc();
-        self.emit(
-            "agent:usage_budget_blocked",
-            "Usage budget blocked another backend call.",
-        )?;
+        self.emit("agent:usage_budget_blocked", "Usage budget blocked another backend call.")?;
         Ok(true)
     }
 }
@@ -525,10 +490,7 @@ fn speculative_keywords(text: &str) -> Vec<String> {
         "with", "from", "that", "this", "have", "will", "been", "into", "when", "then", "also",
     ];
     text.split_whitespace()
-        .map(|w| {
-            w.trim_matches(|c: char| !c.is_alphanumeric())
-                .to_lowercase()
-        })
+        .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_lowercase())
         .filter(|w| w.len() >= MIN_LEN && !STOP.contains(&w.as_str()))
         .collect()
 }
@@ -553,10 +515,7 @@ fn enforce_active_hand(paths: &PraxisPaths, tools: &impl ToolRegistry) -> Result
 
     let store = HandStore::load(&paths.hands_dir)?;
     let hand = store.get(&name).ok_or_else(|| {
-        anyhow::anyhow!(
-            "active hand '{name}' not found in {}",
-            paths.hands_dir.display()
-        )
+        anyhow::anyhow!("active hand '{name}' not found in {}", paths.hands_dir.display())
     })?;
 
     let registered: std::collections::HashSet<String> =
@@ -580,10 +539,7 @@ fn enforce_active_hand(paths: &PraxisPaths, tools: &impl ToolRegistry) -> Result
 
     for tool in &hand.tools.optional {
         if !registered.contains(tool) {
-            log::warn!(
-                "active hand '{}': optional tool '{tool}' is not registered",
-                hand.name
-            );
+            log::warn!("active hand '{}': optional tool '{tool}' is not registered", hand.name);
         }
     }
 

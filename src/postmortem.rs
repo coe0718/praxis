@@ -46,11 +46,7 @@ pub fn append_postmortem(
             .map(|(id, title)| format!("{id}: {title}"))
             .unwrap_or_else(|| "-".to_string())
     )?;
-    writeln!(
-        file,
-        "- Task: {}",
-        session.selected_task.as_deref().unwrap_or("-")
-    )?;
+    writeln!(file, "- Task: {}", session.selected_task.as_deref().unwrap_or("-"))?;
     writeln!(file, "- Summary: {}", session.action_summary)?;
     writeln!(file, "- Review: {review_summary}")?;
     writeln!(
@@ -70,10 +66,7 @@ pub fn append_postmortem(
 
     writeln!(file, "### Failed Evals")?;
     let mut wrote_eval = false;
-    for eval in eval_results
-        .iter()
-        .filter(|item| item.status.as_str() == "failed")
-    {
+    for eval in eval_results.iter().filter(|item| item.status.as_str() == "failed") {
         writeln!(file, "- {} ({})", eval.name, eval.eval_id)?;
         wrote_eval = true;
     }
@@ -84,10 +77,7 @@ pub fn append_postmortem(
 }
 
 fn should_record(outcome: &str, eval_failures: usize) -> bool {
-    matches!(
-        outcome,
-        "review_failed" | "eval_failed" | "blocked_loop_guard"
-    ) || eval_failures > 0
+    matches!(outcome, "review_failed" | "eval_failed" | "blocked_loop_guard") || eval_failures > 0
 }
 
 fn trigger_label(outcome: &str) -> &'static str {

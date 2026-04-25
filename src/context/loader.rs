@@ -56,34 +56,19 @@ impl LocalContextLoader {
         let reader = TrackedContextReader;
         let inputs = vec![
             source("soul", reader.read(store, state, &paths.soul_file, "soul")?),
-            source(
-                "identity",
-                reader.read(store, state, &paths.identity_file, "identity")?,
-            ),
-            source(
-                "operator_model",
-                load_operator_model(&paths.operator_model_file),
-            ),
-            source(
-                "agents",
-                reader.read(store, state, &paths.agents_file, "agents")?,
-            ),
+            source("identity", reader.read(store, state, &paths.identity_file, "identity")?),
+            source("operator_model", load_operator_model(&paths.operator_model_file)),
+            source("agents", reader.read(store, state, &paths.agents_file, "agents")?),
             source("active_goals", render_goals(open_goals)),
             source("do_not_repeat", operational.render_do_not_repeat()),
             source("known_bugs", operational.render_known_bugs()),
             source("memory_hot", memory.render_hot()),
             source("memory_cold", memory.render_cold()),
             source("memory_linked", memory.render_linked()),
-            source(
-                "patterns",
-                reader.read(store, state, &paths.patterns_file, "patterns")?,
-            ),
+            source("patterns", reader.read(store, state, &paths.patterns_file, "patterns")?),
             source(
                 "journal",
-                tail_lines(
-                    &reader.read(store, state, &paths.journal_file, "journal")?,
-                    12,
-                ),
+                tail_lines(&reader.read(store, state, &paths.journal_file, "journal")?, 12),
             ),
             source("tools", render_tools(tool_summary, &paths.skills_dir)),
             source("decision_receipts", render_receipts(&recent_decisions)),
@@ -184,16 +169,8 @@ fn render_receipts(receipts: &[crate::storage::StoredDecisionReceipt]) -> String
     receipts
         .iter()
         .map(|r| {
-            let goal = r
-                .goal_id
-                .as_deref()
-                .map(|id| format!(" goal={id}"))
-                .unwrap_or_default();
-            let approval = if r.approval_required {
-                " approval=required"
-            } else {
-                ""
-            };
+            let goal = r.goal_id.as_deref().map(|id| format!(" goal={id}")).unwrap_or_default();
+            let approval = if r.approval_required { " approval=required" } else { "" };
             format!(
                 "[{:.0}%]{}{} {} — {}",
                 r.confidence * 100.0,
@@ -305,10 +282,8 @@ mod tests {
 
         let store = SqliteSessionStore::new(paths.database_file.clone());
         store.initialize().unwrap();
-        let mut state = SessionState::new(
-            chrono::Utc.with_ymd_and_hms(2026, 4, 3, 12, 0, 0).unwrap(),
-            None,
-        );
+        let mut state =
+            SessionState::new(chrono::Utc.with_ymd_and_hms(2026, 4, 3, 12, 0, 0).unwrap(), None);
 
         let first = LocalContextLoader
             .load(

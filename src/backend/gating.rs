@@ -23,10 +23,8 @@ impl CanaryGate {
             return Ok(routes);
         }
 
-        let allowed = routes
-            .into_iter()
-            .filter(|route| self.route_allowed(route))
-            .collect::<Vec<_>>();
+        let allowed =
+            routes.into_iter().filter(|route| self.route_allowed(route)).collect::<Vec<_>>();
         if !allowed.is_empty() {
             return Ok(allowed);
         }

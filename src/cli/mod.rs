@@ -93,6 +93,13 @@ pub enum Commands {
     Sandbox(sandbox::SandboxArgs),
     Vault(vault::VaultArgs),
     Memory(memory::MemoryArgs),
+    Completions(CompletionsArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct CompletionsArgs {
+    /// Shell to generate completions for (bash, zsh, fish, elvish, powershell).
+    pub shell: String,
 }
 
 #[derive(Debug, Args)]
@@ -242,7 +249,33 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::Sandbox(args) => sandbox::handle_sandbox(cli.data_dir, args),
         Commands::Vault(args) => vault::handle_vault(cli.data_dir, args),
         Commands::Memory(args) => memory::handle_memory(cli.data_dir, args),
+        Commands::Completions(args) => handle_completions(args),
     }
+}
+
+fn handle_completions(args: CompletionsArgs) -> Result<String> {
+    use anyhow::Context;
+    use clap::CommandFactory;
+    use clap_complete::{Shell, generate};
+
+    let mut cmd = Cli::command();
+    let bin_name = cmd.get_name().to_string();
+
+    let shell: Shell = match args.shell.as_str() {
+        "bash" => Shell::Bash,
+        "zsh" => Shell::Zsh,
+        "fish" => Shell::Fish,
+        "elvish" => Shell::Elvish,
+        "powershell" => Shell::PowerShell,
+        other => anyhow::bail!(
+            "unsupported shell '{}'. Supported: bash, zsh, fish, elvish, powershell",
+            other
+        ),
+    };
+
+    let mut buf = Vec::new();
+    generate(shell, &mut cmd, &bin_name, &mut buf);
+    String::from_utf8(buf).context("generated completions contain invalid UTF-8")
 }
 
 fn handle_bench(data_dir_override: Option<PathBuf>, args: BenchArgs) -> Result<String> {
@@ -274,10 +307,7 @@ fn handle_bench(data_dir_override: Option<PathBuf>, args: BenchArgs) -> Result<S
 
     let count = BenchmarkSuite.validate(&paths)?;
     if count == 0 {
-        return Ok(format!(
-            "No benchmark cases found in {}",
-            paths.benchmarks_dir.display()
-        ));
+        return Ok(format!("No benchmark cases found in {}", paths.benchmarks_dir.display()));
     }
 
     let results = BenchmarkSuite.run(&paths)?;
@@ -339,11 +369,7 @@ fn handle_wake(data_dir_override: Option<PathBuf>, args: WakeArgs) -> Result<Str
     Ok(format!(
         "wake intent written\nsource: {}\npriority: {}\nreason: {}",
         intent.source,
-        if intent.is_urgent() {
-            "urgent"
-        } else {
-            "normal"
-        },
+        if intent.is_urgent() { "urgent" } else { "normal" },
         intent.reason,
     ))
 }
