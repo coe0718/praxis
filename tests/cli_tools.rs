@@ -139,3 +139,79 @@ fn data_write_requests_require_append_text() {
         .failure()
         .stderr(predicate::str::contains("--append-text"));
 }
+
+#[test]
+fn tool_registry_validates_duplicate_on_runtime() {
+    let temp = tempdir().unwrap();
+    let data_dir = temp.path().join("praxis");
+
+    praxis_command()
+        .env("PRAXIS_FIXED_NOW", "2026-03-31T12:00:00Z")
+        .arg("--data-dir")
+        .arg(&data_dir)
+        .arg("init")
+        .assert()
+        .success();
+
+    // Register a custom tool
+    praxis_command()
+        .arg("--data-dir")
+        .arg(&data_dir)
+        .arg("tools")
+        .arg("register")
+        .arg("--name")
+        .arg("my-tool")
+        .arg("--description")
+        .arg("A custom test tool")
+        .arg("--kind")
+        .arg("internal")
+        .arg("--level")
+        .arg("1")
+        .assert()
+        .success();
+
+    // Write another file with same tool name to trigger duplicate error
+    let tool_path = data_dir.join("tools").join("my-tool-copy.toml");
+    fs::write(&tool_path, r#"
+name = "my-tool"
+description = "Duplicate tool"
+kind = "internal"
+required_level = 1
+"#).unwrap();
+
+    // Doctor command validates tools and should fail on duplicate
+    praxis_command()
+        .arg("--data-dir")
+        .arg(&data_dir)
+        .arg("doctor")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("duplicate"));
+}
+
+#[test]
+fn tool_registry_rejects_invalid_manifest() {
+    let temp = tempdir().unwrap();
+    let data_dir = temp.path().join("praxis");
+
+    praxis_command()
+        .env("PRAXIS_FIXED_NOW", "2026-03-31T12:00:00Z")
+        .arg("--data-dir")
+        .arg(&data_dir)
+        .arg("init")
+        .assert()
+        .success();
+
+    // Write an invalid manifest directly
+    let tool_path = data_dir.join("tools").join("bad-tool.toml");
+    fs::write(&tool_path, "name = ''\ndescription = ''\nkind = 'internal'\nrequired_level = 5").unwrap();
+
+    // Doctor command validates tools and should fail on invalid manifest
+    praxis_command()
+        .arg("--data-dir")
+        .arg(&data_dir)
+        .arg("doctor")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("tool name must not be empty"));
+}

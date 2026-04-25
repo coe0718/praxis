@@ -53,6 +53,7 @@ impl Default for LiteMode {
             disable_learning: default_disable_learning(),
             disable_brief: default_disable_brief(),
             anatomy_refresh_hours: default_anatomy_refresh_hours(),
+            disable_deterministic: default_disable_deterministic(),
             disable_sse: default_disable_sse(),
         }
     }
@@ -66,6 +67,7 @@ fn default_disable_learning() -> bool { true }
 fn default_disable_brief() -> bool { true }
 fn default_anatomy_refresh_hours() -> u64 { 48 }
 fn default_disable_sse() -> bool { true }
+fn default_disable_deterministic() -> bool { false }
 
 impl LiteMode {
     /// Load lite mode settings from a `praxis.toml` file.
