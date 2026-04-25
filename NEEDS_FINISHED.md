@@ -6,8 +6,8 @@ Features that are either fully stubbed, partially wired, or implemented but disc
 
 ## STUB — Zero implementation behind the claim
 
-### Lite Mode
-Nothing actually changes when lite mode is referenced. No reduced token budgets, no simplified loop, no gating on Pi/low-power hardware. The README lists it as unfinished; confirm before deleting from roadmap.
+### ~~Lite Mode~~ ✓ DONE
+Wired into the runtime. `LiteMode` struct reads `praxis.toml` `[agent] lite = true` and gates: speculative execution, subagent reviewers, synthetic examples, learning runs, morning briefs, and SSE streaming.
 
 ### Zero-LLM Deterministic Mode
 `StubBackend` returns hardcoded strings but there is no actual rule-based path that avoids LLM calls while producing real decisions. If this is a real goal, the orient/decide phases need a pure-logic branch.

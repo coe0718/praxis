@@ -295,7 +295,11 @@ where
 
         // Speculative execution: rehearse an alternative approach and pick the
         // higher-scoring branch before committing to finalize_action.
-        let summary = self.run_speculative(&summary, state)?;
+        let summary = if self.lite.skip_capability(crate::lite::LiteCapability::Speculative) {
+            summary.clone()
+        } else {
+            self.run_speculative(&summary, state)?
+        };
 
         let output = self.backend.finalize_action(
             &summary,

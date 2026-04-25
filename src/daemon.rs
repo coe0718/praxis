@@ -66,6 +66,7 @@ use crate::{
     events::FileEventSink,
     heartbeat::write_heartbeat,
     identity::{IdentityPolicy, LocalIdentityPolicy, MarkdownGoalParser},
+    lite::LiteMode,
     r#loop::{PraxisRuntime, RunOptions, RunSummary},
     paths::PraxisPaths,
     profiles::ProfileSettings,
@@ -419,6 +420,7 @@ fn run_session_blocking(data_dir: &Path, task: Option<String>) -> Result<RunSumm
     store.validate_schema()?;
     sync_capabilities(&tools, &store, &paths)?;
 
+    let lite = LiteMode::from_file(&paths.config_file).unwrap_or_default();
     let clock = SystemClock::from_env()?;
     let runtime = PraxisRuntime {
         config: &config,
@@ -430,6 +432,7 @@ fn run_session_blocking(data_dir: &Path, task: Option<String>) -> Result<RunSumm
         identity: &identity,
         store: &store,
         tools: &tools,
+        lite: &lite,
     };
 
     runtime.run_once(RunOptions {

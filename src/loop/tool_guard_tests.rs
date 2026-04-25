@@ -6,6 +6,7 @@ use crate::{
     config::AppConfig,
     events::NoopEventSink,
     identity::{IdentityPolicy, LocalIdentityPolicy, MarkdownGoalParser},
+    lite::LiteMode,
     paths::PraxisPaths,
     state::{SessionPhase, SessionState},
     storage::{
@@ -154,6 +155,7 @@ fn run_once(
         identity,
         store,
         tools: &FileToolRegistry,
+        lite: &LiteMode::default(),
     }
     .run_once(RunOptions {
         once: true,

@@ -6,6 +6,7 @@ use crate::{
     config::AppConfig,
     events::NoopEventSink,
     identity::{IdentityPolicy, LocalIdentityPolicy, MarkdownGoalParser},
+    lite::LiteMode,
     memory::MemoryStore,
     paths::PraxisPaths,
     state::{SessionPhase, SessionState},
@@ -49,6 +50,7 @@ fn runtime_runs_single_session() {
         identity: &identity,
         store: &store,
         tools: &FileToolRegistry,
+        lite: &LiteMode::default(),
     };
 
     let summary = runtime
@@ -100,6 +102,7 @@ fn runtime_reaches_stop_condition_when_all_goals_are_done() {
         identity: &identity,
         store: &store,
         tools: &FileToolRegistry,
+        lite: &LiteMode::default(),
     };
 
     let summary = runtime

@@ -55,6 +55,7 @@ pub struct Task {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(PartialEq)]
 pub enum TaskStatus {
     Submitted,
     Working,

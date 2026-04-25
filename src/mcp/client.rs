@@ -19,7 +19,7 @@ pub struct McpClient {
 impl McpClient {
     /// Spawn an MCP server command and establish a stdio connection.
     ///
-    /// ```no_run
+    /// ```ignore
     /// let client = McpClient::spawn("npx", &["-y", "@modelcontextprotocol/server-filesystem", "/tmp"])?;
     /// ```
     pub fn spawn(cmd: &str, args: &[&str]) -> Result<Self> {

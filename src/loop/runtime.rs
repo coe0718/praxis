@@ -1,6 +1,7 @@
 use anyhow::Result;
 
 use crate::{
+    lite::LiteMode,
     config::AppConfig,
     events::EventSink,
     forensics::record_snapshot,
@@ -30,6 +31,7 @@ pub struct PraxisRuntime<'a, B, C, E, G, I, S, T> {
     pub identity: &'a I,
     pub store: &'a S,
     pub tools: &'a T,
+    pub lite: &'a LiteMode,
 }
 
 impl<'a, B, C, E, G, I, S, T> PraxisRuntime<'a, B, C, E, G, I, S, T>
@@ -235,7 +237,7 @@ where
         // Operator-injected tasks run learning on demand via `praxis learn run`.
         let is_autonomous = state.requested_task.is_none();
 
-        if !already_ran_today && is_autonomous {
+        if !already_ran_today && is_autonomous && !self.lite.skip_capability(crate::lite::LiteCapability::Learning) {
             match crate::learning::run_once(self.paths, &learning_store, now) {
                 Ok(summary) if summary.opportunities_created > 0 => {
                     self.emit(
@@ -251,7 +253,9 @@ where
             }
         }
 
-        try_send_morning_brief(self.paths, now);
+        if !self.lite.skip_capability(crate::lite::LiteCapability::Brief) {
+            try_send_morning_brief(self.paths, now);
+        }
         if decayed > 0 {
             self.emit(
                 "agent:cold_memory_decayed",

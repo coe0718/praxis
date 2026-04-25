@@ -13,6 +13,7 @@ use crate::{
     events::FileEventSink,
     heartbeat::write_heartbeat,
     identity::{IdentityPolicy, LocalIdentityPolicy, MarkdownGoalParser},
+    lite::LiteMode,
     r#loop::{PraxisRuntime, RunOptions},
     paths::{PraxisPaths, default_data_dir},
     profiles::ProfileSettings,
@@ -105,6 +106,7 @@ pub(crate) fn handle_run(data_dir_override: Option<PathBuf>, args: RunArgs) -> R
     store.validate_schema()?;
 
     let clock = SystemClock::from_env()?;
+    let lite = LiteMode::from_file(&paths.config_file).unwrap_or_default();
     let runtime = PraxisRuntime {
         config: &config,
         paths: &paths,
@@ -115,6 +117,7 @@ pub(crate) fn handle_run(data_dir_override: Option<PathBuf>, args: RunArgs) -> R
         identity: &identity,
         store: &store,
         tools: &tools,
+        lite: &lite,
     };
 
     let summary = runtime.run_once(RunOptions {

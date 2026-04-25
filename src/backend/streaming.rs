@@ -44,11 +44,11 @@ impl StreamingBackend {
     ///
     /// Yields `StreamEvent::Token` for each delta, then
     /// `StreamEvent::Usage` with final counts, then `StreamEvent::Done`.
-    pub fn stream_completion(
-        &self,
-        route: &ProviderRoute,
-        request: &ProviderRequest,
-    ) -> impl Stream<Item = Result<StreamEvent>> + Send + '_ {
+    pub fn stream_completion<'a>(
+        &'a self,
+        route: &'a ProviderRoute,
+        request: &'a ProviderRequest,
+    ) -> impl Stream<Item = Result<StreamEvent>> + Send + 'a {
         async_stream::try_stream! {
             let api_key = resolve_api_key(&route.provider)?;
             let endpoint = resolve_endpoint(route);
