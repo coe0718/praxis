@@ -12,6 +12,7 @@ mod providers;
 mod quality;
 mod schema;
 mod schema_data;
+mod search;
 mod sessions;
 
 pub(crate) use memory_links::ContradictionQuery;
@@ -86,6 +87,15 @@ impl SqliteSessionStore {
             |row| row.get(0),
         )
         .context("failed to count pending approvals")
+    }
+
+    pub fn search_sessions(
+        &self,
+        query: &str,
+        limit: usize,
+    ) -> Result<Vec<crate::storage::SessionSearchResult>> {
+        use crate::storage::search::SessionSearchStore;
+        SessionSearchStore::search_sessions(self, query, limit)
     }
 
     fn connect(&self) -> Result<Connection> {

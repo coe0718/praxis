@@ -380,3 +380,12 @@ The remaining items (browser, code execution, plugin system, full profiles, term
 | #6 | Persistent User Memory | ✅ DONE | `src/memory/user.rs` — `user_memory.json` key-value store with `memory` tool (upsert/search/forget/list) |
 
 **Remaining open: 27 gaps** (was 29, 2 closed)
+
+### 2026-04-25 — Wave 3 (Operator Experience)
+
+| Gap | Feature | Status | Commit |
+|-----|---------|--------|--------|
+| #6 | Session Search | ✅ DONE | `src/storage/search.rs` + SQLite impl — `praxis sessions search <query> [--limit N]` searches outcome, action_summary, goal, task via LIKE |
+| #21 | Usage Insights | ✅ DONE | `praxis insights [--days N]` — token totals, cost estimates, provider breakdown, memory counts, latest session |
+
+**Remaining open: 25 gaps** (was 27, 2 closed)

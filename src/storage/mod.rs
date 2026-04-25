@@ -5,11 +5,13 @@ use serde::{Deserialize, Serialize};
 mod anatomy;
 mod ops;
 mod provider;
+pub(crate) mod search;
 pub(crate) mod sqlite;
 
 pub use anatomy::AnatomyStore;
 pub use ops::{OperationalMemoryCounts, OperationalMemoryStore};
 pub use provider::ProviderUsageStore;
+pub use search::{SessionSearchResult, SessionSearchStore};
 pub(crate) use sqlite::ContradictionQuery;
 pub use sqlite::SqliteSessionStore;
 

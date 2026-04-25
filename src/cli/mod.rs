@@ -94,12 +94,31 @@ pub enum Commands {
     Vault(vault::VaultArgs),
     Memory(memory::MemoryArgs),
     Completions(CompletionsArgs),
+    Sessions(SessionsArgs),
+    Insights(InsightsArgs),
 }
 
 #[derive(Debug, Args)]
 pub struct CompletionsArgs {
     /// Shell to generate completions for (bash, zsh, fish, elvish, powershell).
     pub shell: String,
+}
+
+#[derive(Debug, Args)]
+pub struct SessionsArgs {
+    /// Search query for session outcomes and action summaries.
+    pub query: Vec<String>,
+
+    /// Maximum results to return (default 20).
+    #[arg(long, default_value_t = 20)]
+    pub limit: usize,
+}
+
+#[derive(Debug, Args)]
+pub struct InsightsArgs {
+    /// Number of days to look back (default 30).
+    #[arg(long, default_value_t = 30)]
+    pub days: u32,
 }
 
 #[derive(Debug, Args)]
@@ -250,6 +269,8 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::Vault(args) => vault::handle_vault(cli.data_dir, args),
         Commands::Memory(args) => memory::handle_memory(cli.data_dir, args),
         Commands::Completions(args) => handle_completions(args),
+        Commands::Sessions(args) => handle_sessions(cli.data_dir, args),
+        Commands::Insights(args) => handle_insights(cli.data_dir, args),
     }
 }
 
@@ -372,4 +393,111 @@ fn handle_wake(data_dir_override: Option<PathBuf>, args: WakeArgs) -> Result<Str
         if intent.is_urgent() { "urgent" } else { "normal" },
         intent.reason,
     ))
+}
+
+fn handle_sessions(data_dir_override: Option<PathBuf>, args: SessionsArgs) -> Result<String> {
+    use crate::{
+        paths::{PraxisPaths, default_data_dir},
+        storage::SqliteSessionStore,
+    };
+
+    let data_dir = data_dir_override.unwrap_or(default_data_dir()?);
+    let paths = PraxisPaths::for_data_dir(data_dir);
+
+    if !paths.config_file.exists() {
+        anyhow::bail!("Praxis is not initialized. Run `praxis init` first.");
+    }
+
+    let query = args.query.join(" ");
+    if query.trim().is_empty() {
+        anyhow::bail!("sessions: search query is required");
+    }
+
+    let store = SqliteSessionStore::new(paths.database_file.clone());
+    let results = store.search_sessions(&query, args.limit)?;
+
+    if results.is_empty() {
+        return Ok(format!("sessions: no matches for \"{}\"", query));
+    }
+
+    let mut lines = vec![format!("sessions: {} match(es) for \"{}\":", results.len(), query)];
+    for result in &results {
+        let s = &result.session;
+        lines.push(format!(
+            "  [#{} session={}] {} ({}): {}",
+            s.id, s.session_num, s.ended_at, result.matched_column, result.snippet,
+        ));
+    }
+    Ok(lines.join("\n"))
+}
+
+fn handle_insights(data_dir_override: Option<PathBuf>, _args: InsightsArgs) -> Result<String> {
+    use crate::{
+        paths::{PraxisPaths, default_data_dir},
+        storage::{SessionStore, SqliteSessionStore},
+    };
+
+    let data_dir = data_dir_override.unwrap_or(default_data_dir()?);
+    let paths = PraxisPaths::for_data_dir(data_dir);
+
+    if !paths.config_file.exists() {
+        anyhow::bail!("Praxis is not initialized. Run `praxis init` first.");
+    }
+
+    let store = SqliteSessionStore::new(paths.database_file.clone());
+
+    // Gather data
+    let all_time = store.token_summary_all_time().ok();
+    let sessions = store.token_usage_by_session(50).ok();
+    let providers = store.token_usage_by_provider().ok();
+    let hot = store.count_hot_memories().unwrap_or(0);
+    let cold = store.count_cold_memories().unwrap_or(0);
+    let pending = store.count_pending_approvals().unwrap_or(0);
+    let last = store.last_session().ok().flatten();
+
+    let mut lines = Vec::new();
+    lines.push("insights:".to_string());
+
+    // Session count
+    if let Some(ref sessions) = sessions {
+        lines.push(format!("  sessions (recent): {}", sessions.len()));
+    }
+
+    // Token usage — all time
+    if let Some(ref at) = all_time {
+        let k_tokens = at.total_tokens as f64 / 1000.0;
+        lines.push(format!(
+            "  tokens: {:.1}K total across {} sessions",
+            k_tokens, at.total_sessions,
+        ));
+        if at.total_cost_micros > 0 {
+            let cost = at.total_cost_micros as f64 / 1_000_000.0;
+            lines.push(format!("  est. cost: ${:.2}", cost));
+        }
+    }
+
+    // Top provider
+    if let Some(ref providers) = providers {
+        if let Some(top) = providers.first() {
+            lines.push(format!(
+                "  top provider: {} ({:.1}K tokens)",
+                top.provider,
+                top.tokens_used as f64 / 1000.0,
+            ));
+        }
+    }
+
+    // Memory
+    lines.push(format!("  memory: {hot} hot / {cold} cold"));
+    lines.push(format!("  pending approvals: {pending}"));
+
+    // Latest session
+    if let Some(ref last) = last {
+        lines.push(format!(
+            "  last session: #{} (session {}) at {} — {}",
+            last.id, last.session_num, last.ended_at, last.outcome,
+        ));
+    }
+
+    Ok(lines.join("\n"))
 }
