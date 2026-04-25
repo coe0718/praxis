@@ -68,13 +68,14 @@ pub fn load_progressive_context(cwd: &Path) -> Result<ProgressiveContext> {
         for filename in PROGRESSIVE_FILES {
             let file_path = dir.join(filename);
             if file_path.is_file()
-                && let Ok(raw) = fs::read_to_string(&file_path) {
-                    if !content.is_empty() {
-                        content.push_str("\n\n");
-                    }
-                    content.push_str(&format!("--- {} ---\n{}", filename, raw.trim()));
-                    files.push(filename.to_string());
+                && let Ok(raw) = fs::read_to_string(&file_path)
+            {
+                if !content.is_empty() {
+                    content.push_str("\n\n");
                 }
+                content.push_str(&format!("--- {} ---\n{}", filename, raw.trim()));
+                files.push(filename.to_string());
+            }
         }
 
         if !files.is_empty() {

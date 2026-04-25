@@ -85,22 +85,24 @@ pub fn execute_clarify(bus_file: &Path, question: &str, choices: &[String]) -> R
 
         if let Ok(raw) = fs::read_to_string(&response_path)
             && let Ok(response) = serde_json::from_str::<ClarifyResponse>(&raw)
-                && response.question_id == id {
-                    // Consume the response file.
-                    let _ = fs::remove_file(&response_path);
-                    log::info!("clarify: received response for '{}': {}", id, response.answer);
-                    return Ok(format!("operator answered: {}", response.answer));
-                }
+            && response.question_id == id
+        {
+            // Consume the response file.
+            let _ = fs::remove_file(&response_path);
+            log::info!("clarify: received response for '{}': {}", id, response.answer);
+            return Ok(format!("operator answered: {}", response.answer));
+        }
 
         // Also check the bus for clarify_response events.
         if let Ok(events) = bus.drain() {
             for event in events {
                 if event.kind == "clarify_response"
                     && let Ok(response) = serde_json::from_str::<ClarifyResponse>(&event.payload)
-                        && response.question_id == id {
-                            log::info!("clarify: received bus response for '{}'", id);
-                            return Ok(format!("operator answered: {}", response.answer));
-                        }
+                    && response.question_id == id
+                {
+                    log::info!("clarify: received bus response for '{}'", id);
+                    return Ok(format!("operator answered: {}", response.answer));
+                }
                 // Re-publish non-clarify events we consumed.
                 let _ = bus.publish(&event);
             }

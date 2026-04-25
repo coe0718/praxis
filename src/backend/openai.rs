@@ -104,9 +104,10 @@ pub(super) fn resolve_api_key(provider: &str) -> Result<String> {
     }
     // 3. For OAuth-backed providers (copilot), try the OAuth token store.
     if provider == "copilot"
-        && let Ok(token) = resolve_oauth_token(provider) {
-            return Ok(token);
-        }
+        && let Ok(token) = resolve_oauth_token(provider)
+    {
+        return Ok(token);
+    }
     bail!("no API key found for provider '{provider}': set {env_name} or OPENAI_API_KEY")
 }
 
