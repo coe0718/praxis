@@ -83,15 +83,14 @@ Praxis is a mature Rust agent framework with ~170 source files covering a 4-phas
 **Why it matters:** "Remember I prefer X" should persist forever.  ✅ *Done. Wave 2.*
 
 ### 7. Credential Pooling / API Key Rotation
-**Status:** Not implemented. Single API key per provider. Roadmap references "credential pools" from GoClaw but no implementation.  
+**Status:** ✅ Implemented. `src/backend/credential_pool.rs` provides `CredentialPool` with round-robin rotation and per-key 429 cooldown. Keys read from `<PROVIDER>_API_KEY_<N>` env vars. Gated by `features.credential_pooling = true` in `praxis.toml`.  
 **Hermes equivalent:** `hermes auth add` for credential pools. Automatic rotation across multiple keys per provider to avoid rate limits.  
-**Why it matters:** Rate limits are the #1 cause of agent downtime. Pooling is the standard solution.  
-**Effort:** Medium. Extend ProviderSettings to support arrays of credentials, add round-robin/weighted selection.
+**Why it matters:** Rate limits are the #1 cause of agent downtime. Pooling is the standard solution.  ✅ *Done. Wave 5.*
 
 ### 8. Cron Job Management as a Tool
-**Status:** Cron scheduling exists in the watchdog binary, but the agent cannot create/edit/pause/run cron jobs via tool calls during a session.  
+**Status:** ✅ Implemented. `src/tools/cron.rs` provides `ScheduledJobs` store with simple schedule expressions (`every 30m`, `in 2h`, `hourly`, `daily`, `weekly`). Agent creates/lists/removes via `cron` tool. Daemon checks due jobs every poll cycle and fires `WakeIntent`. Gated by `features.cron_tool = true`.  
 **Hermes equivalent:** `cronjob` tool — create, list, update, pause, resume, remove, run cron jobs from within agent context. Jobs deliver results to messaging platforms.  
-**Why it matters:** Self-directed agents should be able to schedule their own recurring tasks.  
+**Why it matters:** Self-directed agents should be able to schedule their own recurring tasks.  ✅ *Done. Wave 5.*
 **Effort:** Medium. Expose watchdog cron operations as tools in the tool registry.
 
 ### 9. Clarify / Ask-User Tool
@@ -184,10 +183,9 @@ Praxis is a mature Rust agent framework with ~170 source files covering a 4-phas
 **Effort:** Medium. Mock all tool execution, use recorded LLM responses.
 
 ### 24. Feature Flags / Gradual Rollout
-**Status:** Not implemented. Roadmap item #6.  
+**Status:** ✅ Implemented. `FeatureFlags` struct in `src/config/model.rs` with typed bool fields and `FeatureFlag` enum. `[features]` section in `praxis.toml`. Daemon logs enabled flags on reload.  
 **Hermes equivalent:** Feature flag support for experimental features.  
-**Why it matters:** Ship safely, test in production, roll back quickly.  
-**Effort:** Low. TOML feature flags in config.
+**Why it matters:** Ship safely, test in production, roll back quickly.  ✅ *Done. Wave 5.*
 
 ### 25. Provider Auto-Failover
 **Status:** Canary weights degrade but no automatic failover to backup providers.  
@@ -209,12 +207,12 @@ Praxis is a mature Rust agent framework with ~170 source files covering a 4-phas
 |---|---------|--------|--------|--------|
 | 1 | Voice / STT / TTS | ❌ STUB | 🔴 Critical | Medium |
 | 2 | Vision / Multi-Modal | ❌ Missing | 🔴 Critical | Medium |
-| 3 | Config Hot-Reload | ❌ Missing | 🔴 Critical | Low-Med |
+| 3 | Config Hot-Reload | ✅ Done | 🔴 Critical | — |
 | 4 | Code Execution (sandboxed) | ❌ Missing | 🟠 High | High |
 | 5 | Browser Automation | ❌ Missing | 🟠 High | High |
 | 6 | Persistent User Memory | ⚠️ Partial | 🟠 High | Medium |
-| 7 | Credential Pooling | ❌ Missing | 🟠 High | Medium |
-| 8 | Cron Tool (agent-callable) | ❌ Missing | 🟠 High | Medium |
+| 7 | Credential Pooling | ✅ Done | 🟠 High | — |
+| 8 | Cron Tool (agent-callable) | ✅ Done | 🟠 High | — |
 | 9 | Clarify / Ask-User | ❌ Missing | 🟠 High | Low |
 | 10 | Todo / Task Planning | ❌ Missing | 🟠 High | Low |
 | 11 | Full Profile Isolation | ⚠️ Partial | 🟡 Nice | High |
@@ -230,7 +228,7 @@ Praxis is a mature Rust agent framework with ~170 source files covering a 4-phas
 | 21 | Usage Insights | ⚠️ Ledger only | 🟡 Nice | Low |
 | 22 | Webhook Subscriptions | ⚠️ Static only | 🟡 Nice | Low-Med |
 | 23 | Dry-Run / Replay | ❌ Missing | 🟡 Nice | Medium |
-| 24 | Feature Flags | ❌ Missing | 🟡 Nice | Low |
+| 24 | Feature Flags | ✅ Done | 🟡 Nice | — |
 | 25 | Auto-Failover | ⚠️ Canary only | 🟡 Nice | Medium |
 | 26 | Pluggable Memory Backends | ❌ Missing | 🟡 Nice | High |
 
@@ -297,12 +295,12 @@ Praxis is a mature Rust agent framework with ~170 source files covering a 4-phas
 |---|---------|--------|--------|--------|
 | 1 | Voice / STT / TTS | ❌ STUB | 🔴 Critical | Medium |
 | 2 | Vision / Multi-Modal | ❌ Missing | 🔴 Critical | Medium |
-| 3 | Config Hot-Reload | ❌ Missing | 🔴 Critical | Low-Med |
+| 3 | Config Hot-Reload | ✅ Done | 🔴 Critical | — |
 | 4 | Code Execution (sandboxed) | ❌ Missing | 🟠 High | High |
 | 5 | Browser Automation | ❌ Missing | 🟠 High | High |
 | 6 | Persistent User Memory | ✅ Done | 🟠 High | — |
-| 7 | Credential Pooling | ❌ Missing | 🟠 High | Medium |
-| 8 | Cron Tool (agent-callable) | ❌ Missing | 🟠 High | Medium |
+| 7 | Credential Pooling | ✅ Done | 🟠 High | — |
+| 8 | Cron Tool (agent-callable) | ✅ Done | 🟠 High | — |
 | 9 | Clarify / Ask-User | ✅ Done | 🟠 High | — |
 | 10 | Todo / Task Planning | ✅ Done | 🟠 High | — |
 | 11 | Full Profile Isolation | ⚠️ Partial | 🟡 Nice | High |
@@ -318,7 +316,7 @@ Praxis is a mature Rust agent framework with ~170 source files covering a 4-phas
 | 21 | Usage Insights | ✅ Done | 🟡 Nice | — |
 | 22 | Webhook Subscriptions | ⚠️ Static only | 🟡 Nice | Low-Med |
 | 23 | Dry-Run / Replay | ❌ Missing | 🟡 Nice | Medium |
-| 24 | Feature Flags | ❌ Missing | 🟡 Nice | Low |
+| 24 | Feature Flags | ✅ Done | 🟡 Nice | — |
 | 25 | Auto-Failover | ⚠️ Canary only | 🟡 Nice | Medium |
 | 26 | Prompt Injection Protection | ✅ Done | 🟡 Nice | — |
 | 27 | Progressive Context Files | ✅ Done | 🟡 Nice | — |

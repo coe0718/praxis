@@ -93,6 +93,14 @@ pub(super) fn execute(
 }
 
 pub(super) fn resolve_api_key(provider: &str) -> Result<String> {
+    // If credential pooling is enabled and a pool exists, rotate through it.
+    if let Some(pool) = super::credential_pool::CREDENTIAL_POOLS
+        .get()
+        .and_then(|pools| pools.get(provider))
+    {
+        return Ok(pool.next_key().to_string());
+    }
+
     // 1. Try <UPPER_PROVIDER>_API_KEY env var.
     let env_name = format!("{}_API_KEY", provider.to_uppercase().replace('-', "_"));
     if let Ok(key) = std::env::var(&env_name) {

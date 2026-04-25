@@ -52,6 +52,7 @@ pub fn execute_request(
         "todo" => execute_todo_tool(paths, request),
         "clarify" => execute_clarify_tool(paths, request),
         "memory" => execute_memory_tool(paths, request),
+        "cron" => execute_cron_tool(paths, request),
         _ => match manifest.kind {
             ToolKind::Shell if manifest.path.as_deref().is_some_and(|p| !p.trim().is_empty()) => {
                 run_shell(paths, &vault, manifest, request)
@@ -858,5 +859,91 @@ fn execute_memory_tool(
 
     use crate::memory::user::execute_user_memory_action;
     let summary = execute_user_memory_action(&paths.user_memory_file, action, key, value, tags)?;
+    Ok(ToolExecutionResult { summary })
+}
+
+fn execute_cron_tool(
+    paths: &PraxisPaths,
+    request: &StoredApprovalRequest,
+) -> Result<ToolExecutionResult> {
+    let payload = parse_payload(request.payload_json.as_deref())?;
+    let action = payload
+        .params
+        .get("action")
+        .map(|s| s.as_str())
+        .ok_or_else(|| anyhow::anyhow!("cron requires action parameter"))?;
+
+    use crate::tools::cron::{ScheduledJobs, create_job};
+    let jobs_path = paths.scheduled_jobs_file.clone();
+    let mut jobs = ScheduledJobs::load(&jobs_path)?;
+
+    let summary = match action {
+        "create" => {
+            let name = payload
+                .params
+                .get("name")
+                .cloned()
+                .ok_or_else(|| anyhow::anyhow!("cron create requires name"))?;
+            let schedule = payload
+                .params
+                .get("schedule")
+                .cloned()
+                .ok_or_else(|| anyhow::anyhow!("cron create requires schedule"))?;
+            let task = payload
+                .params
+                .get("task")
+                .cloned()
+                .ok_or_else(|| anyhow::anyhow!("cron create requires task"))?;
+
+            let job = create_job(name.clone(), schedule.clone(), task)?;
+            let id = job.id.clone();
+            let next = job.next_fire_at.to_rfc3339();
+            jobs.add(job);
+            jobs.save(&jobs_path)?;
+            format!(
+                "Created scheduled job '{name}' (id={id}). Schedule: {schedule}. Next fire: {next}."
+            )
+        }
+        "list" => {
+            if jobs.jobs.is_empty() {
+                "No scheduled jobs.".to_string()
+            } else {
+                jobs.jobs
+                    .iter()
+                    .map(|j| {
+                        let recurring_label = if j.recurring { "recurring" } else { "one-shot" };
+                        format!(
+                            "- [{}] {} ({}) | schedule={} | task=\"{}\" | next={} | fires={}",
+                            j.id,
+                            j.name,
+                            recurring_label,
+                            j.schedule,
+                            j.task.chars().take(50).collect::<String>(),
+                            j.next_fire_at.to_rfc3339(),
+                            j.fire_count,
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            }
+        }
+        "remove" | "delete" => {
+            let id = payload
+                .params
+                .get("id")
+                .cloned()
+                .ok_or_else(|| anyhow::anyhow!("cron remove requires id"))?;
+            if jobs.remove(&id) {
+                jobs.save(&jobs_path)?;
+                format!("Removed scheduled job {id}.")
+            } else {
+                format!("No scheduled job found with id={id}.")
+            }
+        }
+        other => {
+            anyhow::bail!("cron: unknown action '{other}'. Use create, list, or remove.");
+        }
+    };
+
     Ok(ToolExecutionResult { summary })
 }

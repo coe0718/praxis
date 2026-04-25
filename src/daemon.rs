@@ -271,6 +271,15 @@ async fn async_daemon_loop(
     // Watch praxis.toml for hot-reload — config changes take effect next cycle.
     let cfg_watcher = crate::config::ConfigWatcher::spawn(paths.config_file.clone())?;
 
+    // Initialise credential pools if the feature flag is enabled.
+    if let Ok(cfg) = crate::config::AppConfig::load(&paths.config_file)
+        && cfg.features.credential_pooling
+    {
+        let providers = crate::providers::ProviderSettings::load_or_default(&paths.providers_file)?;
+        let names: Vec<&str> = providers.providers.iter().map(|r| r.provider.as_str()).collect();
+        crate::backend::init_pools(&names);
+    }
+
     log::info!(
         "daemon: started (pid={}, data_dir={})",
         std::process::id(),
@@ -300,10 +309,17 @@ async fn async_daemon_loop(
         if cfg_watcher.take_dirty() {
             match crate::config::AppConfig::load(&paths.config_file) {
                 Ok(cfg) => {
+                    let flags = cfg.features.enabled_list();
+                    let flags_str = if flags.is_empty() {
+                        "none".to_string()
+                    } else {
+                        flags.join(",")
+                    };
                     log::info!(
-                        "daemon: config reloaded — backend={}, security_level={}",
+                        "daemon: config reloaded — backend={}, security_level={}, features=[{}]",
                         cfg.agent.backend,
-                        cfg.security.level
+                        cfg.security.level,
+                        flags_str
                     );
                 }
                 Err(e) => {
@@ -329,7 +345,8 @@ async fn async_daemon_loop(
             log::info!("daemon: new bus event(s) — triggering reactive session");
             Some(SessionTrigger::BusEvent)
         } else {
-            None
+            check_scheduled_jobs(&paths, now)
+                .map(|task| SessionTrigger::WakeIntent { task: Some(task) })
         };
 
         // ── Scheduled session ──────────────────────────────────────────────
@@ -525,6 +542,39 @@ fn record_operator_activity(paths: &PraxisPaths, now: DateTime<Utc>) {
         }
         Err(e) => log::warn!("daemon: failed to load operator schedule: {e}"),
     }
+}
+
+/// Check scheduled jobs for due triggers.  Returns a task description if a
+/// job is ready to fire, and persists the updated job store.
+fn check_scheduled_jobs(paths: &PraxisPaths, now: DateTime<Utc>) -> Option<String> {
+    use crate::tools::cron::ScheduledJobs;
+
+    let jobs_path = &paths.scheduled_jobs_file;
+    let mut jobs = match ScheduledJobs::load(jobs_path) {
+        Ok(j) => j,
+        Err(_) => return None,
+    };
+
+    if jobs.jobs.is_empty() {
+        return None;
+    }
+
+    let due = jobs.drain_due(now);
+    if due.is_empty() {
+        return None;
+    }
+
+    // Persist updated fire counts and removals.
+    if let Err(e) = jobs.save(jobs_path) {
+        log::warn!("daemon: failed to save scheduled jobs: {e}");
+    }
+
+    // Collect all due task descriptions.
+    let tasks: Vec<String> = due.iter().map(|j| j.task.clone()).collect();
+    let names: Vec<&str> = due.iter().map(|j| j.name.as_str()).collect();
+    log::info!("daemon: scheduled jobs due: [{}]", names.join(", "));
+
+    Some(tasks.join("; "))
 }
 
 // ── Signal handling ───────────────────────────────────────────────────────────

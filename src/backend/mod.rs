@@ -1,12 +1,15 @@
 mod attempts;
 mod claude;
 mod configured;
+mod credential_pool;
 mod gating;
 mod ollama;
 mod openai;
 mod prompts;
 mod provider_routes;
 pub mod streaming;
+
+pub use credential_pool::{CredentialPool, init_pools};
 
 use anyhow::Result;
 

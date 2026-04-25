@@ -120,6 +120,8 @@ pub struct PraxisPaths {
     /// AES-256 master key for at-rest encryption of vault and OAuth tokens (`master.key`).
     /// Generated once on `praxis init`; must be excluded from version control.
     pub master_key_file: PathBuf,
+    /// Agent-callable scheduled jobs (`scheduled_jobs.json`).
+    pub scheduled_jobs_file: PathBuf,
 }
 
 pub fn detect_platform() -> Platform {
@@ -246,6 +248,7 @@ impl PraxisPaths {
             slack_state_file: data_dir.join("slack_state.json"),
             watchdog_update_file: data_dir.join("watchdog_update.json"),
             master_key_file: data_dir.join("master.key"),
+            scheduled_jobs_file: data_dir.join("scheduled_jobs.json"),
             benchmarks_dir,
             data_dir,
         }

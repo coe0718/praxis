@@ -18,6 +18,11 @@ pub struct AppConfig {
     pub agent: AgentConfig,
     #[serde(default)]
     pub context: ContextConfig,
+    /// Runtime feature flags — wrap risky capabilities so they can be toggled
+    /// without a code change.  All default to `false` (off) so new flags are
+    /// opt-in until explicitly enabled in `praxis.toml`.
+    #[serde(default)]
+    pub features: FeatureFlags,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -148,6 +153,7 @@ impl AppConfig {
                 disable_sub_agents: false,
             },
             context: ContextConfig::default(),
+            features: FeatureFlags::default(),
         }
     }
 
@@ -212,4 +218,73 @@ fn default_profile() -> String {
 
 fn default_snapshot_retention_days() -> usize {
     7
+}
+
+/// Runtime feature flags for toggling capabilities without code changes.
+///
+/// Add new flags here as `#[serde(default)] bool` fields.  Every flag must
+/// have a corresponding `is_<name>()` accessor that the rest of the crate
+/// uses instead of reaching into the struct directly — this makes it easy
+/// to add logging or migration logic later.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct FeatureFlags {
+    /// Enable credential pooling (multi-key rotation per provider).
+    #[serde(default)]
+    pub credential_pooling: bool,
+    /// Enable the agent-callable cron / scheduled-jobs tool.
+    #[serde(default)]
+    pub cron_tool: bool,
+    /// Enable speculative execution (branching Act phase).
+    #[serde(default)]
+    pub speculative_execution: bool,
+    /// Enable agent-to-agent delegation links in Act phase.
+    #[serde(default)]
+    pub delegation: bool,
+    /// Enable MCP (Model Context Protocol) tool dispatch.
+    #[serde(default)]
+    pub mcp_dispatch: bool,
+}
+
+impl FeatureFlags {
+    /// Convenience accessor used by the daemon and session runner.
+    pub fn is_enabled(&self, flag: FeatureFlag) -> bool {
+        match flag {
+            FeatureFlag::CredentialPooling => self.credential_pooling,
+            FeatureFlag::CronTool => self.cron_tool,
+            FeatureFlag::SpeculativeExecution => self.speculative_execution,
+            FeatureFlag::Delegation => self.delegation,
+            FeatureFlag::McpDispatch => self.mcp_dispatch,
+        }
+    }
+
+    /// Return a human-readable list of currently enabled flags (for logging).
+    pub fn enabled_list(&self) -> Vec<&'static str> {
+        let mut list = Vec::new();
+        if self.credential_pooling {
+            list.push("credential_pooling");
+        }
+        if self.cron_tool {
+            list.push("cron_tool");
+        }
+        if self.speculative_execution {
+            list.push("speculative_execution");
+        }
+        if self.delegation {
+            list.push("delegation");
+        }
+        if self.mcp_dispatch {
+            list.push("mcp_dispatch");
+        }
+        list
+    }
+}
+
+/// Typed enum for checking a specific flag without knowing field names.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FeatureFlag {
+    CredentialPooling,
+    CronTool,
+    SpeculativeExecution,
+    Delegation,
+    McpDispatch,
 }
