@@ -355,3 +355,19 @@ Praxis is a mature Rust agent framework with ~170 source files covering a 4-phas
 12. **Skills Hub / Registry** — high effort but ecosystem-defining
 
 The remaining items (browser, code execution, plugin system, full profiles, terminal backends, RL training) are major architectural undertakings best deferred until the foundation gaps are closed.
+
+---
+
+## Closure Log
+
+### 2026-04-25 — Wave 1 (Quick Wins)
+
+| Gap | Feature | Status | Commit |
+|-----|---------|--------|--------|
+| #9 | Clarify / Ask-User | ✅ DONE | `src/tools/clarify.rs` — publishes BusEvent, polls for operator response (5 min timeout) |
+| #10 | Todo / Task Planning | ✅ DONE | `src/tools/todo.rs` — persisted `todo.json`, create/update/complete/cancel/list |
+| #19 | Shell Completions | ✅ DONE | `praxis completions bash|zsh|fish|elvish|powershell` via `clap_complete` |
+| #27/34 | Prompt Injection Protection | ✅ DONE | `src/context/injection.rs` — 18 patterns scanned on all identity/context file reads |
+| #3 | Config Hot-Reload | ⏸️ DEFERRED | Needs `notify` crate + `Arc<RwLock<AppConfig>>` refactor of `PraxisRuntime` |
+
+**Remaining open: 29 gaps** (was 33, 4 closed, 1 deferred)

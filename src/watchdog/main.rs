@@ -67,6 +67,7 @@ fn load_update_record(data_dir: &std::path::Path) -> Option<UpdateRecord> {
     serde_json::from_str(&raw).ok()
 }
 
+#[allow(dead_code)]
 fn save_update_record(data_dir: &std::path::Path, record: &UpdateRecord) -> Result<()> {
     let path = data_dir.join("watchdog_update.json");
     let raw = serde_json::to_string_pretty(record).context("serialize update record")?;
