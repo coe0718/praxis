@@ -30,10 +30,14 @@ pub struct WizardConfig {
 }
 
 impl WizardConfig {
-    /// Determine the init mode from CLI args.
+    /// Determine the init mode from CLI args and TTY availability.
     pub fn detect_mode(args: &super::InitArgs) -> InitMode {
         // If any explicit flag is set, skip the wizard.
         if args.name != "Praxis" || args.timezone != "UTC" || args.security_level != 2 {
+            return InitMode::FlagDriven;
+        }
+        // If stdin is not a TTY, run with defaults instead of wizard.
+        if !std::io::IsTerminal::is_terminal(&std::io::stdin()) {
             return InitMode::FlagDriven;
         }
         InitMode::Wizard
