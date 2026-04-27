@@ -355,7 +355,7 @@ The remaining items (browser, code execution, plugin system, full profiles, term
 |-----|---------|--------|--------|
 | #9 | Clarify / Ask-User | ✅ DONE | `src/tools/clarify.rs` — publishes BusEvent, polls for operator response (5 min timeout) |
 | #10 | Todo / Task Planning | ✅ DONE | `src/tools/todo.rs` — persisted `todo.json`, create/update/complete/cancel/list |
-| #19 | Shell Completions | ✅ DONE | `praxis completions bash|zsh|fish|elvish|powershell` via `clap_complete` |
+| #19 | Shell Completions | ✅ DONE | `praxis completions bash\|zsh\|fish\|elvish\|powershell` via `clap_complete` |
 | #27/34 | Prompt Injection Protection | ✅ DONE | `src/context/injection.rs` — 18 patterns scanned on all identity/context file reads |
 | #3 | Config Hot-Reload | ⏸️ DEFERRED | Needs `notify` crate + `Arc<RwLock<AppConfig>>` refactor of `PraxisRuntime` |
 
@@ -378,3 +378,31 @@ The remaining items (browser, code execution, plugin system, full profiles, term
 | #21 | Usage Insights | ✅ DONE | `praxis insights [--days N]` — token totals, cost estimates, provider breakdown, memory counts, latest session |
 
 **Remaining open: 25 gaps** (was 27, 2 closed)
+
+### 2026-04-25 — Wave 4 (Config Hot-Reload)
+
+| Gap | Feature | Status | Commit |
+|-----|---------|--------|--------|
+| #3 | Config Hot-Reload | ✅ DONE | `src/config/watcher.rs` — `notify` crate watches `praxis.toml`, daemon re-validates on change |
+
+**Remaining open: 26 gaps** (was 27, 1 closed)
+
+### 2026-04-25 — Wave 5 (Credential + Scheduling)
+
+| Gap | Feature | Status | Commit |
+|-----|---------|--------|--------|
+| #7 | Credential Pooling | ✅ DONE | `src/backend/credential_pool.rs` — round-robin rotation, per-key 429 cooldown, `CREDENTIAL_POOLING` feature gate |
+| #8 | Cron Tool (agent-callable) | ✅ DONE | `src/tools/cron.rs` — `ScheduledJobs` store, `every 30m`/`in 2h`/`hourly`/`daily`/`weekly` expressions |
+| #24 | Feature Flags | ✅ DONE | `src/config/model.rs` — `FeatureFlags` struct, `[features]` section in `praxis.toml` |
+
+**Remaining open: 23 gaps** (was 26, 3 closed)
+
+### 2026-04-25 — Wave 6 (Setup + Webhooks + Image)
+
+| Gap | Feature | Status | Commit |
+|-----|---------|--------|--------|
+| #18 | Setup Wizard | ✅ DONE | `src/cli/wizard.rs` — interactive `praxis init` via `dialoguer`, detects TTY and falls back to defaults in CI |
+| #20 | Image Generation | ✅ DONE | `src/tools/image.rs` — DALL-E `/v1/images/generations`, credential pooling, size/n count params |
+| #22 | Webhook Subscriptions | ✅ DONE | `src/webhooks.rs` — `WebhookStore` with HMAC-SHA256 + anti-replay, CLI: `praxis webhook subscribe\|list\|unsubscribe` |
+
+**Remaining open: 20 gaps** (was 23, 3 closed)

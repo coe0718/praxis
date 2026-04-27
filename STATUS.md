@@ -1,5 +1,5 @@
 # Praxis — Current Status
-**Updated:** 2026-04-25 | **Replaces:** PLAN_TUCK.md + PLAN_SCOUT.md (both 2026-04-22)
+**Updated:** 2026-04-27 | **Replaces:** PLAN_TUCK.md + PLAN_SCOUT.md (both 2026-04-22) | **Gaps closed:** 13 of 33 (waves 1–6)
 
 ---
 
@@ -28,6 +28,11 @@ All 12 CRITICAL + 23 WARNING from Vex's review resolved:
 - Clarify tool (pause agent, ask operator)
 - Todo tool (JSON persistence)
 - Memory tool (upsert/search/forget/list with tags)
+- Credential pooling (round-robin API key rotation, per-key 429 cooldown)
+- Cron tool (agent-callable job scheduling: every 30m, hourly, daily, weekly)
+- Feature flags (typed flags in praxis.toml, daemon logs on reload)
+- Image generation (DALL-E via image tool)
+- Webhook subscriptions (HMAC-SHA256 + anti-replay, praxis webhook CLI)
 
 ### Operator Experience
 - Progressive context files (walk tree to git root, discover .praxis.md/AGENTS.md/CLAUDE.md/.cursorrules)
@@ -35,6 +40,8 @@ All 12 CRITICAL + 23 WARNING from Vex's review resolved:
 - Session search (`praxis sessions search <query>` — SQLite LIKE)
 - Usage insights (`praxis insights [--days N]` — tokens, cost, provider breakdown)
 - Health endpoint batch COUNT queries (single connection)
+- Config hot-reload (notify watcher, re-validates praxis.toml in ~2s)
+- Interactive setup wizard (`praxis init`, dialoguer-based, TTY-aware)
 
 ### Frontend (Phase 2A/2B)
 - Session Timeline View (Orient→Decide→Act→Reflect bar chart)
@@ -46,9 +53,9 @@ All 12 CRITICAL + 23 WARNING from Vex's review resolved:
 
 ## In Progress / Recent
 
-- CI: `cargo fmt`, `clippy -D warnings`, `cargo test --locked`, `cargo audit` all green
-- 204 tests passing, zero warnings
-- Cargo audit: 3 transitive warnings suppressed (paste, lru, rand)
+- CI: `cargo fmt` + `clippy -D warnings` + `cargo test --locked` + `cargo audit` (1 pre-existing test failure in `cli_foundation`: `doctor_reports_healthy_and_broken_setups` — heartbeat output format mismatch)
+- 204 tests, pre-existing failures in `cli_foundation` (1), `cli_agents` (1, fixed) — all others passing
+- 1 commit this session: `052ce23` — fix wizard TTY detection (non-interactive `praxis init` no longer fails)
 
 ---
 
