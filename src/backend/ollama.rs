@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::providers::ProviderRoute;
 
-use super::{ProviderRequest, ProviderResponse, successful_attempt};
+use super::{ProviderRequest, ProviderResponse, successful_attempt, InputContent};
 
 const OLLAMA_URL: &str = "http://127.0.0.1:11434/api/generate";
 
@@ -22,11 +22,20 @@ pub(super) fn execute(
         .timeout(Duration::from_secs(45))
         .build()
         .context("failed to build Ollama HTTP client")?;
+
+    // Convert InputContent to string for Ollama
+    let user_content = match &request.input {
+        InputContent::Text(text) => text.clone(),
+        InputContent::Blocks(blocks) => {
+            serde_json::to_string(blocks).context("failed to serialize content blocks")?
+        }
+    };
+
     let response = client
         .post(route.base_url.as_deref().unwrap_or(OLLAMA_URL))
         .json(&OllamaRequest {
             model: route.model.clone(),
-            prompt: request.input.clone(),
+            prompt: user_content,
             system: request.system.clone(),
             stream: false,
         })

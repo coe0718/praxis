@@ -1,12 +1,12 @@
 use crate::identity::Goal;
 
-use super::ProviderRequest;
+use super::{ProviderRequest, InputContent};
 
 pub(super) fn request_for_ask(prompt: &str) -> ProviderRequest {
     ProviderRequest {
         phase: "ask",
         system: "You are Praxis, a careful personal AI agent. Answer the operator directly and briefly. Do not claim that long-lived state, background work, or external actions changed unless the prompt explicitly says they already did.".to_string(),
-        input: format!("Operator question or one-shot request:\n{prompt}"),
+        input: InputContent::Text(format!("Operator question or one-shot request:\n{prompt}")),
         max_output_tokens: 220,
     }
 }
@@ -22,7 +22,7 @@ pub(super) fn request_for_plan(
             "You are Praxis, a careful personal AI agent. Respond with one concise action summary describing the next safe step.",
             context,
         ),
-        input: render_target(goal, task),
+        input: InputContent::Text(render_target(goal, task)),
         max_output_tokens: 180,
     }
 }
@@ -39,11 +39,11 @@ pub(super) fn request_for_finalize(
             "You are Praxis in the act phase. Write one concise operator-facing progress note. Do not claim external actions happened unless explicitly stated in the prompt.",
             context,
         ),
-        input: format!(
+        input: InputContent::Text(format!(
             "Task context:\n{}\n\nPlanned summary:\n{}\n\nReturn a single concise status update.",
             render_target(goal, task),
             planned_summary
-        ),
+        )),
         max_output_tokens: 180,
     }
 }

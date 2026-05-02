@@ -10,6 +10,8 @@ mod policy;
 mod registry;
 mod request;
 mod todo;
+mod vision;
+mod voice;
 
 pub use clarify::{ClarifyQuestion, ClarifyResponse, execute_clarify};
 pub use docs::sync_capabilities;
@@ -20,3 +22,5 @@ pub use policy::SecurityPolicy;
 pub use registry::{FileToolRegistry, ToolRegistry};
 pub use request::build_payload;
 pub use todo::{TodoItem, TodoList, TodoStatus};
+pub use vision::{VisionTool, VisionParameters};
+pub use voice::{VoiceTool, VoiceParameters};

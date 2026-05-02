@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::providers::ProviderRoute;
 
-use super::{ProviderRequest, ProviderResponse, successful_attempt};
+use super::{InputContent, ProviderRequest, ProviderResponse, successful_attempt};
 
 const OPENAI_CHAT_URL: &str = "https://api.openai.com/v1/chat/completions";
 
@@ -14,7 +14,7 @@ const OPENAI_CHAT_URL: &str = "https://api.openai.com/v1/chat/completions";
 /// Works with OpenAI, Together, Groq, Mistral, local llama.cpp, and any other
 /// provider that exposes `/v1/chat/completions`.
 ///
-/// Auth is `Authorization: Bearer <key>`.  The key is read from:
+/// Auth is `Authorization: Bearer ***  The key is read from:
 ///   - `OPENAI_API_KEY` for the "openai" provider
 ///   - `<UPPER_PROVIDER>_API_KEY` for custom provider names (e.g. `GROQ_API_KEY`)
 ///   - `OPENAI_API_KEY` as the final fallback for custom providers
@@ -34,6 +34,15 @@ pub(super) fn execute(
         .build()
         .context("failed to build HTTP client for OpenAI-compatible provider")?;
 
+    // Convert InputContent to OpenAI message format
+    let user_content = match &request.input {
+        InputContent::Text(text) => text.clone(),
+        InputContent::Blocks(blocks) => {
+            // For multi-modal, we need to serialize the blocks as JSON
+            serde_json::to_string(blocks).context("failed to serialize content blocks")?
+        }
+    };
+
     let body = ChatRequest {
         model: route.model.clone(),
         messages: vec![
@@ -43,7 +52,7 @@ pub(super) fn execute(
             },
             ChatMessage {
                 role: "user".to_string(),
-                content: request.input.clone(),
+                content: user_content,
             },
         ],
         max_completion_tokens: Some(request.max_output_tokens),

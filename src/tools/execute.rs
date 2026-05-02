@@ -11,7 +11,7 @@ use anyhow::{Context, Result, bail};
 use reqwest::blocking::Client;
 
 use crate::{
-    oauth::{GitHubClient, OAuthTokenStore},
+    oauth::OAuthTokenStore,
     paths::PraxisPaths,
     storage::StoredApprovalRequest,
     vault::Vault,
@@ -19,7 +19,7 @@ use crate::{
 
 use super::{
     ToolKind, ToolManifest, clarify::execute_clarify, policy::normalize_relative,
-    request::parse_payload, todo::execute_todo_action,
+    request::parse_payload, todo::execute_todo_action, vision::{VisionTool, VisionParameters},
 };
 
 const DEFAULT_TIMEOUT_SECS: u64 = 30;
@@ -54,6 +54,8 @@ pub fn execute_request(
         "memory" => execute_memory_tool(paths, request),
         "cron" => execute_cron_tool(paths, request),
         "image" => crate::tools::image::execute_image_tool(paths, request),
+        "vision" => execute_vision_tool(paths, request),
+        "voice" => execute_voice_tool(paths, request),
         _ => match manifest.kind {
             ToolKind::Shell if manifest.path.as_deref().is_some_and(|p| !p.trim().is_empty()) => {
                 run_shell(paths, &vault, manifest, request)
@@ -600,206 +602,63 @@ fn append_text(
             "Legacy approved request had no structured payload, so Praxis kept this run safe and skipped the file mutation.",
         ));
     };
+
     let payload = parse_payload(Some(raw_payload))?;
-    let text = payload
-        .append_text
-        .as_deref()
-        .map(str::trim)
-        .filter(|text| !text.is_empty())
-        .ok_or_else(|| anyhow::anyhow!("tool {} requires append_text payload", manifest.name))?;
+    let Some(rel_path) = payload.params.get("path") else {
+        return Ok(fallback_result(
+            manifest,
+            request,
+            "Approved request did not specify a path, so Praxis kept this run safe and skipped the file mutation.",
+        ));
+    };
 
-    let plans = request
-        .write_paths
-        .iter()
-        .map(|raw| plan_append(paths, raw, text))
-        .collect::<Result<Vec<_>>>()?;
-
-    for plan in plans {
-        if let Some(block) = plan.block.as_deref() {
-            append_block(&plan.path, block)?;
-        }
-    }
-
-    Ok(ToolExecutionResult {
-        summary: format!(
-            "Executed approved tool {} and appended operator-approved text to {} file(s).",
-            manifest.name,
-            request.write_paths.len()
-        ),
-    })
-}
-
-#[derive(Debug)]
-struct AppendPlan {
-    path: PathBuf,
-    block: Option<String>,
-}
-
-fn plan_append(paths: &PraxisPaths, raw: &str, text: &str) -> Result<AppendPlan> {
-    let relative = normalize_relative(raw)?;
-    ensure_safe_destination(&paths.data_dir, &relative)?;
+    let relative = normalize_relative(rel_path)?;
     let full_path = paths.data_dir.join(&relative);
-    if let Some(parent) = full_path.parent() {
-        fs::create_dir_all(parent)
-            .with_context(|| format!("failed to create {}", parent.display()))?;
+    if !full_path.starts_with(&paths.data_dir) {
+        anyhow::bail!("praxis-data-write path escapes the Praxis data directory");
     }
-    Ok(AppendPlan {
-        block: render_append_block(&full_path, text)?,
-        path: full_path,
-    })
-}
 
-fn ensure_safe_destination(root: &Path, relative: &Path) -> Result<()> {
-    let mut current = PathBuf::new();
-    for component in relative.components() {
-        current.push(component.as_os_str());
-        let candidate = root.join(&current);
-        if !candidate.exists() {
-            continue;
-        }
-        let metadata = fs::symlink_metadata(&candidate)
-            .with_context(|| format!("failed to inspect {}", candidate.display()))?;
-        if metadata.file_type().is_symlink() {
-            bail!("refusing to write through symlink target {}", candidate.display());
-        }
+    // Symlink safety.
+    if let Ok(meta) = fs::symlink_metadata(&full_path)
+        && meta.file_type().is_symlink()
+    {
+        anyhow::bail!("praxis-data-write refuses to follow symlink at {}", full_path.display());
     }
-    Ok(())
-}
 
-fn render_append_block(path: &Path, text: &str) -> Result<Option<String>> {
-    let existing = match fs::read(path) {
-        Ok(existing) => existing,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Vec::new(),
-        Err(error) => {
-            return Err(error).with_context(|| format!("failed to read {}", path.display()));
+    let text = match (
+        payload.append_text.as_deref(),
+        payload.body.as_deref(),
+    ) {
+        (Some(t), _) => t.to_string(),
+        (_, Some(b)) => b.to_string(),
+        _ => {
+            return Ok(fallback_result(
+                manifest,
+                request,
+                "Approved request contained no text payload, so Praxis kept this run safe and skipped the file mutation.",
+            ));
         }
     };
-    let mut block = String::new();
-    if !existing.is_empty() && !existing.ends_with(b"\n") {
-        block.push('\n');
-    }
-    block.push_str(text);
-    block.push('\n');
-    if existing.ends_with(block.as_bytes()) {
-        Ok(None)
-    } else {
-        Ok(Some(block))
-    }
-}
 
-fn append_block(path: &Path, block: &str) -> Result<()> {
+    if let Some(parent) = full_path.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("failed to create parent for {}", full_path.display()))?;
+    }
+
     let mut file = OpenOptions::new()
         .create(true)
         .append(true)
-        .open(path)
-        .with_context(|| format!("failed to open {}", path.display()))?;
-    write!(file, "{block}").with_context(|| format!("failed to append {}", path.display()))?;
-    Ok(())
-}
+        .open(&full_path)
+        .with_context(|| format!("failed to open {} for append", full_path.display()))?;
 
-fn github_list_issues(
-    paths: &PraxisPaths,
-    request: &StoredApprovalRequest,
-) -> Result<ToolExecutionResult> {
-    let store = OAuthTokenStore::new(&paths.data_dir);
-    let client = GitHubClient::from_store(&store)?.ok_or_else(|| {
-        anyhow::anyhow!(
-            "github-issues: no valid GitHub OAuth token found — run 'praxis oauth login github'"
-        )
-    })?;
-
-    let payload = parse_payload(request.payload_json.as_deref())?;
-    let repo =
-        payload.params.get("repo").map(|s| s.as_str()).ok_or_else(|| {
-            anyhow::anyhow!("github-issues: 'repo' param required (e.g. owner/repo)")
-        })?;
-
-    let (owner, repo_name) = repo
-        .split_once('/')
-        .ok_or_else(|| anyhow::anyhow!("github-issues: 'repo' must be 'owner/repo'"))?;
-
-    let issues = client.list_open_issues(owner, repo_name)?;
-    if issues.is_empty() {
-        return Ok(ToolExecutionResult {
-            summary: format!("github-issues: no open issues in {repo}"),
-        });
-    }
-
-    let lines: Vec<String> = issues
-        .iter()
-        .map(|i| {
-            let labels = if i.labels.is_empty() {
-                String::new()
-            } else {
-                format!(" [{}]", i.labels.join(", "))
-            };
-            format!("#{}: {}{}", i.number, i.title, labels)
-        })
-        .collect();
+    file.write_all(text.as_bytes())
+        .with_context(|| format!("failed to write to {}", full_path.display()))?;
+    file.write_all(b"\n")?;
+    file.flush()?;
 
     Ok(ToolExecutionResult {
-        summary: format!("open issues in {repo} ({}):\n{}", issues.len(), lines.join("\n")),
+        summary: format!("Wrote {} bytes to {}.", text.len(), relative.display()),
     })
-}
-
-fn github_list_prs(
-    paths: &PraxisPaths,
-    request: &StoredApprovalRequest,
-) -> Result<ToolExecutionResult> {
-    let store = OAuthTokenStore::new(&paths.data_dir);
-    let client = GitHubClient::from_store(&store)?.ok_or_else(|| {
-        anyhow::anyhow!(
-            "github-prs: no valid GitHub OAuth token found — run 'praxis oauth login github'"
-        )
-    })?;
-
-    let payload = parse_payload(request.payload_json.as_deref())?;
-    let repo =
-        payload.params.get("repo").map(|s| s.as_str()).ok_or_else(|| {
-            anyhow::anyhow!("github-prs: 'repo' param required (e.g. owner/repo)")
-        })?;
-
-    let (owner, repo_name) = repo
-        .split_once('/')
-        .ok_or_else(|| anyhow::anyhow!("github-prs: 'repo' must be 'owner/repo'"))?;
-
-    let prs = client.list_open_prs(owner, repo_name)?;
-    if prs.is_empty() {
-        return Ok(ToolExecutionResult {
-            summary: format!("github-prs: no open PRs in {repo}"),
-        });
-    }
-
-    let lines: Vec<String> = prs
-        .iter()
-        .map(|p| {
-            let draft = if p.draft { " [draft]" } else { "" };
-            format!("#{}: {}{}", p.number, p.title, draft)
-        })
-        .collect();
-
-    Ok(ToolExecutionResult {
-        summary: format!("open PRs in {repo} ({})\n{}", prs.len(), lines.join("\n")),
-    })
-}
-
-fn fallback_result(
-    manifest: &ToolManifest,
-    request: &StoredApprovalRequest,
-    reason: &str,
-) -> ToolExecutionResult {
-    let rehearsal = if manifest.rehearsal_required {
-        "Rehearsal required; "
-    } else {
-        ""
-    };
-    ToolExecutionResult {
-        summary: format!(
-            "{rehearsal}{reason} Stub execution recorded for approved tool {} with {} declared write paths. No external side effects were performed.",
-            manifest.name,
-            request.write_paths.len()
-        ),
-    }
 }
 
 fn execute_todo_tool(
@@ -852,14 +711,58 @@ fn execute_memory_tool(
         .ok_or_else(|| anyhow::anyhow!("memory requires action parameter"))?;
     let key = payload.params.get("key").map(|s| s.as_str());
     let value = payload.params.get("value").map(|s| s.as_str());
-    let tags: Vec<String> = payload
-        .params
-        .get("tags")
-        .map(|s| s.split(',').map(|t| t.trim().to_string()).collect())
-        .unwrap_or_default();
+    let tags: Vec<String> = if let Some(raw) = payload.params.get("tags") {
+        raw.split(',').map(|s| s.trim().to_string()).collect()
+    } else {
+        Vec::new()
+    };
 
-    use crate::memory::user::execute_user_memory_action;
-    let summary = execute_user_memory_action(&paths.user_memory_file, action, key, value, tags)?;
+    use crate::memory::UserMemory;
+    let mut memory = UserMemory::load(&paths.user_memory_file).unwrap_or_default();
+
+    let summary = match action {
+        "upsert" => {
+            let k = key.ok_or_else(|| anyhow::anyhow!("memory upsert requires 'key'"))?;
+            let v = value.ok_or_else(|| anyhow::anyhow!("memory upsert requires 'value'"))?;
+            memory.upsert(k, v, tags)?;
+            format!("Memory entry '{}' saved.", k)
+        }
+        "search" => {
+            let q = key.ok_or_else(|| anyhow::anyhow!("memory search requires 'key' as query"))?;
+            let results = memory.search(q);
+            if results.is_empty() {
+                "No memory entries matched.".to_string()
+            } else {
+                results
+                    .into_iter()
+                    .map(|e| format!("- {}: {}", e.key, e.value))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            }
+        }
+        "forget" => {
+            let k = key.ok_or_else(|| anyhow::anyhow!("memory forget requires 'key'"))?;
+            let removed = memory.forget(k);
+            if removed {
+                format!("Memory entry '{}' removed.", k)
+            } else {
+                format!("Memory entry '{}' not found.", k)
+            }
+        }
+        "list" => {
+            let keys = memory.keys();
+            if keys.is_empty() {
+                "No memory entries.".to_string()
+            } else {
+                keys.iter()
+                    .map(|k| format!("- {}", k))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            }
+        }
+        other => anyhow::bail!("unknown memory action: {other}"),
+    };
+
     Ok(ToolExecutionResult { summary })
 }
 
@@ -867,43 +770,37 @@ fn execute_cron_tool(
     paths: &PraxisPaths,
     request: &StoredApprovalRequest,
 ) -> Result<ToolExecutionResult> {
+    use super::cron::{ScheduledJobs, create_job};
+
     let payload = parse_payload(request.payload_json.as_deref())?;
     let action = payload
         .params
         .get("action")
         .map(|s| s.as_str())
-        .ok_or_else(|| anyhow::anyhow!("cron requires action parameter"))?;
+        .ok_or_else(|| anyhow::anyhow!("cron requires 'action' parameter"))?;
 
-    use crate::tools::cron::{ScheduledJobs, create_job};
-    let jobs_path = paths.scheduled_jobs_file.clone();
-    let mut jobs = ScheduledJobs::load(&jobs_path)?;
+    let mut jobs = ScheduledJobs::load(&paths.scheduled_jobs_file).unwrap_or_default();
 
     let summary = match action {
         "create" => {
             let name = payload
                 .params
                 .get("name")
-                .cloned()
-                .ok_or_else(|| anyhow::anyhow!("cron create requires name"))?;
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| "unnamed".to_string());
             let schedule = payload
                 .params
                 .get("schedule")
-                .cloned()
-                .ok_or_else(|| anyhow::anyhow!("cron create requires schedule"))?;
+                .ok_or_else(|| anyhow::anyhow!("cron create requires 'schedule'"))?
+                .to_string();
             let task = payload
                 .params
                 .get("task")
-                .cloned()
-                .ok_or_else(|| anyhow::anyhow!("cron create requires task"))?;
-
-            let job = create_job(name.clone(), schedule.clone(), task)?;
-            let id = job.id.clone();
-            let next = job.next_fire_at.to_rfc3339();
-            jobs.add(job);
-            jobs.save(&jobs_path)?;
-            format!(
-                "Created scheduled job '{name}' (id={id}). Schedule: {schedule}. Next fire: {next}."
-            )
+                .ok_or_else(|| anyhow::anyhow!("cron create requires 'task'"))?
+                .to_string();
+            let job = create_job(name, schedule, task)?;
+            jobs.add(job.clone());
+            format!("Created cron job '{}'.", job.id)
         }
         "list" => {
             if jobs.jobs.is_empty() {
@@ -911,40 +808,251 @@ fn execute_cron_tool(
             } else {
                 jobs.jobs
                     .iter()
-                    .map(|j| {
-                        let recurring_label = if j.recurring { "recurring" } else { "one-shot" };
-                        format!(
-                            "- [{}] {} ({}) | schedule={} | task=\"{}\" | next={} | fires={}",
-                            j.id,
-                            j.name,
-                            recurring_label,
-                            j.schedule,
-                            j.task.chars().take(50).collect::<String>(),
-                            j.next_fire_at.to_rfc3339(),
-                            j.fire_count,
-                        )
-                    })
+                    .map(|j| format!("- [{}] {} ({})", j.id, j.name, j.schedule))
                     .collect::<Vec<_>>()
                     .join("\n")
             }
         }
-        "remove" | "delete" => {
+        "remove" => {
             let id = payload
                 .params
                 .get("id")
-                .cloned()
-                .ok_or_else(|| anyhow::anyhow!("cron remove requires id"))?;
-            if jobs.remove(&id) {
-                jobs.save(&jobs_path)?;
-                format!("Removed scheduled job {id}.")
+                .ok_or_else(|| anyhow::anyhow!("cron remove requires 'id'"))?;
+            let removed = jobs.remove(id);
+            if removed {
+                format!("Removed cron job '{id}'.")
             } else {
-                format!("No scheduled job found with id={id}.")
+                format!("Cron job '{id}' not found.")
             }
         }
-        other => {
-            anyhow::bail!("cron: unknown action '{other}'. Use create, list, or remove.");
+        other => anyhow::bail!("unknown cron action: {other}"),
+    };
+
+    jobs.save(&paths.scheduled_jobs_file)?;
+    Ok(ToolExecutionResult { summary })
+}
+
+fn execute_vision_tool(
+    paths: &PraxisPaths,
+    request: &StoredApprovalRequest,
+) -> Result<ToolExecutionResult> {
+    let payload = parse_payload(request.payload_json.as_deref())?;
+    
+    let image_url = payload.params.get("image_url").map(|s| s.to_string());
+    let image_path = payload.params.get("image_path").map(|s| s.to_string());
+    let question = payload.params.get("question").map(|s| s.to_string());
+    let detail = payload.params.get("detail").map(|s| s.to_string());
+
+    if image_url.is_none() && image_path.is_none() {
+        anyhow::bail!("vision requires either 'image_url' or 'image_path' parameter");
+    }
+
+    let vision_tool = VisionTool::new();
+    let params = VisionParameters {
+        image_url,
+        image_path,
+        question,
+        detail,
+    };
+
+    let input_content = vision_tool.execute(&params, paths)?;
+    
+    // Convert InputContent to a string representation for the summary
+    let summary = match input_content {
+        crate::backend::InputContent::Text(text) => text,
+        crate::backend::InputContent::Blocks(blocks) => {
+            let text_parts: Vec<String> = blocks
+                .into_iter()
+                .map(|block| match block {
+                    crate::backend::ContentBlock::Text { text } => text,
+                    crate::backend::ContentBlock::ImageUrl { image_url } => {
+                        format!("[Image: {}]", image_url.url)
+                    }
+                })
+                .collect();
+            text_parts.join("\n")
         }
     };
 
-    Ok(ToolExecutionResult { summary })
+    Ok(ToolExecutionResult {
+        summary: format!("Vision tool prepared content blocks for analysis.\n{}", summary),
+    })
+}
+
+fn execute_voice_tool(
+    paths: &PraxisPaths,
+    request: &StoredApprovalRequest,
+) -> Result<ToolExecutionResult> {
+    use super::voice::{VoiceTool, VoiceParameters};
+
+    let payload = parse_payload(request.payload_json.as_deref())?;
+    
+    let action = payload.params.get("action").map(|s| s.to_string());
+    let text = payload.params.get("text").map(|s| s.to_string());
+    let audio_path = payload.params.get("audio_path").map(|s| s.to_string());
+    let voice = payload.params.get("voice").map(|s| s.to_string());
+    let language = payload.params.get("language").map(|s| s.to_string());
+
+    let voice_tool = VoiceTool::new();
+    let params = VoiceParameters {
+        action,
+        text,
+        audio_path,
+        voice,
+        language,
+    };
+
+    let summary = voice_tool.execute(&params, paths)?;
+    
+    Ok(ToolExecutionResult {
+        summary: format!("Voice tool executed.\n{}", summary),
+    })
+}
+
+fn github_list_issues(
+    _paths: &PraxisPaths,
+    request: &StoredApprovalRequest,
+) -> Result<ToolExecutionResult> {
+    let Some(token) = OAuthTokenStore::new(&_paths.data_dir)
+        .get("github")
+        .ok()
+        .flatten()
+        .filter(|t| !t.is_expired())
+    else {
+        return Ok(ToolExecutionResult {
+            summary: "No valid GitHub OAuth token. Run `praxis oauth login github`.".to_string(),
+        });
+    };
+
+    let payload = parse_payload(request.payload_json.as_deref())?;
+    let repo = payload
+        .params
+        .get("repo")
+        .map(|s| s.as_str())
+        .unwrap_or("coe0718/axonix");
+    let state = payload
+        .params
+        .get("state")
+        .map(|s| s.as_str())
+        .unwrap_or("open");
+    let limit: u32 = payload
+        .params
+        .get("limit")
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(10);
+
+    let url = format!("https://api.github.com/repos/{repo}/issues?state={state}&per_page={limit}");
+    let client = Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()?;
+    let response = client
+        .get(&url)
+        .bearer_auth(&token.access_token)
+        .header("User-Agent", "praxis-agent")
+        .send()?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().unwrap_or_default();
+        bail!("GitHub API returned {status}: {}", body.chars().take(200).collect::<String>());
+    }
+
+    let issues: Vec<serde_json::Value> = response.json()?;
+    let lines: Vec<String> = issues
+        .iter()
+        .filter_map(|issue| {
+            let number = issue.get("number")?.as_u64()?;
+            let title = issue.get("title")?.as_str()?;
+            Some(format!("#{number}: {title}"))
+        })
+        .collect();
+
+    Ok(ToolExecutionResult {
+        summary: if lines.is_empty() {
+            "No issues found.".to_string()
+        } else {
+            lines.join("\n")
+        },
+    })
+}
+
+fn github_list_prs(
+    _paths: &PraxisPaths,
+    request: &StoredApprovalRequest,
+) -> Result<ToolExecutionResult> {
+    let Some(token) = OAuthTokenStore::new(&_paths.data_dir)
+        .get("github")
+        .ok()
+        .flatten()
+        .filter(|t| !t.is_expired())
+    else {
+        return Ok(ToolExecutionResult {
+            summary: "No valid GitHub OAuth token. Run `praxis oauth login github`.".to_string(),
+        });
+    };
+
+    let payload = parse_payload(request.payload_json.as_deref())?;
+    let repo = payload
+        .params
+        .get("repo")
+        .map(|s| s.as_str())
+        .unwrap_or("coe0718/axonix");
+    let state = payload
+        .params
+        .get("state")
+        .map(|s| s.as_str())
+        .unwrap_or("open");
+    let limit: u32 = payload
+        .params
+        .get("limit")
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(10);
+
+    let url = format!("https://api.github.com/repos/{repo}/pulls?state={state}&per_page={limit}");
+    let client = Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()?;
+    let response = client
+        .get(&url)
+        .bearer_auth(&token.access_token)
+        .header("User-Agent", "praxis-agent")
+        .send()?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().unwrap_or_default();
+        bail!("GitHub API returned {status}: {}", body.chars().take(200).collect::<String>());
+    }
+
+    let prs: Vec<serde_json::Value> = response.json()?;
+    let lines: Vec<String> = prs
+        .iter()
+        .filter_map(|pr| {
+            let number = pr.get("number")?.as_u64()?;
+            let title = pr.get("title")?.as_str()?;
+            Some(format!("#{number}: {title}"))
+        })
+        .collect();
+
+    Ok(ToolExecutionResult {
+        summary: if lines.is_empty() {
+            "No pull requests found.".to_string()
+        } else {
+            lines.join("\n")
+        },
+    })
+}
+
+fn fallback_result(manifest: &ToolManifest, request: &StoredApprovalRequest, message: &str) -> ToolExecutionResult {
+    let payload = parse_payload(request.payload_json.as_deref()).ok();
+    let params_json = payload
+        .map(|p| serde_json::to_string_pretty(&p.params).unwrap_or_default())
+        .unwrap_or_default();
+
+    ToolExecutionResult {
+        summary: format!(
+            "Tool: {}\nStatus: {}\nMessage: {}\nParams: {}",
+            manifest.name, "no-adapter", message, params_json
+        ),
+    }
 }

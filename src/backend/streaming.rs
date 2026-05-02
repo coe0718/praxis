@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::providers::ProviderRoute;
 
-use super::ProviderRequest;
+use super::{InputContent, ProviderRequest};
 #[allow(dead_code)]
 const OPENAI_CHAT_URL: &str = "https://api.openai.com/v1/chat/completions";
 
@@ -57,6 +57,14 @@ impl StreamingBackend {
             let api_key = resolve_api_key(&route.provider)?;
             let endpoint = resolve_endpoint(route);
 
+            // Convert InputContent to string for streaming
+            let user_content = match &request.input {
+                InputContent::Text(text) => text.clone(),
+                InputContent::Blocks(blocks) => {
+                    serde_json::to_string(blocks).context("failed to serialize content blocks")?
+                }
+            };
+
             let body = StreamChatRequest {
                 model: route.model.clone(),
                 messages: vec![
@@ -66,7 +74,7 @@ impl StreamingBackend {
                     },
                     StreamChatMessage {
                         role: "user".to_string(),
-                        content: request.input.clone(),
+                        content: user_content,
                     },
                 ],
                 max_completion_tokens: Some(request.max_output_tokens),

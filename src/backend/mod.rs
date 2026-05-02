@@ -3,6 +3,7 @@ mod claude;
 mod configured;
 mod credential_pool;
 mod gating;
+mod health;
 mod ollama;
 mod openai;
 mod prompts;
@@ -48,11 +49,39 @@ pub struct BackendOutput {
     pub attempts: Vec<ProviderAttempt>,
 }
 
+/// Multi-modal content block for vision support.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ContentBlock {
+    Text {
+        text: String,
+    },
+    ImageUrl {
+        image_url: ImageUrl,
+    },
+}
+
+/// Image URL with optional detail level.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ImageUrl {
+    pub url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
+}
+
+/// Input content that can be either a simple string or multi-modal blocks.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+pub enum InputContent {
+    Text(String),
+    Blocks(Vec<ContentBlock>),
+}
+
 #[derive(Debug, Clone)]
 pub struct ProviderRequest {
     pub phase: &'static str,
     pub system: String,
-    pub input: String,
+    pub input: InputContent,
     pub max_output_tokens: u32,
 }
 

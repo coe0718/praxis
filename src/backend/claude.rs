@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::providers::ProviderRoute;
 
-use super::{ProviderRequest, ProviderResponse, successful_attempt};
+use super::{InputContent, ProviderRequest, ProviderResponse, successful_attempt};
 
 const ANTHROPIC_URL: &str = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION: &str = "2023-06-01";
@@ -52,6 +52,15 @@ pub(super) fn execute(
         ClaudeSystem::Plain(request.system.clone())
     };
 
+    // Convert InputContent to Claude message format
+    let user_content = match &request.input {
+        InputContent::Text(text) => text.clone(),
+        InputContent::Blocks(blocks) => {
+            // For multi-modal, we need to serialize the blocks as JSON
+            serde_json::to_string(blocks).context("failed to serialize content blocks")?
+        }
+    };
+
     let mut req_builder = client
         .post(ANTHROPIC_URL)
         .header("anthropic-version", ANTHROPIC_VERSION)
@@ -68,7 +77,7 @@ pub(super) fn execute(
             system,
             messages: vec![ClaudeMessage {
                 role: "user".to_string(),
-                content: request.input.clone(),
+                content: user_content,
             }],
         })
         .send()
