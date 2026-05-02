@@ -41,7 +41,10 @@ pub fn execute_request(
     request: &StoredApprovalRequest,
 ) -> Result<ToolExecutionResult> {
     let vault = Vault::load(&paths.vault_file).unwrap_or_default();
-    match manifest.name.as_str() {
+    let tool_name = manifest.name.clone();
+    let start = std::time::Instant::now();
+
+    let result = match manifest.name.as_str() {
         "internal-maintenance" => Ok(ToolExecutionResult {
             summary: "Internal maintenance completed without external side effects.".to_string(),
         }),
@@ -92,7 +95,15 @@ pub fn execute_request(
                 "No execution adapter is installed for this tool yet.",
             )),
         },
+    };
+
+    // Notify on completion for long-running tools.
+    let elapsed = start.elapsed();
+    if elapsed.as_secs() >= 5 {
+        notify_completion(paths, &tool_name, &result, elapsed);
     }
+
+    result
 }
 
 fn run_shell(
@@ -1028,6 +1039,39 @@ fn github_list_prs(
             lines.join("\n")
         },
     })
+}
+
+/// Send a notification to the messaging bus when a long-running tool completes.
+fn notify_completion(
+    paths: &PraxisPaths,
+    tool_name: &str,
+    result: &Result<ToolExecutionResult>,
+    elapsed: std::time::Duration,
+) {
+    use crate::bus::{BusEvent, FileBus, MessageBus};
+
+    let status = match result {
+        Ok(r) => {
+            let preview: String = r.summary.chars().take(200).collect();
+            format!("✅ {tool_name} completed in {:.1}s — {preview}", elapsed.as_secs_f64())
+        }
+        Err(e) => format!("❌ {tool_name} failed after {:.1}s — {e}", elapsed.as_secs_f64()),
+    };
+
+    let bus = FileBus::new(paths.data_dir.join("bus.jsonl"));
+    let event = BusEvent::new("notify", "system", "notify_on_complete", "praxis", &status);
+    if let Err(e) = bus.publish(&event) {
+        log::warn!("notify_on_complete: failed to publish: {e}");
+    }
+
+    // Also try Telegram if configured.
+    if let Ok(bot) = crate::messaging::TelegramBot::from_env() {
+        if let Some(chat_id) = bot.primary_chat_id() {
+            if let Err(e) = bot.send_message(chat_id, &status) {
+                log::warn!("notify_on_complete: telegram send failed: {e}");
+            }
+        }
+    }
 }
 
 fn fallback_result(
