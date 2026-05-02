@@ -53,12 +53,8 @@ pub struct BackendOutput {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContentBlock {
-    Text {
-        text: String,
-    },
-    ImageUrl {
-        image_url: ImageUrl,
-    },
+    Text { text: String },
+    ImageUrl { image_url: ImageUrl },
 }
 
 /// Image URL with optional detail level.

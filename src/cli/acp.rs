@@ -113,7 +113,11 @@ fn handle_request(paths: &PraxisPaths, req: &JsonRpcRequest) -> JsonRpcResponse 
         "chat" => handle_chat(paths, req),
         "context/get" => handle_context_get(paths, req),
         "status" => handle_status(paths, req),
-        _ => error_response(req.id.clone(), METHOD_NOT_FOUND, &format!("Unknown method: {}", req.method)),
+        _ => error_response(
+            req.id.clone(),
+            METHOD_NOT_FOUND,
+            &format!("Unknown method: {}", req.method),
+        ),
     }
 }
 
@@ -155,9 +159,7 @@ fn handle_tools_list(paths: &PraxisPaths, req: &JsonRpcRequest) -> JsonRpcRespon
     }
 
     // Add built-in tools
-    for builtin in &[
-        "clarify", "todo", "memory", "cron", "image", "vision", "voice",
-    ] {
+    for builtin in &["clarify", "todo", "memory", "cron", "image", "vision", "voice"] {
         tools.push(json!({
             "name": builtin,
             "description": format!("Built-in {builtin} tool"),

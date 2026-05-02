@@ -22,5 +22,5 @@ pub use policy::SecurityPolicy;
 pub use registry::{FileToolRegistry, ToolRegistry};
 pub use request::build_payload;
 pub use todo::{TodoItem, TodoList, TodoStatus};
-pub use vision::{VisionTool, VisionParameters};
-pub use voice::{VoiceTool, VoiceParameters};
+pub use vision::{VisionParameters, VisionTool};
+pub use voice::{VoiceParameters, VoiceTool};

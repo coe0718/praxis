@@ -29,7 +29,8 @@ impl VisionTool {
     pub fn new() -> Self {
         Self {
             name: "vision_analyze".to_string(),
-            description: "Analyze an image using AI vision. Supports URLs and local files.".to_string(),
+            description: "Analyze an image using AI vision. Supports URLs and local files."
+                .to_string(),
             parameters: VisionParameters {
                 image_url: None,
                 image_path: None,
@@ -40,11 +41,7 @@ impl VisionTool {
     }
 
     /// Execute the vision tool with the given parameters.
-    pub fn execute(
-        &self,
-        params: &VisionParameters,
-        paths: &PraxisPaths,
-    ) -> Result<InputContent> {
+    pub fn execute(&self, params: &VisionParameters, paths: &PraxisPaths) -> Result<InputContent> {
         let image_url = self.resolve_image_url(params, paths)?;
         let detail = params.detail.clone().unwrap_or_else(|| "auto".to_string());
 
@@ -67,11 +64,7 @@ impl VisionTool {
     }
 
     /// Resolve the image URL from either a URL or local file path.
-    fn resolve_image_url(
-        &self,
-        params: &VisionParameters,
-        paths: &PraxisPaths,
-    ) -> Result<String> {
+    fn resolve_image_url(&self, params: &VisionParameters, paths: &PraxisPaths) -> Result<String> {
         if let Some(url) = &params.image_url {
             // Validate URL format
             if url.starts_with("http://") || url.starts_with("https://") {
@@ -123,8 +116,12 @@ mod tests {
         match result {
             InputContent::Blocks(blocks) => {
                 assert_eq!(blocks.len(), 2);
-                assert!(matches!(&blocks[0], ContentBlock::Text { text } if text == "What is in this image?"));
-                assert!(matches!(&blocks[1], ContentBlock::ImageUrl { image_url } if image_url.url == "https://example.com/image.jpg"));
+                assert!(
+                    matches!(&blocks[0], ContentBlock::Text { text } if text == "What is in this image?")
+                );
+                assert!(
+                    matches!(&blocks[1], ContentBlock::ImageUrl { image_url } if image_url.url == "https://example.com/image.jpg")
+                );
             }
             _ => panic!("Expected blocks content"),
         }
@@ -149,8 +146,12 @@ mod tests {
         match result {
             InputContent::Blocks(blocks) => {
                 assert_eq!(blocks.len(), 2);
-                assert!(matches!(&blocks[0], ContentBlock::Text { text } if text == "Describe this image in detail."));
-                assert!(matches!(&blocks[1], ContentBlock::ImageUrl { image_url } if image_url.url.starts_with("file://")));
+                assert!(
+                    matches!(&blocks[0], ContentBlock::Text { text } if text == "Describe this image in detail.")
+                );
+                assert!(
+                    matches!(&blocks[1], ContentBlock::ImageUrl { image_url } if image_url.url.starts_with("file://"))
+                );
             }
             _ => panic!("Expected blocks content"),
         }

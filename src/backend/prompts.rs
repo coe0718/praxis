@@ -1,6 +1,6 @@
 use crate::identity::Goal;
 
-use super::{ProviderRequest, InputContent};
+use super::{InputContent, ProviderRequest};
 
 pub(super) fn request_for_ask(prompt: &str) -> ProviderRequest {
     ProviderRequest {

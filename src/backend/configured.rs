@@ -242,29 +242,30 @@ fn execute_routes(
     prompt_caching: bool,
 ) -> Result<BackendOutput> {
     use super::health::provider_health;
-    
+
     let mut attempts = Vec::new();
     let route_count = routes.len();
-    
+
     // Filter out unhealthy providers first
-    let healthy_routes: Vec<_> = routes.iter()
+    let healthy_routes: Vec<_> = routes
+        .iter()
         .filter(|route| provider_health().is_healthy(&route.provider))
         .collect();
-    
+
     let routes_to_try = if healthy_routes.is_empty() {
         // If all providers are unhealthy, try all of them anyway
         routes.iter().collect()
     } else {
         healthy_routes
     };
-    
+
     for (i, route) in routes_to_try.iter().enumerate() {
         let start = std::time::Instant::now();
         match execute_single(route, &request, prompt_caching) {
             Ok(mut output) => {
                 let response_ms = start.elapsed().as_millis() as u64;
                 provider_health().record_success(&route.provider, response_ms);
-                
+
                 if i > 0 {
                     log::info!(
                         "provider fallback succeeded on route {} of {} during {}",
@@ -281,7 +282,7 @@ fn execute_routes(
             }
             Err(error) => {
                 provider_health().record_failure(&route.provider, &error.to_string());
-                
+
                 log::warn!(
                     "provider '{}' failed during {} (route {} of {}): {error:#}",
                     route.provider,

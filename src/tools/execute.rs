@@ -11,15 +11,16 @@ use anyhow::{Context, Result, bail};
 use reqwest::blocking::Client;
 
 use crate::{
-    oauth::OAuthTokenStore,
-    paths::PraxisPaths,
-    storage::StoredApprovalRequest,
-    vault::Vault,
+    oauth::OAuthTokenStore, paths::PraxisPaths, storage::StoredApprovalRequest, vault::Vault,
 };
 
 use super::{
-    ToolKind, ToolManifest, clarify::execute_clarify, policy::normalize_relative,
-    request::parse_payload, todo::execute_todo_action, vision::{VisionTool, VisionParameters},
+    ToolKind, ToolManifest,
+    clarify::execute_clarify,
+    policy::normalize_relative,
+    request::parse_payload,
+    todo::execute_todo_action,
+    vision::{VisionParameters, VisionTool},
 };
 
 const DEFAULT_TIMEOUT_SECS: u64 = 30;
@@ -625,10 +626,7 @@ fn append_text(
         anyhow::bail!("praxis-data-write refuses to follow symlink at {}", full_path.display());
     }
 
-    let text = match (
-        payload.append_text.as_deref(),
-        payload.body.as_deref(),
-    ) {
+    let text = match (payload.append_text.as_deref(), payload.body.as_deref()) {
         (Some(t), _) => t.to_string(),
         (_, Some(b)) => b.to_string(),
         _ => {
@@ -754,10 +752,7 @@ fn execute_memory_tool(
             if keys.is_empty() {
                 "No memory entries.".to_string()
             } else {
-                keys.iter()
-                    .map(|k| format!("- {}", k))
-                    .collect::<Vec<_>>()
-                    .join("\n")
+                keys.iter().map(|k| format!("- {}", k)).collect::<Vec<_>>().join("\n")
             }
         }
         other => anyhow::bail!("unknown memory action: {other}"),
@@ -837,7 +832,7 @@ fn execute_vision_tool(
     request: &StoredApprovalRequest,
 ) -> Result<ToolExecutionResult> {
     let payload = parse_payload(request.payload_json.as_deref())?;
-    
+
     let image_url = payload.params.get("image_url").map(|s| s.to_string());
     let image_path = payload.params.get("image_path").map(|s| s.to_string());
     let question = payload.params.get("question").map(|s| s.to_string());
@@ -856,7 +851,7 @@ fn execute_vision_tool(
     };
 
     let input_content = vision_tool.execute(&params, paths)?;
-    
+
     // Convert InputContent to a string representation for the summary
     let summary = match input_content {
         crate::backend::InputContent::Text(text) => text,
@@ -883,10 +878,10 @@ fn execute_voice_tool(
     paths: &PraxisPaths,
     request: &StoredApprovalRequest,
 ) -> Result<ToolExecutionResult> {
-    use super::voice::{VoiceTool, VoiceParameters};
+    use super::voice::{VoiceParameters, VoiceTool};
 
     let payload = parse_payload(request.payload_json.as_deref())?;
-    
+
     let action = payload.params.get("action").map(|s| s.to_string());
     let text = payload.params.get("text").map(|s| s.to_string());
     let audio_path = payload.params.get("audio_path").map(|s| s.to_string());
@@ -903,7 +898,7 @@ fn execute_voice_tool(
     };
 
     let summary = voice_tool.execute(&params, paths)?;
-    
+
     Ok(ToolExecutionResult {
         summary: format!("Voice tool executed.\n{}", summary),
     })
@@ -925,26 +920,12 @@ fn github_list_issues(
     };
 
     let payload = parse_payload(request.payload_json.as_deref())?;
-    let repo = payload
-        .params
-        .get("repo")
-        .map(|s| s.as_str())
-        .unwrap_or("coe0718/axonix");
-    let state = payload
-        .params
-        .get("state")
-        .map(|s| s.as_str())
-        .unwrap_or("open");
-    let limit: u32 = payload
-        .params
-        .get("limit")
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(10);
+    let repo = payload.params.get("repo").map(|s| s.as_str()).unwrap_or("coe0718/axonix");
+    let state = payload.params.get("state").map(|s| s.as_str()).unwrap_or("open");
+    let limit: u32 = payload.params.get("limit").and_then(|s| s.parse().ok()).unwrap_or(10);
 
     let url = format!("https://api.github.com/repos/{repo}/issues?state={state}&per_page={limit}");
-    let client = Client::builder()
-        .timeout(Duration::from_secs(30))
-        .build()?;
+    let client = Client::builder().timeout(Duration::from_secs(30)).build()?;
     let response = client
         .get(&url)
         .bearer_auth(&token.access_token)
@@ -992,26 +973,12 @@ fn github_list_prs(
     };
 
     let payload = parse_payload(request.payload_json.as_deref())?;
-    let repo = payload
-        .params
-        .get("repo")
-        .map(|s| s.as_str())
-        .unwrap_or("coe0718/axonix");
-    let state = payload
-        .params
-        .get("state")
-        .map(|s| s.as_str())
-        .unwrap_or("open");
-    let limit: u32 = payload
-        .params
-        .get("limit")
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(10);
+    let repo = payload.params.get("repo").map(|s| s.as_str()).unwrap_or("coe0718/axonix");
+    let state = payload.params.get("state").map(|s| s.as_str()).unwrap_or("open");
+    let limit: u32 = payload.params.get("limit").and_then(|s| s.parse().ok()).unwrap_or(10);
 
     let url = format!("https://api.github.com/repos/{repo}/pulls?state={state}&per_page={limit}");
-    let client = Client::builder()
-        .timeout(Duration::from_secs(30))
-        .build()?;
+    let client = Client::builder().timeout(Duration::from_secs(30)).build()?;
     let response = client
         .get(&url)
         .bearer_auth(&token.access_token)
@@ -1043,7 +1010,11 @@ fn github_list_prs(
     })
 }
 
-fn fallback_result(manifest: &ToolManifest, request: &StoredApprovalRequest, message: &str) -> ToolExecutionResult {
+fn fallback_result(
+    manifest: &ToolManifest,
+    request: &StoredApprovalRequest,
+    message: &str,
+) -> ToolExecutionResult {
     let payload = parse_payload(request.payload_json.as_deref()).ok();
     let params_json = payload
         .map(|p| serde_json::to_string_pretty(&p.params).unwrap_or_default())

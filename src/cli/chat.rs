@@ -156,10 +156,8 @@ pub fn run_interactive(data_dir_override: Option<PathBuf>, model: Option<String>
         if input.starts_with('/') {
             let parts: Vec<&str> = input[1..].splitn(2, ' ').collect();
             let cmd_name = parts[0];
-            let args: Vec<&str> = parts
-                .get(1)
-                .map(|s| s.split_whitespace().collect())
-                .unwrap_or_default();
+            let args: Vec<&str> =
+                parts.get(1).map(|s| s.split_whitespace().collect()).unwrap_or_default();
 
             match handle_command(&mut ctx, cmd_name, &args) {
                 Ok(output) => {
@@ -191,10 +189,9 @@ pub fn run_interactive(data_dir_override: Option<PathBuf>, model: Option<String>
 }
 
 fn handle_command(ctx: &mut ReplContext, name: &str, args: &[&str]) -> Result<String> {
-    let cmd = COMMANDS
-        .iter()
-        .find(|c| c.name == name)
-        .ok_or_else(|| anyhow::anyhow!("unknown command: /{name}. Type /help for available commands."))?;
+    let cmd = COMMANDS.iter().find(|c| c.name == name).ok_or_else(|| {
+        anyhow::anyhow!("unknown command: /{name}. Type /help for available commands.")
+    })?;
 
     (cmd.handler)(ctx, args)
 }
@@ -270,7 +267,10 @@ fn cmd_compact(ctx: &mut ReplContext, _args: &[&str]) -> Result<String> {
 }
 
 fn cmd_retry(_ctx: &mut ReplContext, _args: &[&str]) -> Result<String> {
-    Ok("Retry: replaying last exchange. (full implementation requires active LLM session)".to_string())
+    Ok(
+        "Retry: replaying last exchange. (full implementation requires active LLM session)"
+            .to_string(),
+    )
 }
 
 fn cmd_undo(ctx: &mut ReplContext, _args: &[&str]) -> Result<String> {
@@ -378,7 +378,8 @@ fn cmd_save(ctx: &mut ReplContext, args: &[&str]) -> Result<String> {
         .unwrap_or_else(|| PathBuf::from("praxis-session.txt"));
 
     let content = ctx.history.join("\n\n");
-    std::fs::write(&path, &content).with_context(|| format!("failed to save to {}", path.display()))?;
+    std::fs::write(&path, &content)
+        .with_context(|| format!("failed to save to {}", path.display()))?;
     Ok(format!("Session saved to {}", path.display()))
 }
 
@@ -441,10 +442,7 @@ mod tests {
             paths: PraxisPaths::for_data_dir(PathBuf::from("/tmp/test-praxis-chat")),
             verbose: false,
             model: None,
-            history: vec![
-                "user: hello".to_string(),
-                "assistant: hi there".to_string(),
-            ],
+            history: vec!["user: hello".to_string(), "assistant: hi there".to_string()],
         };
         cmd_undo(&mut ctx, &[]).unwrap();
         assert!(ctx.history.is_empty());

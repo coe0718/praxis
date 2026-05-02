@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::providers::ProviderRoute;
 
-use super::{ProviderRequest, ProviderResponse, successful_attempt, InputContent};
+use super::{InputContent, ProviderRequest, ProviderResponse, successful_attempt};
 
 const OLLAMA_URL: &str = "http://127.0.0.1:11434/api/generate";
 

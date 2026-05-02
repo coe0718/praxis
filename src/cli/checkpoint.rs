@@ -38,15 +38,13 @@ impl CheckpointIndex {
         }
         let raw = fs::read_to_string(path)
             .with_context(|| format!("failed to read {}", path.display()))?;
-        serde_json::from_str(&raw)
-            .with_context(|| format!("failed to parse {}", path.display()))
+        serde_json::from_str(&raw).with_context(|| format!("failed to parse {}", path.display()))
     }
 
     pub fn save(&self, path: &Path) -> Result<()> {
-        let raw = serde_json::to_string_pretty(self)
-            .context("failed to serialize checkpoint index")?;
-        fs::write(path, raw)
-            .with_context(|| format!("failed to write {}", path.display()))
+        let raw =
+            serde_json::to_string_pretty(self).context("failed to serialize checkpoint index")?;
+        fs::write(path, raw).with_context(|| format!("failed to write {}", path.display()))
     }
 
     pub fn next_id(&self) -> u64 {
@@ -171,8 +169,9 @@ fn copy_directory(src: &Path, dst: &Path, skip: &Path) -> Result<(usize, u64)> {
             file_count += fc;
             total_bytes += tb;
         } else {
-            let bytes = fs::copy(&src_path, &dst_path)
-                .with_context(|| format!("failed to copy {} -> {}", src_path.display(), dst_path.display()))?;
+            let bytes = fs::copy(&src_path, &dst_path).with_context(|| {
+                format!("failed to copy {} -> {}", src_path.display(), dst_path.display())
+            })?;
             file_count += 1;
             total_bytes += bytes;
         }
@@ -208,9 +207,7 @@ pub fn handle_rollback(data_dir: Option<PathBuf>, checkpoint_id: u64) -> Result<
 
     Ok(format!(
         "Rolled back to checkpoint #{}: {}\nLabel: {}\nPre-rollback state saved as new checkpoint.",
-        cp.id,
-        cp.timestamp,
-        cp.label,
+        cp.id, cp.timestamp, cp.label,
     ))
 }
 

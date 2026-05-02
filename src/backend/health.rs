@@ -91,12 +91,12 @@ impl ProviderHealthTracker {
         status.consecutive_failures += 1;
         status.last_error = Some(error.to_string());
         status.last_checked = Some(chrono::Utc::now().to_rfc3339());
-        
+
         // Mark as unhealthy after 3 consecutive failures
         if status.consecutive_failures >= 3 {
             status.healthy = false;
         }
-        
+
         drop(health);
         self.maybe_persist();
     }
@@ -104,9 +104,7 @@ impl ProviderHealthTracker {
     /// Check if a provider is healthy.
     pub fn is_healthy(&self, provider: &str) -> bool {
         let health = self.health.lock().unwrap();
-        health.providers.get(provider)
-            .map(|s| s.healthy)
-            .unwrap_or(true) // Assume healthy if no data
+        health.providers.get(provider).map(|s| s.healthy).unwrap_or(true) // Assume healthy if no data
     }
 
     /// Get provider health status.
@@ -153,15 +151,12 @@ impl ProviderHealthTracker {
 }
 
 /// Global provider health tracker instance.
-static PROVIDER_HEALTH: once_cell::sync::Lazy<ProviderHealthTracker> = 
+static PROVIDER_HEALTH: once_cell::sync::Lazy<ProviderHealthTracker> =
     once_cell::sync::Lazy::new(|| {
         // Try to load from default path, or create a new one
-        let path = std::env::var("PRAXIS_PROVIDER_HEALTH_FILE")
-            .ok()
-            .map(std::path::PathBuf::from);
-        ProviderHealthTracker::new(path.as_deref()).unwrap_or_else(|_| {
-            ProviderHealthTracker::new(None).unwrap()
-        })
+        let path = std::env::var("PRAXIS_PROVIDER_HEALTH_FILE").ok().map(std::path::PathBuf::from);
+        ProviderHealthTracker::new(path.as_deref())
+            .unwrap_or_else(|_| ProviderHealthTracker::new(None).unwrap())
     });
 
 /// Get the global provider health tracker.
@@ -177,20 +172,20 @@ mod tests {
     #[test]
     fn test_provider_health_tracking() {
         let tracker = ProviderHealthTracker::new(None).unwrap();
-        
+
         // Initially healthy
         assert!(tracker.is_healthy("openai"));
-        
+
         // Record success
         tracker.record_success("openai", 150);
         assert!(tracker.is_healthy("openai"));
-        
+
         // Record failures
         for _ in 0..3 {
             tracker.record_failure("openai", "rate limited");
         }
         assert!(!tracker.is_healthy("openai"));
-        
+
         // Reset
         tracker.reset_provider("openai");
         assert!(tracker.is_healthy("openai"));
@@ -200,14 +195,14 @@ mod tests {
     fn test_provider_health_persistence() {
         let tmp = tempdir().unwrap();
         let path = tmp.path().join("health.json");
-        
+
         let tracker = ProviderHealthTracker::new(Some(&path)).unwrap();
         tracker.record_success("openai", 100);
         tracker.record_failure("claude", "timeout");
-        
+
         // Force persistence
         tracker.maybe_persist();
-        
+
         // Load from disk
         let tracker2 = ProviderHealthTracker::new(Some(&path)).unwrap();
         assert!(tracker2.is_healthy("openai"));

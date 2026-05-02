@@ -42,11 +42,7 @@ impl VoiceTool {
     }
 
     /// Execute the voice tool with the given parameters.
-    pub fn execute(
-        &self,
-        params: &VoiceParameters,
-        paths: &PraxisPaths,
-    ) -> Result<String> {
+    pub fn execute(&self, params: &VoiceParameters, paths: &PraxisPaths) -> Result<String> {
         let action = params.action.as_deref().unwrap_or("tts");
 
         match action {
@@ -58,12 +54,10 @@ impl VoiceTool {
 
     /// Convert speech to text.
     /// Placeholder implementation - requires whisper-rs or external service.
-    fn speech_to_text(
-        &self,
-        params: &VoiceParameters,
-        paths: &PraxisPaths,
-    ) -> Result<String> {
-        let audio_path = params.audio_path.as_deref()
+    fn speech_to_text(&self, params: &VoiceParameters, paths: &PraxisPaths) -> Result<String> {
+        let audio_path = params
+            .audio_path
+            .as_deref()
             .ok_or_else(|| anyhow::anyhow!("stt requires 'audio_path' parameter"))?;
 
         let full_path = if Path::new(audio_path).is_relative() {
@@ -82,20 +76,22 @@ impl VoiceTool {
 
     /// Convert text to speech.
     /// Placeholder implementation - requires edge-tts or external service.
-    fn text_to_speech(
-        &self,
-        params: &VoiceParameters,
-        _paths: &PraxisPaths,
-    ) -> Result<String> {
-        let text = params.text.as_deref()
+    fn text_to_speech(&self, params: &VoiceParameters, _paths: &PraxisPaths) -> Result<String> {
+        let text = params
+            .text
+            .as_deref()
             .ok_or_else(|| anyhow::anyhow!("tts requires 'text' parameter"))?;
 
         let voice = params.voice.as_deref().unwrap_or("en-US-AriaNeural");
         let language = params.language.as_deref().unwrap_or("en-US");
 
         // Placeholder: In a real implementation, this would use edge-tts or an external TTS service
-        Ok(format!("TTS placeholder: Would convert '{}' to speech using voice '{}' in language '{}'", 
-            text.chars().take(50).collect::<String>(), voice, language))
+        Ok(format!(
+            "TTS placeholder: Would convert '{}' to speech using voice '{}' in language '{}'",
+            text.chars().take(50).collect::<String>(),
+            voice,
+            language
+        ))
     }
 }
 

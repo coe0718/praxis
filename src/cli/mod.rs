@@ -1,13 +1,13 @@
+mod acp;
 mod agents;
 pub(crate) mod approvals;
-mod acp;
 mod archive;
 mod argus;
 mod boundaries;
 mod brief;
+pub(crate) mod canary;
 mod chat;
 mod checkpoint;
-pub(crate) mod canary;
 pub(crate) mod core;
 mod daemon;
 mod delegation;
@@ -22,6 +22,7 @@ mod hooks;
 mod learning;
 mod mcp;
 mod memory;
+mod migrate;
 mod oauth;
 mod sandbox;
 mod serve;
@@ -107,6 +108,7 @@ pub enum Commands {
     Checkpoint(CheckpointArgs),
     Rollback(RollbackArgs),
     Checkpoints,
+    Migrate(MigrateArgs),
 }
 
 #[derive(Debug, Args)]
@@ -150,6 +152,16 @@ pub struct CheckpointArgs {
 pub struct RollbackArgs {
     /// Checkpoint ID to roll back to.
     pub id: u64,
+}
+
+#[derive(Debug, Args)]
+pub struct MigrateArgs {
+    /// Path to the Axonix data directory to import from.
+    pub source: PathBuf,
+
+    /// Show what would be imported without making changes.
+    #[arg(long)]
+    pub dry_run: bool,
 }
 
 #[derive(Debug, Args)]
@@ -311,15 +323,10 @@ fn execute(cli: Cli) -> Result<String> {
             acp::run_acp_server(cli.data_dir)?;
             Ok("ACP server stopped.".to_string())
         }
-        Commands::Checkpoint(args) => {
-            checkpoint::handle_checkpoint(cli.data_dir, Some(args.label))
-        }
-        Commands::Rollback(args) => {
-            checkpoint::handle_rollback(cli.data_dir, args.id)
-        }
-        Commands::Checkpoints => {
-            checkpoint::handle_checkpoints_list(cli.data_dir)
-        }
+        Commands::Checkpoint(args) => checkpoint::handle_checkpoint(cli.data_dir, Some(args.label)),
+        Commands::Rollback(args) => checkpoint::handle_rollback(cli.data_dir, args.id),
+        Commands::Checkpoints => checkpoint::handle_checkpoints_list(cli.data_dir),
+        Commands::Migrate(args) => migrate::handle_migrate(cli.data_dir, args.source, args.dry_run),
     }
 }
 
