@@ -426,3 +426,14 @@ The remaining items (browser, code execution, plugin system, full profiles, term
 | #16 | Checkpoints / Rollback | ✅ DONE | `src/cli/checkpoint.rs` — `praxis checkpoint [--label]`, `praxis rollback <id>`, `praxis checkpoints`. Copy-on-write with auto pre-rollback save. Keeps last 20. |
 
 **Remaining open: 14 gaps** (was 17, 3 closed)
+
+### 2026-05-02 — Wave 9 (Migration + Worktree + Dry-Run + Profiles)
+
+| Gap | Feature | Status | Commit |
+|-----|---------|--------|--------|
+| #33 | Migration Tooling | ✅ DONE | `src/cli/migrate.rs` — `praxis migrate <path> [--dry-run]`. Imports SOUL.md, IDENTITY.md, GOALS.md, AGENTS.md, skills/, tools/, user_memory.json, hooks.toml, telegram_state.json from Axonix data dirs. Skips existing files, reports imported/skipped/errors. |
+| #17 | Worktree / Git Isolation | ✅ DONE | `src/cli/worktree.rs` — `praxis worktree create|list|remove|merge`. Creates git worktrees with `praxis/<name>` branches, supports merge-back and branch cleanup. |
+| #23 | Dry-Run / Replay | ✅ DONE | `src/cli/dryrun.rs` — `praxis plan create|list|show|dry-run|remove`. ExecutionPlan with sequential steps, parameter validation, destructive command detection, JSON persistence. |
+| #11 | Profile Isolation | ✅ DONE | `src/cli/profile.rs` — `praxis profile create|switch|list|remove|show`. Each profile gets isolated tools/, skills/, memory/, sessions/ subdirectories. |
+
+**Remaining open: 10 gaps** (was 14, 4 closed)
