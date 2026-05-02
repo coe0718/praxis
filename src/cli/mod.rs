@@ -25,6 +25,7 @@ mod mcp;
 mod memory;
 mod migrate;
 mod oauth;
+mod profile;
 mod sandbox;
 mod serve;
 #[cfg(feature = "slack")]
@@ -113,6 +114,7 @@ pub enum Commands {
     Migrate(MigrateArgs),
     Worktree(WorktreeArgs),
     Plan(PlanArgs),
+    Profile(ProfileArgs),
 }
 
 #[derive(Debug, Args)]
@@ -257,6 +259,48 @@ pub struct PlanDryRunArgs {
 #[derive(Debug, Args)]
 pub struct PlanRemoveArgs {
     pub plan_id: String,
+}
+
+#[derive(Debug, Args)]
+pub struct ProfileArgs {
+    #[command(subcommand)]
+    pub command: ProfileCommand,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum ProfileCommand {
+    /// List all profiles.
+    List,
+    /// Create a new profile.
+    Create(ProfileCreateArgs),
+    /// Switch to a profile.
+    Switch(ProfileSwitchArgs),
+    /// Remove a profile.
+    Remove(ProfileRemoveArgs),
+    /// Show profile details.
+    Show(ProfileShowArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct ProfileCreateArgs {
+    pub name: String,
+    #[arg(long, default_value = "")]
+    pub description: String,
+}
+
+#[derive(Debug, Args)]
+pub struct ProfileSwitchArgs {
+    pub name: String,
+}
+
+#[derive(Debug, Args)]
+pub struct ProfileRemoveArgs {
+    pub name: String,
+}
+
+#[derive(Debug, Args)]
+pub struct ProfileShowArgs {
+    pub name: String,
 }
 
 #[derive(Debug, Args)]
@@ -424,6 +468,7 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::Migrate(args) => migrate::handle_migrate(cli.data_dir, args.source, args.dry_run),
         Commands::Worktree(args) => worktree::handle_worktree(cli.data_dir, args),
         Commands::Plan(args) => dryrun::handle_plan(cli.data_dir, args),
+        Commands::Profile(args) => profile::handle_profile(cli.data_dir, args),
     }
 }
 
