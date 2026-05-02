@@ -203,6 +203,7 @@ fn dispatch_message(ctx: &ReplContext, input: &str) -> Result<String> {
     let ask_args = crate::cli::AskArgs {
         files: Vec::new(),
         attachment_policy: "reject".to_string(),
+        tools: false,
         prompt: input.split_whitespace().map(String::from).collect(),
     };
 

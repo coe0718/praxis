@@ -339,6 +339,10 @@ pub struct AskArgs {
     #[arg(long, default_value = "reject")]
     pub attachment_policy: String,
 
+    /// Run the full agent loop with tool execution instead of a single LLM call.
+    #[arg(long)]
+    pub tools: bool,
+
     #[arg(required = true)]
     pub prompt: Vec<String>,
 }

@@ -66,6 +66,7 @@ pub(super) async fn api_ask(
         AskArgs {
             files: vec![],
             attachment_policy: "reject".to_string(),
+            tools: false,
             prompt: vec![body.prompt],
         },
     ) {

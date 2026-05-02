@@ -213,6 +213,7 @@ fn handle_chat(paths: &PraxisPaths, req: &JsonRpcRequest) -> JsonRpcResponse {
     let ask_args = crate::cli::AskArgs {
         files: Vec::new(),
         attachment_policy: "reject".to_string(),
+        tools: false,
         prompt: message.split_whitespace().map(String::from).collect(),
     };
 

@@ -195,18 +195,71 @@ pub(crate) fn handle_ask(data_dir_override: Option<PathBuf>, args: AskArgs) -> R
         .rule(UsageBudgetMode::Ask)
         .check_estimate(estimate, UsageBudgetMode::Ask);
 
+    if decision.blocked {
+        let mut rendered = String::new();
+        writeln!(rendered, "mode: ask")?;
+        writeln!(rendered, "backend: {}", backend.name())?;
+        writeln!(rendered, "attachments: {}", args.files.len())?;
+        writeln!(rendered, "prompt: {prompt}")?;
+        write!(rendered, "answer: {}", decision.summary)?;
+        return Ok(rendered);
+    }
+
+    // One-shot mode with tools — run the full agent loop.
+    if args.tools {
+        let identity = LocalIdentityPolicy;
+        let tools = FileToolRegistry;
+        let events = FileEventSink::new(paths.events_file.clone());
+
+        identity.validate(&paths)?;
+        tools.validate(&paths)?;
+
+        let store = SqliteSessionStore::new(paths.database_file.clone());
+        store.initialize()?;
+        store.validate_schema()?;
+
+        let clock = SystemClock::from_env()?;
+        let lite = LiteMode::from_file(&paths.config_file).unwrap_or_default();
+        let runtime = PraxisRuntime {
+            config: &config,
+            paths: &paths,
+            backend: &backend,
+            clock: &clock,
+            events: &events,
+            goal_parser: &MarkdownGoalParser,
+            identity: &identity,
+            store: &store,
+            tools: &tools,
+            lite: &lite,
+        };
+
+        let summary = runtime.run_once(RunOptions {
+            once: true,
+            force: true,
+            task: Some(prompt.clone()),
+        })?;
+
+        let mut rendered = String::new();
+        writeln!(rendered, "mode: ask --tools")?;
+        writeln!(rendered, "backend: {}", backend.name())?;
+        writeln!(rendered, "stateful: true")?;
+        writeln!(rendered, "attachments: {}", args.files.len())?;
+        writeln!(rendered, "prompt: {prompt}")?;
+        writeln!(rendered, "outcome: {}", summary.outcome)?;
+        writeln!(rendered, "phase: {}", summary.phase)?;
+        write!(rendered, "summary: {}", summary.action_summary)?;
+        return Ok(rendered);
+    }
+
+    // Simple one-shot — single LLM call, no tools.
     let mut rendered = String::new();
     writeln!(rendered, "mode: ask")?;
     writeln!(rendered, "backend: {}", backend.name())?;
     writeln!(rendered, "stateful: false")?;
     writeln!(rendered, "attachments: {}", args.files.len())?;
     writeln!(rendered, "prompt: {prompt}")?;
-    if decision.blocked {
-        write!(rendered, "answer: {}", decision.summary)?;
-    } else {
-        let output = backend.answer_prompt(&prompt)?;
-        write!(rendered, "answer: {}", output.summary)?;
-    }
+    let output = backend.answer_prompt(&prompt)?;
+    write!(rendered, "answer: {}", output.summary)?;
     Ok(rendered)
 }
 
