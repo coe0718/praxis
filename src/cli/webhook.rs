@@ -38,6 +38,9 @@ pub struct SubscribeArgs {
     /// Comma-separated event types this webhook accepts.
     #[arg(long, default_value = "")]
     pub events: String,
+    /// Forward webhook payload directly to messaging bus without agent processing.
+    #[arg(long)]
+    pub direct: bool,
 }
 
 #[derive(Debug, Args)]
@@ -64,6 +67,7 @@ pub fn handle_webhook(
                 created_at: Utc::now(),
                 last_triggered_at: None,
                 trigger_count: 0,
+                direct_delivery: s.direct,
             };
             let was_update = store.get(&wh.name).is_some();
             store.upsert(wh.clone());

@@ -33,6 +33,11 @@ pub struct Webhook {
     pub last_triggered_at: Option<DateTime<Utc>>,
     /// Total number of verified requests received.
     pub trigger_count: u64,
+    /// When true, forward the webhook payload directly to the messaging bus
+    /// without going through the agent/LLM loop. Useful for notifications,
+    /// alerts, and CI/CD status updates that don't need agent reasoning.
+    #[serde(default)]
+    pub direct_delivery: bool,
 }
 
 /// Persistent registry of webhook subscriptions.
@@ -144,6 +149,7 @@ mod tests {
             created_at: Utc::now(),
             last_triggered_at: None,
             trigger_count: 0,
+            direct_delivery: false,
         });
         store.save(&path).unwrap();
 
@@ -169,6 +175,7 @@ mod tests {
             created_at: Utc::now(),
             last_triggered_at: None,
             trigger_count: 0,
+            direct_delivery: false,
         };
         assert!(wh.verify_signature("1234567890", b"hello", "anything").unwrap());
     }
@@ -183,6 +190,7 @@ mod tests {
             created_at: Utc::now(),
             last_triggered_at: None,
             trigger_count: 0,
+            direct_delivery: false,
         };
 
         let timestamp = Utc::now().timestamp().to_string();
@@ -210,6 +218,7 @@ mod tests {
             created_at: Utc::now(),
             last_triggered_at: None,
             trigger_count: 0,
+            direct_delivery: false,
         };
 
         // Timestamp 10 minutes in the past.

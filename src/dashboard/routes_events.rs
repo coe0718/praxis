@@ -345,3 +345,99 @@ pub(super) async fn webhook_slack(
     }
     (StatusCode::OK, Json(json!({ "ok": true }))).into_response()
 }
+
+/// Dynamic webhook handler — routes `/webhook/{name}` to registered subscriptions.
+/// If `direct_delivery` is set on the webhook, the payload is forwarded to the
+/// messaging bus. Otherwise, a `WakeIntent` is created for the agent loop.
+pub(super) async fn webhook_dynamic(
+    State(state): State<DashboardState>,
+    axum::extract::Path(name): axum::extract::Path<String>,
+    headers: axum::http::HeaderMap,
+    body: Bytes,
+) -> impl IntoResponse {
+    use crate::bus::{BusEvent, FileBus, MessageBus};
+    use crate::wakeup::{WakeIntent, request_wake};
+    use crate::webhooks::WebhookStore;
+
+    let mut store = match WebhookStore::load(&state.data_dir.join("webhooks.json")) {
+        Ok(s) => s,
+        Err(e) => {
+            log::error!("webhook: failed to load store: {e}");
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    };
+
+    let wh = match store.get(&name) {
+        Some(w) => w.clone(),
+        None => {
+            log::warn!("webhook: unknown subscription '{name}'");
+            return StatusCode::NOT_FOUND.into_response();
+        }
+    };
+
+    // Verify HMAC signature if secret is set.
+    if wh.secret.is_some() {
+        let timestamp =
+            headers.get("X-Webhook-Timestamp").and_then(|v| v.to_str().ok()).unwrap_or("");
+        let signature = headers.get("X-Signature-256").and_then(|v| v.to_str().ok()).unwrap_or("");
+
+        if timestamp.is_empty() || signature.is_empty() {
+            log::warn!("webhook '{name}': missing signature headers");
+            return StatusCode::UNAUTHORIZED.into_response();
+        }
+
+        match wh.verify_signature(timestamp, &body, signature) {
+            Ok(true) => {}
+            Ok(false) => {
+                log::warn!("webhook '{name}': signature verification failed");
+                return StatusCode::UNAUTHORIZED.into_response();
+            }
+            Err(e) => {
+                log::warn!("webhook '{name}': signature error: {e}");
+                return StatusCode::BAD_REQUEST.into_response();
+            }
+        }
+    }
+
+    // Check event type filter.
+    if !wh.events.is_empty() {
+        let event_type =
+            headers.get("X-Webhook-Event").and_then(|v| v.to_str().ok()).unwrap_or("push");
+        let allowed: Vec<&str> = wh.events.split(',').map(|s| s.trim()).collect();
+        if !allowed.iter().any(|e| *e == event_type) && !allowed.iter().any(|e| *e == "*") {
+            log::info!("webhook '{name}': event '{event_type}' not in allowed list");
+            return (StatusCode::OK, Json(json!({ "ok": true, "skipped": true }))).into_response();
+        }
+    }
+
+    // Update trigger stats.
+    if let Some(wh) = store.webhooks.iter_mut().find(|w| w.name == name) {
+        wh.last_triggered_at = Some(chrono::Utc::now());
+        wh.trigger_count += 1;
+    }
+    let _ = store.save(&state.data_dir.join("webhooks.json"));
+
+    let payload = String::from_utf8_lossy(&body).to_string();
+
+    if wh.direct_delivery {
+        // Forward directly to the messaging bus — no agent processing.
+        let bus = FileBus::new(state.data_dir.join("bus.jsonl"));
+        let event =
+            BusEvent::new("webhook", "webhook", &format!("webhook:{name}"), "system", &payload);
+        if let Err(e) = bus.publish(&event) {
+            log::warn!("webhook '{name}': direct delivery publish failed: {e}");
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+        log::info!("webhook '{name}': direct delivery to bus");
+    } else {
+        // Create a WakeIntent for the agent loop.
+        let reason = format!("webhook:{name}: {payload}");
+        let intent = WakeIntent::new(&reason, "webhook").with_task(payload);
+        if let Err(e) = request_wake(&state.data_dir, &intent) {
+            log::warn!("webhook '{name}': wake intent failed: {e}");
+        }
+        log::info!("webhook '{name}': wake intent created");
+    }
+
+    (StatusCode::OK, Json(json!({ "ok": true }))).into_response()
+}

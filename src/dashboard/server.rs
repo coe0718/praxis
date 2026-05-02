@@ -114,6 +114,8 @@ pub async fn serve_dashboard(data_dir: PathBuf, host: String, port: u16) -> Resu
         {
             routes = routes.route("/webhook/slack", post(routes_events::webhook_slack));
         }
+        // Dynamic webhook subscriptions — /webhook/{name}
+        routes = routes.route("/webhook/:name", post(routes_events::webhook_dynamic));
         routes.with_state(state.clone())
     };
 
