@@ -1,5 +1,6 @@
 mod agents;
 pub(crate) mod approvals;
+mod acp;
 mod archive;
 mod argus;
 mod boundaries;
@@ -101,6 +102,7 @@ pub enum Commands {
     Sessions(SessionsArgs),
     Insights(InsightsArgs),
     Chat(ChatArgs),
+    Acp,
 }
 
 #[derive(Debug, Args)]
@@ -287,6 +289,10 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::Chat(args) => {
             chat::run_interactive(cli.data_dir, args.model)?;
             Ok("Session ended.".to_string())
+        }
+        Commands::Acp => {
+            acp::run_acp_server(cli.data_dir)?;
+            Ok("ACP server stopped.".to_string())
         }
     }
 }
