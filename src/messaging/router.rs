@@ -39,6 +39,8 @@ pub enum TelegramCommand {
     Decisions,
     /// Approve an unknown sender by their one-time pairing code.
     ApproveSender(String),
+    /// Mid-session steering: redirect the running agent to a new task.
+    Steer(String),
     Help,
 }
 
@@ -76,6 +78,8 @@ pub fn parse_telegram_command(text: &str) -> TelegramCommand {
             .unwrap_or(TelegramCommand::Help)
     } else if let Some(rest) = trimmed.strip_prefix("/approve-sender ") {
         TelegramCommand::ApproveSender(rest.trim().to_string())
+    } else if let Some(rest) = trimmed.strip_prefix("/steer ") {
+        TelegramCommand::Steer(rest.trim().to_string())
     } else if let Some(rest) = trimmed.strip_prefix("/link ") {
         parse_link_command(rest.trim())
     } else {
@@ -147,6 +151,7 @@ pub fn handle_telegram_command(
         }
         TelegramCommand::Decisions => handle_decisions(data_dir),
         TelegramCommand::ApproveSender(code) => handle_approve_sender(data_dir, &code),
+        TelegramCommand::Steer(task) => handle_steer(data_dir, &task),
         TelegramCommand::Help => Ok(help_text().to_string()),
     }
 }
@@ -357,6 +362,16 @@ fn handle_approve_sender(data_dir: std::path::PathBuf, code: &str) -> Result<Str
     }
 }
 
+fn handle_steer(data_dir: std::path::PathBuf, task: &str) -> Result<String> {
+    if task.trim().is_empty() {
+        return Ok("usage: /steer <new task direction>".to_string());
+    }
+    let paths = PraxisPaths::for_data_dir(data_dir);
+    let intent = crate::wakeup::WakeIntent::new("steer", "telegram").with_task(task.trim());
+    crate::wakeup::request_wake(&paths.data_dir, &intent)?;
+    Ok(format!("steer: session will be redirected to: {task}"))
+}
+
 fn help_text() -> &'static str {
     "supported commands:\n\
      /ask <prompt> — quick stateless question\n\
@@ -371,7 +386,8 @@ fn help_text() -> &'static str {
      /boundaries — list active boundaries\n\
      /boundaries add <rule> — add a boundary\n\
      /activation [mention_only|thread_only|always_listening] — get or set activation mode\n\
-     /memories — list recent memories with IDs\n\
+     /memories — list recent memories with IDs\\\n\
+     /steer <task> — redirect running session to a new task\\\n\
      /reinforce <id> — boost memory importance\n\
      /forget <id> — delete a memory\n\
      /link <from_id> <type> <to_id> — add relational link (types: caused_by, related_to, contradicts, user_preference, follow_up)\n\
