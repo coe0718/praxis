@@ -177,6 +177,9 @@ fn handle_request(data_dir_override: Option<PathBuf>, args: RequestToolArgs) -> 
     let stored = store.queue_approval(&request)?;
     sync_capabilities(&FileToolRegistry, &store, &paths)?;
 
+    // Notify operator with approve/deny buttons.
+    crate::r#loop::phases::notify_approval_request(stored.id, &stored.tool_name, &stored.summary);
+
     let mut output = String::new();
     writeln!(output, "request: {}", stored.status.as_str())?;
     writeln!(output, "id: {}", stored.id)?;

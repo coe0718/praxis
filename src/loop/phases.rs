@@ -79,6 +79,15 @@ where
                     };
                     if let Err(e) = self.store.queue_approval(&req) {
                         log::warn!("failed to queue delegated task as approval: {e}");
+                    } else {
+                        // Notify operator with approve/deny buttons.
+                        if let Some(stored) = self
+                            .store
+                            .list_approvals(Some(crate::storage::ApprovalStatus::Pending))?
+                            .last()
+                        {
+                            notify_approval_request(stored.id, &req.tool_name, &req.summary);
+                        }
                     }
                 }
                 if let Err(e) = self.emit(
@@ -552,4 +561,65 @@ fn enforce_active_hand(paths: &PraxisPaths, tools: &impl ToolRegistry) -> Result
     );
 
     Ok(())
+}
+
+/// Send a Telegram notification with Approve/Deny inline buttons for a pending approval request.
+/// Best-effort — logs warnings on failure but does not propagate errors.
+pub(crate) fn notify_approval_request(approval_id: i64, tool_name: &str, summary: &str) {
+    use crate::messaging::TelegramBot;
+
+    let Ok(bot) = TelegramBot::from_env() else {
+        return;
+    };
+    let Some(chat_id) = bot.primary_chat_id() else {
+        return;
+    };
+
+    let text = format!(
+        "⏳ Approval required — #{approval_id}\n\
+         Tool: {tool_name}\n\
+         {summary}\n\n\
+         Or reply: /approve {approval_id} or /deny {approval_id}"
+    );
+    let approve_data = format!("approve:{approval_id}");
+    let deny_data = format!("deny:{approval_id}");
+    let buttons = vec![("✅ Approve", approve_data.as_str()), ("❌ Deny", deny_data.as_str())];
+    if let Err(e) = bot.send_message_with_buttons(chat_id, &text, &buttons) {
+        log::warn!("failed to send approval notification with buttons: {e}");
+    }
+}
+
+pub(crate) fn handle_approval_callback(store: &dyn ApprovalStore, data: &str) -> Result<bool> {
+    if let Some(id_str) = data.strip_prefix("approve:") {
+        if let Ok(id) = id_str.parse::<i64>() {
+            if let Some(req) = store.get_approval(id)? {
+                use crate::storage::ApprovalStatus;
+                if req.status == ApprovalStatus::Pending {
+                    store.set_approval_status(
+                        id,
+                        ApprovalStatus::Approved,
+                        Some("approved via Telegram button"),
+                    )?;
+                    log::info!("approval #{id} approved via Telegram button");
+                    return Ok(true);
+                }
+            }
+        }
+    } else if let Some(id_str) = data.strip_prefix("deny:") {
+        if let Ok(id) = id_str.parse::<i64>() {
+            if let Some(req) = store.get_approval(id)? {
+                use crate::storage::ApprovalStatus;
+                if req.status == ApprovalStatus::Pending {
+                    store.set_approval_status(
+                        id,
+                        ApprovalStatus::Rejected,
+                        Some("denied via Telegram button"),
+                    )?;
+                    log::info!("approval #{id} denied via Telegram button");
+                    return Ok(true);
+                }
+            }
+        }
+    }
+    Ok(false)
 }

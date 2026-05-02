@@ -1,5 +1,5 @@
 mod outcome;
-mod phases;
+pub mod phases;
 mod planner;
 mod reflect;
 mod runtime;

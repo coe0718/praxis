@@ -33,6 +33,15 @@ pub struct TelegramMessage {
 pub struct TelegramUpdate {
     pub update_id: i64,
     pub message: Option<TelegramInboundMessage>,
+    pub callback_query: Option<TelegramCallbackQuery>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct TelegramCallbackQuery {
+    pub id: String,
+    pub data: Option<String>,
+    pub message: Option<TelegramInboundMessage>,
+    pub from: Option<TelegramUser>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -62,6 +71,13 @@ pub struct TelegramUser {
 pub struct TelegramMessageEntity {
     /// Entity type, e.g. "mention", "bot_command", "text_mention".
     pub r#type: String,
+}
+
+/// A callback query from an inline keyboard button press.
+#[derive(Debug, Clone)]
+pub struct CallbackQuery {
+    pub chat_id: i64,
+    pub data: String,
 }
 
 impl TelegramBot {
@@ -101,7 +117,7 @@ impl TelegramBot {
         pairing_path: &Path,
         bus: &dyn MessageBus,
         activation: &ActivationStore,
-    ) -> Result<Vec<TelegramMessage>> {
+    ) -> Result<(Vec<TelegramMessage>, Vec<CallbackQuery>)> {
         let _lock = acquire_poll_lock(state_path)?;
         let offset = load_offset(state_path).unwrap_or(0);
         let updates = self.fetch_updates(offset + 1)?;
@@ -109,7 +125,30 @@ impl TelegramBot {
         if next_offset > offset {
             save_offset(state_path, next_offset)?;
         }
-        filter_messages(self, &self.allowed_chat_ids, pairing_path, &updates, bus, activation)
+
+        // Handle callback queries (inline button presses).
+        let mut callbacks = Vec::new();
+        for update in &updates {
+            if let Some(cq) = &update.callback_query {
+                if let (Some(data), Some(from)) = (&cq.data, &cq.from) {
+                    let sender_id = from.id;
+                    if self.allowed_chat_ids.contains(&sender_id) {
+                        callbacks.push(CallbackQuery {
+                            chat_id: sender_id,
+                            data: data.clone(),
+                        });
+                    }
+                    // Answer the callback to dismiss the loading spinner.
+                    if let Err(e) = self.answer_callback(&cq.id) {
+                        log::warn!("answer_callback failed: {e}");
+                    }
+                }
+            }
+        }
+
+        let messages =
+            filter_messages(self, &self.allowed_chat_ids, pairing_path, &updates, bus, activation)?;
+        Ok((messages, callbacks))
     }
 
     /// Return the first configured chat ID — the primary operator chat.
@@ -125,6 +164,45 @@ impl TelegramBot {
             .context("failed to send Telegram message")?
             .error_for_status()
             .context("Telegram sendMessage returned an error")?;
+        Ok(())
+    }
+
+    /// Send a message with inline keyboard buttons (for approval flows).
+    /// Each button is (label, callback_data).
+    pub fn send_message_with_buttons(
+        &self,
+        chat_id: i64,
+        text: &str,
+        buttons: &[(&str, &str)],
+    ) -> Result<()> {
+        let keyboard: Vec<serde_json::Value> = buttons
+            .iter()
+            .map(|(label, data)| serde_json::json!({ "text": label, "callback_data": data }))
+            .collect();
+        let body = serde_json::json!({
+            "chat_id": chat_id,
+            "text": text,
+            "reply_markup": { "inline_keyboard": [keyboard] }
+        });
+        self.client
+            .post(api_url(&self.token, "sendMessage"))
+            .json(&body)
+            .send()
+            .context("failed to send Telegram message with buttons")?
+            .error_for_status()
+            .context("Telegram sendMessage with buttons returned an error")?;
+        Ok(())
+    }
+
+    /// Answer a callback query to dismiss the Telegram loading spinner.
+    fn answer_callback(&self, callback_id: &str) -> Result<()> {
+        self.client
+            .post(api_url(&self.token, "answerCallbackQuery"))
+            .json(&serde_json::json!({ "callback_query_id": callback_id }))
+            .send()
+            .context("failed to answer callback query")?
+            .error_for_status()
+            .context("Telegram answerCallbackQuery returned an error")?;
         Ok(())
     }
 

@@ -89,8 +89,27 @@ fn process_messages(bot: &TelegramBot, paths: &crate::paths::PraxisPaths) -> Res
     let bus = FileBus::new(&paths.bus_file);
     let activation = ActivationStore::load(&paths.activation_file)?;
 
-    let messages =
+    let (messages, callbacks) =
         bot.poll_once(&paths.telegram_state_file, &paths.sender_pairing_file, &bus, &activation)?;
+
+    // Handle callback queries (inline button presses for approvals).
+    for cq in &callbacks {
+        let store = crate::storage::SqliteSessionStore::new(paths.database_file.clone());
+        match crate::r#loop::phases::handle_approval_callback(&store, &cq.data) {
+            Ok(true) => {
+                let reply = format!("✅ Action recorded for callback: {}", cq.data);
+                if let Err(e) = bot.send_message(cq.chat_id, &reply) {
+                    log::warn!("failed to send callback confirmation: {e}");
+                }
+            }
+            Ok(false) => {
+                log::debug!("unhandled callback data: {}", cq.data);
+            }
+            Err(e) => {
+                log::warn!("callback handling error: {e}");
+            }
+        }
+    }
 
     for message in &messages {
         // Emit typing indicator while processing the command.
