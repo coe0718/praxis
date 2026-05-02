@@ -37,6 +37,7 @@ mod vscode;
 mod watchdog;
 mod webhook;
 pub mod wizard;
+mod worktree;
 
 use std::path::PathBuf;
 
@@ -109,6 +110,7 @@ pub enum Commands {
     Rollback(RollbackArgs),
     Checkpoints,
     Migrate(MigrateArgs),
+    Worktree(WorktreeArgs),
 }
 
 #[derive(Debug, Args)]
@@ -162,6 +164,50 @@ pub struct MigrateArgs {
     /// Show what would be imported without making changes.
     #[arg(long)]
     pub dry_run: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct WorktreeArgs {
+    #[command(subcommand)]
+    pub command: WorktreeCommand,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum WorktreeCommand {
+    /// Create a new isolated worktree.
+    Create(WorktreeCreateArgs),
+    /// List all praxis worktrees.
+    List,
+    /// Remove a worktree.
+    Remove(WorktreeRemoveArgs),
+    /// Merge a worktree branch into target.
+    Merge(WorktreeMergeArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct WorktreeCreateArgs {
+    /// Name for the worktree (used as branch suffix).
+    pub name: String,
+}
+
+#[derive(Debug, Args)]
+pub struct WorktreeRemoveArgs {
+    /// Name of the worktree to remove.
+    pub name: String,
+
+    /// Also delete the associated branch.
+    #[arg(long)]
+    pub delete_branch: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct WorktreeMergeArgs {
+    /// Name of the worktree to merge.
+    pub name: String,
+
+    /// Target branch to merge into (default: main).
+    #[arg(long, default_value = "main")]
+    pub target_branch: String,
 }
 
 #[derive(Debug, Args)]
@@ -327,6 +373,7 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::Rollback(args) => checkpoint::handle_rollback(cli.data_dir, args.id),
         Commands::Checkpoints => checkpoint::handle_checkpoints_list(cli.data_dir),
         Commands::Migrate(args) => migrate::handle_migrate(cli.data_dir, args.source, args.dry_run),
+        Commands::Worktree(args) => worktree::handle_worktree(cli.data_dir, args),
     }
 }
 
