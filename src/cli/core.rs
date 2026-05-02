@@ -122,7 +122,11 @@ pub(crate) fn handle_run(data_dir_override: Option<PathBuf>, args: RunArgs) -> R
     store.validate_schema()?;
 
     let clock = SystemClock::from_env()?;
-    let lite = LiteMode::from_file(&paths.config_file).unwrap_or_default();
+    let mut lite = LiteMode::from_file(&paths.config_file).unwrap_or_default();
+    // If fast_mode flag file exists, override with fast_all settings.
+    if LiteMode::is_fast_active(&paths.data_dir) {
+        lite = LiteMode::fast_all();
+    }
     let runtime = PraxisRuntime {
         config: &config,
         paths: &paths,

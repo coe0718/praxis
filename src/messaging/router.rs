@@ -41,6 +41,8 @@ pub enum TelegramCommand {
     ApproveSender(String),
     /// Mid-session steering: redirect the running agent to a new task.
     Steer(String),
+    /// Toggle fast mode (skip speculative, learning, brief, etc.).
+    Fast,
     Help,
 }
 
@@ -92,6 +94,7 @@ pub fn parse_telegram_command(text: &str) -> TelegramCommand {
             "/activation" => TelegramCommand::Activation(String::new()),
             "/memories" => TelegramCommand::Memories,
             "/decisions" => TelegramCommand::Decisions,
+            "/fast" => TelegramCommand::Fast,
             _ => TelegramCommand::Help,
         }
     }
@@ -152,6 +155,7 @@ pub fn handle_telegram_command(
         TelegramCommand::Decisions => handle_decisions(data_dir),
         TelegramCommand::ApproveSender(code) => handle_approve_sender(data_dir, &code),
         TelegramCommand::Steer(task) => handle_steer(data_dir, &task),
+        TelegramCommand::Fast => handle_fast(data_dir),
         TelegramCommand::Help => Ok(help_text().to_string()),
     }
 }
@@ -372,6 +376,16 @@ fn handle_steer(data_dir: std::path::PathBuf, task: &str) -> Result<String> {
     Ok(format!("steer: session will be redirected to: {task}"))
 }
 
+fn handle_fast(data_dir: std::path::PathBuf) -> Result<String> {
+    let paths = PraxisPaths::for_data_dir(data_dir);
+    let now_fast = crate::lite::LiteMode::toggle_fast(&paths.data_dir)?;
+    if now_fast {
+        Ok("⚡ fast mode ON — speculative execution, learning, brief, and sub-agent reviewers disabled".to_string())
+    } else {
+        Ok("🔄 fast mode OFF — full capabilities restored".to_string())
+    }
+}
+
 fn help_text() -> &'static str {
     "supported commands:\n\
      /ask <prompt> — quick stateless question\n\
@@ -387,7 +401,7 @@ fn help_text() -> &'static str {
      /boundaries add <rule> — add a boundary\n\
      /activation [mention_only|thread_only|always_listening] — get or set activation mode\n\
      /memories — list recent memories with IDs\\\n\
-     /steer <task> — redirect running session to a new task\\\n\
+     /steer <task> — redirect running session to a new task\\\\\\n\\\n     /fast — toggle fast mode (skip expensive operations)\\\\\\n\\\n
      /reinforce <id> — boost memory importance\n\
      /forget <id> — delete a memory\n\
      /link <from_id> <type> <to_id> — add relational link (types: caused_by, related_to, contradicts, user_preference, follow_up)\n\

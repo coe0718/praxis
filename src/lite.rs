@@ -165,6 +165,42 @@ pub enum LiteCapability {
     Deterministic,
 }
 
+impl LiteMode {
+    /// Create a "fast" lite mode that disables all expensive capabilities.
+    /// Used by `/fast` command and `--fast` flag.
+    pub fn fast_all() -> Self {
+        Self {
+            enabled: true,
+            context_ceiling_pct: 50.0,
+            disable_speculative: true,
+            disable_subagent_reviewers: true,
+            disable_synthetic_examples: true,
+            disable_learning: true,
+            disable_brief: true,
+            disable_sse: true,
+            disable_deterministic: true,
+            anatomy_refresh_hours: 24,
+        }
+    }
+
+    /// Check if fast mode is active via a flag file.
+    pub fn is_fast_active(data_dir: &Path) -> bool {
+        data_dir.join("fast_mode").exists()
+    }
+
+    /// Toggle fast mode on/off via a flag file. Returns the new state.
+    pub fn toggle_fast(data_dir: &Path) -> anyhow::Result<bool> {
+        let flag = data_dir.join("fast_mode");
+        if flag.exists() {
+            fs::remove_file(&flag)?;
+            Ok(false)
+        } else {
+            fs::write(&flag, "fast")?;
+            Ok(true)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
