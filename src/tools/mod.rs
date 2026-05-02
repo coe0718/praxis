@@ -1,4 +1,5 @@
 mod clarify;
+mod code_exec;
 pub mod cooldown;
 pub mod cron;
 mod docs;

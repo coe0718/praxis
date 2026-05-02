@@ -57,6 +57,16 @@ pub fn execute_request(
         "image" => crate::tools::image::execute_image_tool(paths, request),
         "vision" => execute_vision_tool(paths, request),
         "voice" => execute_voice_tool(paths, request),
+        "code_exec" => {
+            let payload = parse_payload(request.payload_json.as_deref())?;
+            let params = serde_json::to_value(&payload.params).unwrap_or(serde_json::Value::Null);
+            match crate::tools::code_exec::execute_code_tool(&params) {
+                Ok(output) => Ok(ToolExecutionResult { summary: output }),
+                Err(e) => Ok(ToolExecutionResult {
+                    summary: format!("code_exec error: {e}"),
+                }),
+            }
+        }
         _ => match manifest.kind {
             ToolKind::Shell if manifest.path.as_deref().is_some_and(|p| !p.trim().is_empty()) => {
                 run_shell(paths, &vault, manifest, request)
