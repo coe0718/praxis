@@ -4,6 +4,7 @@ mod archive;
 mod argus;
 mod boundaries;
 mod brief;
+mod chat;
 pub(crate) mod canary;
 pub(crate) mod core;
 mod daemon;
@@ -99,6 +100,7 @@ pub enum Commands {
     Completions(CompletionsArgs),
     Sessions(SessionsArgs),
     Insights(InsightsArgs),
+    Chat(ChatArgs),
 }
 
 #[derive(Debug, Args)]
@@ -122,6 +124,13 @@ pub struct InsightsArgs {
     /// Number of days to look back (default 30).
     #[arg(long, default_value_t = 30)]
     pub days: u32,
+}
+
+#[derive(Debug, Args)]
+pub struct ChatArgs {
+    /// Override the model for this session.
+    #[arg(long)]
+    pub model: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -275,6 +284,10 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::Completions(args) => handle_completions(args),
         Commands::Sessions(args) => handle_sessions(cli.data_dir, args),
         Commands::Insights(args) => handle_insights(cli.data_dir, args),
+        Commands::Chat(args) => {
+            chat::run_interactive(cli.data_dir, args.model)?;
+            Ok("Session ended.".to_string())
+        }
     }
 }
 
