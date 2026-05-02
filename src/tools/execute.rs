@@ -67,6 +67,16 @@ pub fn execute_request(
                 }),
             }
         }
+        "browser" => {
+            let payload = parse_payload(request.payload_json.as_deref())?;
+            let params = serde_json::to_value(&payload.params).unwrap_or(serde_json::Value::Null);
+            match crate::tools::browser::execute_browser_tool(&params) {
+                Ok(output) => Ok(ToolExecutionResult { summary: output }),
+                Err(e) => Ok(ToolExecutionResult {
+                    summary: format!("browser error: {e}"),
+                }),
+            }
+        }
         _ => match manifest.kind {
             ToolKind::Shell if manifest.path.as_deref().is_some_and(|p| !p.trim().is_empty()) => {
                 run_shell(paths, &vault, manifest, request)

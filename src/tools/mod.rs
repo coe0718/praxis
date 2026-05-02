@@ -1,3 +1,4 @@
+mod browser;
 mod clarify;
 mod code_exec;
 pub mod cooldown;
