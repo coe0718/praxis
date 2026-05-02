@@ -6,6 +6,7 @@ mod argus;
 mod boundaries;
 mod brief;
 mod chat;
+mod checkpoint;
 pub(crate) mod canary;
 pub(crate) mod core;
 mod daemon;
@@ -103,6 +104,9 @@ pub enum Commands {
     Insights(InsightsArgs),
     Chat(ChatArgs),
     Acp,
+    Checkpoint(CheckpointArgs),
+    Rollback(RollbackArgs),
+    Checkpoints,
 }
 
 #[derive(Debug, Args)]
@@ -133,6 +137,19 @@ pub struct ChatArgs {
     /// Override the model for this session.
     #[arg(long)]
     pub model: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct CheckpointArgs {
+    /// Label for this checkpoint.
+    #[arg(long, default_value = "manual")]
+    pub label: String,
+}
+
+#[derive(Debug, Args)]
+pub struct RollbackArgs {
+    /// Checkpoint ID to roll back to.
+    pub id: u64,
 }
 
 #[derive(Debug, Args)]
@@ -293,6 +310,15 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::Acp => {
             acp::run_acp_server(cli.data_dir)?;
             Ok("ACP server stopped.".to_string())
+        }
+        Commands::Checkpoint(args) => {
+            checkpoint::handle_checkpoint(cli.data_dir, Some(args.label))
+        }
+        Commands::Rollback(args) => {
+            checkpoint::handle_rollback(cli.data_dir, args.id)
+        }
+        Commands::Checkpoints => {
+            checkpoint::handle_checkpoints_list(cli.data_dir)
         }
     }
 }
