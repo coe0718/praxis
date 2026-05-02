@@ -13,6 +13,7 @@ mod daemon;
 mod delegation;
 #[cfg(feature = "discord")]
 mod discord;
+mod dryrun;
 mod evolution;
 mod forensics;
 pub(crate) mod git;
@@ -111,6 +112,7 @@ pub enum Commands {
     Checkpoints,
     Migrate(MigrateArgs),
     Worktree(WorktreeArgs),
+    Plan(PlanArgs),
 }
 
 #[derive(Debug, Args)]
@@ -208,6 +210,53 @@ pub struct WorktreeMergeArgs {
     /// Target branch to merge into (default: main).
     #[arg(long, default_value = "main")]
     pub target_branch: String,
+}
+
+#[derive(Debug, Args)]
+pub struct PlanArgs {
+    #[command(subcommand)]
+    pub command: PlanCommand,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum PlanCommand {
+    /// Create a new execution plan.
+    Create(PlanCreateArgs),
+    /// List all plans.
+    List,
+    /// Show plan details.
+    Show(PlanShowArgs),
+    /// Dry-run validate a plan.
+    DryRun(PlanDryRunArgs),
+    /// Remove a plan.
+    Remove(PlanRemoveArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct PlanCreateArgs {
+    /// Plan ID.
+    pub id: String,
+    /// Human-readable label.
+    #[arg(long, default_value = "")]
+    pub label: String,
+    /// Steps in "tool:param1=val1,param2=val2" format.
+    #[arg(long)]
+    pub step: Vec<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct PlanShowArgs {
+    pub plan_id: String,
+}
+
+#[derive(Debug, Args)]
+pub struct PlanDryRunArgs {
+    pub plan_id: String,
+}
+
+#[derive(Debug, Args)]
+pub struct PlanRemoveArgs {
+    pub plan_id: String,
 }
 
 #[derive(Debug, Args)]
@@ -374,6 +423,7 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::Checkpoints => checkpoint::handle_checkpoints_list(cli.data_dir),
         Commands::Migrate(args) => migrate::handle_migrate(cli.data_dir, args.source, args.dry_run),
         Commands::Worktree(args) => worktree::handle_worktree(cli.data_dir, args),
+        Commands::Plan(args) => dryrun::handle_plan(cli.data_dir, args),
     }
 }
 
