@@ -406,3 +406,23 @@ The remaining items (browser, code execution, plugin system, full profiles, term
 | #22 | Webhook Subscriptions | ✅ DONE | `src/webhooks.rs` — `WebhookStore` with HMAC-SHA256 + anti-replay, CLI: `praxis webhook subscribe\|list\|unsubscribe` |
 
 **Remaining open: 20 gaps** (was 23, 3 closed)
+
+### 2026-05-02 — Wave 7 (Vision + Failover + Voice)
+
+| Gap | Feature | Status | Commit |
+|-----|---------|--------|--------|
+| #2 | Vision / Multi-Modal | ✅ DONE | `src/backend/mod.rs` — `InputContent` enum (Text/Blocks), `ContentBlock` (Text/ImageUrl). OpenAI, Claude, Ollama backends handle multi-modal content blocks. `src/tools/vision.rs` — vision tool with URL + local file via base64 data URLs. |
+| #1 | Voice / STT / TTS | ⚠️ STUB → PLACEHOLDER | `src/tools/voice.rs` — voice tool with `speech_to_text` and `text_to_speech` commands. Placeholder implementations pending whisper-rs (needs libclang) and edge-tts HTTP API. |
+| #25 | Provider Auto-Failover | ✅ DONE | `src/backend/health.rs` — `ProviderHealthTracker` with consecutive failure counting (3 = unhealthy), 60s persistence debounce. Integrated into `execute_routes` to skip unhealthy providers. |
+
+**Remaining open: 17 gaps** (was 20, 3 closed)
+
+### 2026-05-02 — Wave 8 (Chat + ACP + Checkpoints)
+
+| Gap | Feature | Status | Commit |
+|-----|---------|--------|--------|
+| #15 | Slash Commands / Interactive Session | ✅ DONE | `src/cli/chat.rs` — `praxis chat` REPL with 14 slash commands: /help, /new, /model, /verbose, /compact, /retry, /undo, /history, /skills, /tools, /status, /save, /export, /quit. Conversation history with undo support. |
+| #14 | ACP / IDE Integration | ✅ DONE | `src/cli/acp.rs` — `praxis acp` JSON-RPC 2.0 over stdio. Methods: initialize, tools/list, tools/call, chat, context/get, status. Compatible with Claude Code, Cursor, Windsurf. |
+| #16 | Checkpoints / Rollback | ✅ DONE | `src/cli/checkpoint.rs` — `praxis checkpoint [--label]`, `praxis rollback <id>`, `praxis checkpoints`. Copy-on-write with auto pre-rollback save. Keeps last 20. |
+
+**Remaining open: 14 gaps** (was 17, 3 closed)
