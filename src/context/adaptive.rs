@@ -86,7 +86,7 @@ impl AdaptiveState {
     }
 
     fn apply(&self, budget: &[ContextSourceConfig]) -> Vec<ContextSourceConfig> {
-        let base_total = budget.iter().map(|entry| entry.max_pct).sum::<f32>().max(f32::EPSILON);
+        let base_total = budget.iter().map(|entry| entry.max_pct).sum::<f32>().max(1.0);
         let mut adjusted = budget
             .iter()
             .cloned()
@@ -96,7 +96,7 @@ impl AdaptiveState {
             })
             .collect::<Vec<_>>();
         let adjusted_total =
-            adjusted.iter().map(|entry| entry.max_pct).sum::<f32>().max(f32::EPSILON);
+            adjusted.iter().map(|entry| entry.max_pct).sum::<f32>().max(1.0);
         let scale = base_total / adjusted_total;
         for entry in &mut adjusted {
             entry.max_pct *= scale;
