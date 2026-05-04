@@ -832,7 +832,16 @@ fn execute_cron_tool(
                 .get("task")
                 .ok_or_else(|| anyhow::anyhow!("cron create requires 'task'"))?
                 .to_string();
-            let job = create_job(name, schedule, task)?;
+            let workdir = payload.params.get("workdir").map(|s| s.to_string());
+            let context_from = payload
+                .params
+                .get("context_from")
+                .and_then(|v| {
+                    v.as_array()
+                        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+                });
+
+            let job = create_job(name, schedule, task, workdir, context_from)?;
             jobs.add(job.clone());
             format!("Created cron job '{}'.", job.id)
         }

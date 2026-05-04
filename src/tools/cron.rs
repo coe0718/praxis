@@ -330,12 +330,36 @@ mod tests {
 
     #[test]
     fn create_job_roundtrip() {
-        let job =
-            create_job("test job".to_string(), "every 1h".to_string(), "check email".to_string())
-                .unwrap();
+        let job = create_job(
+            "test job".to_string(),
+            "every 1h".to_string(),
+            "check email".to_string(),
+            None,
+            None,
+        )
+        .unwrap();
         assert!(job.id.starts_with("job-"));
         assert!(job.recurring);
         assert_eq!(job.fire_count, 0);
+        assert!(job.workdir.is_none());
+        assert!(job.context_from.is_none());
+    }
+
+    #[test]
+    fn create_job_with_workdir_and_context() {
+        let job = create_job(
+            "chained job".to_string(),
+            "daily".to_string(),
+            "summarize output".to_string(),
+            Some("/tmp/project".to_string()),
+            Some(vec!["job-upstream1".to_string(), "job-upstream2".to_string()]),
+        )
+        .unwrap();
+        assert_eq!(job.workdir.as_deref(), Some("/tmp/project"));
+        assert_eq!(
+            job.context_from.as_deref(),
+            Some(&vec!["job-upstream1".to_string(), "job-upstream2".to_string()][..])
+        );
     }
 
     #[test]
@@ -345,7 +369,8 @@ mod tests {
 
         let mut store = ScheduledJobs::default();
         let job =
-            create_job("daily standup".into(), "daily".into(), "review goals".into()).unwrap();
+            create_job("daily standup".into(), "daily".into(), "review goals".into(), None, None)
+                .unwrap();
         store.add(job);
         store.save(&path).unwrap();
 
