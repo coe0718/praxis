@@ -20,7 +20,7 @@ pub struct ModelArgs {
 }
 
 pub fn handle_model(data_dir_override: Option<PathBuf>, args: ModelArgs) -> Result<String> {
-    let data_dir = data_dir_override.unwrap_or_else(|| default_data_dir().expect("no data dir"))?;
+    let data_dir = data_dir_override.unwrap_or(default_data_dir()?);
 
     if args.clear {
         clear_model_override(&data_dir)?;

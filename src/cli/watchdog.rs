@@ -252,6 +252,31 @@ fn watchdog_update(paths: &PraxisPaths, args: WatchdogUpdateArgs) -> Result<Stri
         ));
     }
 
+    // Load config to check backup_before_update flag.
+    let config = if paths.config_file.exists() {
+        AppConfig::load(&paths.config_file).ok()
+    } else {
+        None
+    };
+
+    let mut data_backup_path: Option<PathBuf> = None;
+
+    // Optionally backup the entire data_dir before replacing the binary.
+    if config.as_ref().is_some_and(|c| c.runtime.backup_before_update) {
+        let timestamp = Utc::now().format("%Y%m%dT%H%M%SZ");
+        let archive_name = format!("praxis-data-{timestamp}.tar.gz");
+        let archive_path = paths.backups_dir.join(&archive_name);
+
+        fs::create_dir_all(&paths.backups_dir)
+            .context("failed to create backups directory for data backup")?;
+
+        backup_data_dir(&paths.data_dir, &archive_path)
+            .with_context(|| format!("failed to backup data_dir to {}", archive_path.display()))?;
+
+        log::info!("data_dir backed up to {}", archive_path.display());
+        data_backup_path = Some(archive_path);
+    }
+
     // Backup the current binary.
     let current_exe = std::env::current_exe().context("failed to locate current binary")?;
     fs::create_dir_all(&paths.backups_dir).context("failed to create backups directory")?;
@@ -274,11 +299,16 @@ fn watchdog_update(paths: &PraxisPaths, args: WatchdogUpdateArgs) -> Result<Stri
     fs::write(&paths.watchdog_update_file, raw)
         .with_context(|| format!("failed to write {}", paths.watchdog_update_file.display()))?;
 
-    Ok(format!(
+    let mut msg = format!(
         "watchdog: updated {CURRENT_VERSION} → {latest}\nbinary: {}\nbackup: {}",
         current_exe.display(),
         backup_path.display()
-    ))
+    );
+    if let Some(ref dp) = data_backup_path {
+        msg.push_str(&format!ndata_backup: {}", dp.display()));
+    }
+
+    Ok(msg)
 }
 
 fn watchdog_rollback(paths: &PraxisPaths) -> Result<String> {
