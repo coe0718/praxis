@@ -638,6 +638,7 @@ fn enforce_active_hand(paths: &PraxisPaths, tools: &impl ToolRegistry) -> Result
 pub(crate) fn notify_approval_request(approval_id: i64, tool_name: &str, summary: &str) {
     use crate::messaging::TelegramBot;
 
+    // ── Telegram ──────────────────────────────────────────────────────────
     let Ok(bot) = TelegramBot::from_env() else {
         return;
     };
@@ -656,6 +657,32 @@ pub(crate) fn notify_approval_request(approval_id: i64, tool_name: &str, summary
     let buttons = vec![("✅ Approve", approve_data.as_str()), ("❌ Deny", deny_data.as_str())];
     if let Err(e) = bot.send_message_with_buttons(chat_id, &text, &buttons) {
         log::warn!("failed to send approval notification with buttons: {e}");
+    }
+
+    // ── Discord ───────────────────────────────────────────────────────────
+    #[cfg(feature = "discord")]
+    {
+        use crate::messaging::DiscordClient;
+        if let Ok(discord) = DiscordClient::from_env() {
+            if let Ok(channel_ids) = std::env::var("PRAXIS_DISCORD_CHANNEL_IDS") {
+                // Send to the first configured Discord channel.
+                if let Some(channel_id) =
+                    channel_ids.split(',').next().map(|s| s.trim().to_string())
+                {
+                    let discord_buttons = vec![
+                        ("✅ Approve", approve_data.as_str()),
+                        ("❌ Deny", deny_data.as_str()),
+                    ];
+                    if let Err(e) =
+                        discord.send_message_with_buttons(&channel_id, &text, &discord_buttons)
+                    {
+                        log::warn!(
+                            "failed to send Discord approval notification with buttons: {e}"
+                        );
+                    }
+                }
+            }
+        }
     }
 }
 

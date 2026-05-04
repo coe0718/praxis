@@ -120,6 +120,10 @@ pub struct AgentConfig {
     /// is overridden to 3600 automatically.
     #[serde(default)]
     pub extended_prompt_cache: bool,
+    /// Ordered list of provider names used as fallback when the primary backend
+    /// fails.  Each entry is tried in order until one succeeds.
+    #[serde(default)]
+    pub fallback_providers: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -198,6 +202,7 @@ impl AppConfig {
                 disable_sub_agents: false,
                 prompt_cache_ttl_secs: default_prompt_cache_ttl_secs(),
                 extended_prompt_cache: false,
+                fallback_providers: Vec::new(),
             },
             context: ContextConfig::default(),
             features: FeatureFlags::default(),

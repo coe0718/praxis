@@ -5,6 +5,11 @@ mod reflect;
 mod runtime;
 mod session;
 
+// #16 — mid-run steering notes
+pub mod steer;
+// #24 — background task completion notifications
+pub mod notifications;
+
 #[cfg(test)]
 mod phases_tests;
 #[cfg(test)]

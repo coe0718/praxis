@@ -24,6 +24,8 @@ pub enum FallbackCommand {
     Remove(FallbackRemoveArgs),
     /// Set an explicit fallback order (replaces the current chain).
     Reorder(FallbackReorderArgs),
+    /// Simulate a failover through the chain and report which provider would be selected.
+    Test(FallbackTestArgs),
 }
 
 #[derive(Debug, Args)]
@@ -49,6 +51,18 @@ pub struct FallbackReorderArgs {
     pub providers: String,
 }
 
+#[derive(Debug, Args)]
+pub struct FallbackTestArgs {
+    /// Simulate failure at the primary provider (default behavior).
+    #[arg(long)]
+    pub primary_fails: bool,
+
+    /// Simulate failure at N providers in the chain before one succeeds.
+    /// 0 = primary succeeds, 1 = first fallback succeeds, etc.
+    #[arg(long, default_value_t = 0)]
+    pub fail_count: usize,
+}
+
 pub fn handle_fallback(data_dir_override: Option<PathBuf>, args: FallbackArgs) -> Result<String> {
     let data_dir = data_dir_override.unwrap_or(default_data_dir()?);
     let paths = PraxisPaths::for_data_dir(data_dir);
@@ -62,6 +76,7 @@ pub fn handle_fallback(data_dir_override: Option<PathBuf>, args: FallbackArgs) -
         FallbackCommand::Add(a) => handle_add(&paths, a),
         FallbackCommand::Remove(a) => handle_remove(&paths, a),
         FallbackCommand::Reorder(a) => handle_reorder(&paths, a),
+        FallbackCommand::Test(a) => handle_test(&paths, a),
     }
 }
 
@@ -94,49 +109,47 @@ fn handle_list(paths: &PraxisPaths) -> Result<String> {
 
 fn handle_add(paths: &PraxisPaths, args: FallbackAddArgs) -> Result<String> {
     let mut config = load_config(paths)?;
-    let chain = &mut config.agent.fallback_providers;
 
-    if chain.contains(&args.provider) {
+    if config.agent.fallback_providers.contains(&args.provider) {
         anyhow::bail!("'{}' is already in the fallback chain", args.provider);
     }
 
     match args.after {
         Some(ref anchor) => {
-            let pos = chain
-                .iter()
-                .position(|p| p == anchor)
-                .with_context(|| format!("provider '{}' not found in fallback chain", anchor))?;
-            chain.insert(pos + 1, args.provider.clone());
+            let pos =
+                config.agent.fallback_providers.iter().position(|p| p == anchor).with_context(
+                    || format!("provider '{}' not found in fallback chain", anchor),
+                )?;
+            config.agent.fallback_providers.insert(pos + 1, args.provider.clone());
         }
         None => {
-            chain.push(args.provider.clone());
+            config.agent.fallback_providers.push(args.provider.clone());
         }
     }
 
+    let position = config
+        .agent
+        .fallback_providers
+        .iter()
+        .position(|p| p == &args.provider)
+        .map(|i| i + 1)
+        .unwrap_or(config.agent.fallback_providers.len());
+
     save_config(paths, &config)?;
-    Ok(format!(
-        "added '{}' to fallback chain (position {})",
-        args.provider,
-        config
-            .agent
-            .fallback_providers
-            .iter()
-            .position(|p| p == &args.provider)
-            .map(|i| i + 1)
-            .unwrap_or(chain.len())
-    ))
+    Ok(format!("added '{}' to fallback chain (position {position})", args.provider,))
 }
 
 fn handle_remove(paths: &PraxisPaths, args: FallbackRemoveArgs) -> Result<String> {
     let mut config = load_config(paths)?;
-    let chain = &mut config.agent.fallback_providers;
 
-    let pos = chain
+    let pos = config
+        .agent
+        .fallback_providers
         .iter()
         .position(|p| p == &args.provider)
         .with_context(|| format!("'{}' not found in fallback chain", args.provider))?;
 
-    chain.remove(pos);
+    config.agent.fallback_providers.remove(pos);
     save_config(paths, &config)?;
     Ok(format!("removed '{}' from fallback chain", args.provider))
 }
@@ -170,5 +183,50 @@ fn handle_reorder(paths: &PraxisPaths, args: FallbackReorderArgs) -> Result<Stri
     for (i, provider) in config.agent.fallback_providers.iter().enumerate() {
         lines.push(format!("  {}. {provider}", i + 1));
     }
+    Ok(lines.join("\n"))
+}
+
+/// Simulate a failover through the provider chain.
+fn handle_test(paths: &PraxisPaths, args: FallbackTestArgs) -> Result<String> {
+    let config = load_config(paths)?;
+    let primary = &config.agent.backend;
+    let chain = &config.agent.fallback_providers;
+
+    let mut lines = vec!["failover simulation:".to_string()];
+    lines.push(String::new());
+
+    // Build the full try-order: primary first, then fallback chain.
+    let mut try_order: Vec<String> = vec![primary.clone()];
+    try_order.extend(chain.iter().cloned());
+
+    let fail_count = if args.primary_fails {
+        // Primary fails → fail_count at least 1.  Also fail through fallbacks.
+        (1 + args.fail_count).min(try_order.len())
+    } else {
+        args.fail_count.min(try_order.len())
+    };
+
+    for (i, provider) in try_order.iter().enumerate() {
+        if i < fail_count {
+            lines.push(format!("  {}. {provider} — ❌ FAILED (simulated)", i + 1));
+        } else if i == fail_count {
+            lines.push(format!("  {}. {provider} — ✅ SELECTED", i + 1));
+        } else {
+            lines.push(format!("  {}. {provider} — (not tried)", i + 1));
+        }
+    }
+
+    if fail_count >= try_order.len() {
+        lines.push(String::new());
+        lines.push("⚠️ All providers failed — no fallback available!".to_string());
+    } else {
+        let selected = &try_order[fail_count];
+        lines.push(String::new());
+        lines.push(format!("result: would use '{selected}'"));
+        if fail_count > 0 {
+            lines.push(format!("failures simulated: {fail_count} provider(s) before success"));
+        }
+    }
+
     Ok(lines.join("\n"))
 }

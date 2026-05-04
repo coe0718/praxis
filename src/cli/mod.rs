@@ -16,6 +16,7 @@ mod discord;
 mod dryrun;
 mod ephemeral;
 mod evolution;
+mod fallback;
 mod forensics;
 pub(crate) mod git;
 mod hands;
@@ -101,6 +102,7 @@ pub enum Commands {
     Daemon(daemon::DaemonArgs),
     Delegation(delegation::DelegationArgs),
     Evolve(evolution::EvolveArgs),
+    Fallback(fallback::FallbackArgs),
     Hands(hands::HandsArgs),
     Hooks(hooks::HooksArgs),
     Sandbox(sandbox::SandboxArgs),
@@ -480,6 +482,7 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::Daemon(args) => daemon::handle_daemon(cli.data_dir, args),
         Commands::Delegation(args) => delegation::handle_delegation(cli.data_dir, args),
         Commands::Evolve(args) => evolution::handle_evolve(cli.data_dir, args),
+        Commands::Fallback(args) => fallback::handle_fallback(cli.data_dir, args),
         Commands::Hands(args) => hands::handle_hands(cli.data_dir, args),
         Commands::Hooks(args) => hooks::handle_hooks(cli.data_dir, args),
         Commands::Sandbox(args) => sandbox::handle_sandbox(cli.data_dir, args),

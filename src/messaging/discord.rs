@@ -142,6 +142,61 @@ impl DiscordClient {
         response.json().context("failed to parse Discord message response")
     }
 
+    /// Send a message with action row buttons (for approval flows).
+    /// Each button is (label, custom_id).  Uses Discord's component system.
+    pub fn send_message_with_buttons(
+        &self,
+        channel_id: &str,
+        text: &str,
+        buttons: &[(&str, &str)],
+    ) -> Result<DiscordMessage> {
+        let token = self
+            .bot_token
+            .as_deref()
+            .context("PRAXIS_DISCORD_BOT_TOKEN is not set — cannot use the REST API")?;
+
+        let url = format!("https://discord.com/api/v10/channels/{channel_id}/messages");
+
+        // Build action row with buttons.
+        let components: Vec<serde_json::Value> = buttons
+            .iter()
+            .map(|(label, custom_id)| {
+                serde_json::json!({
+                    "type": 2, // Button component type
+                    "style": if label.contains("Approve") || label.contains("✅") { 3 } else { 4 }, // 3 = green, 4 = red
+                    "label": label,
+                    "custom_id": custom_id,
+                })
+            })
+            .collect();
+
+        let payload = serde_json::json!({
+            "content": text,
+            "components": [{
+                "type": 1, // Action Row
+                "components": components,
+            }],
+        });
+
+        let response = self
+            .client
+            .post(&url)
+            .header("Authorization", format!("Bot {token}"))
+            .header("Content-Type", "application/json")
+            .json(&payload)
+            .send()
+            .context("failed to POST to Discord messages endpoint with buttons")?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().unwrap_or_default();
+            let safe_body = body.chars().take(200).collect::<String>();
+            bail!("Discord send_message_with_buttons failed with {status}: {safe_body}");
+        }
+
+        response.json().context("failed to parse Discord message response")
+    }
+
     /// Poll one or more watched channels for new messages since the last run.
     ///
     /// Requires `PRAXIS_DISCORD_BOT_TOKEN` and `PRAXIS_DISCORD_CHANNEL_IDS`

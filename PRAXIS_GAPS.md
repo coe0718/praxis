@@ -50,7 +50,7 @@ Plugins as middleware — block tool execution, rewrite results, transform termi
 **Praxis:** ❌ Evolution proposals touch config/identity only. No skill maintenance.  
 **Effort:** Medium-High.
 
-### 7. One-Shot Mode `hermes -z` (v0.12) ❌
+### 7. One-Shot Mode `hermes -z` (v0.12) ✅
 Non-interactive fire-and-forget with FULL tool access. `--model`/`--provider` flags.  
 **Praxis:** ⚠️ `praxis ask` exists but is read-only. No tool-executing one-shot.  
 **Effort:** Low.
@@ -95,7 +95,7 @@ Per-platform toggles, composite toolsets, platform presets. v0.12: **Slack `chan
 **OpenClaw exclusive.** "Hey OpenClaw" wake word on macOS/iOS/Android.  
 **Effort:** Very High.
 
-### 16. `/steer` Mid-Run Nudges (v0.11) ❌
+### 16. `/steer` Mid-Run Nudges (v0.11) ✅
 Inject notes agent sees after next tool call.  
 **Effort:** Low-Med.
 
@@ -104,7 +104,7 @@ Wire shell scripts as lifecycle hooks, no Python required.
 **Praxis:** ✅ HookRunner fires observer/interceptor/approval hooks. `session.start`, `session.end`, `phase.*.start`, `phase.*.end`, `tool.before`, `tool.after`, `approval.before` events wired into runtime. CLI: `praxis hooks add|list|remove|test`.  
 **Effort:** Low. ✅ *Done. Wave 13.*
 
-### 18. Webhook Direct-Delivery (v0.11) ❌
+### 18. Webhook Direct-Delivery (v0.11) ✅
 Forward webhooks to chat bypassing agent/LLM.  
 **Effort:** Low.
 
@@ -117,7 +117,7 @@ v0.11: 3rd-party tabs/widgets. v0.12: **Dashboard Chat tab** (xterm.js + JSON-RP
 Pluggable provider transport layer. Clean architecture for adding providers.  
 **Effort:** Medium.
 
-### 21. `hermes fallback` Command (v0.12) ❌
+### 21. `hermes fallback` Command (v0.12) ✅
 CLI for managing fallback provider chains.  
 **Praxis:** ⚠️ Auto-failover (Wave 7) but no CLI for managing fallback chains.  
 **Effort:** Low-Med.
@@ -127,15 +127,15 @@ Auto-backup HERMES_HOME before `hermes update` (opt-out, default on). `praxis wa
 **Praxis:** ✅ `backup_before_update = true` by default. `watchdog update --apply` tars the entire data_dir before replacing the binary. `watchdog update --check` reports available updates without downloading. Configurable via `[runtime] backup_before_update = false` to opt out.  
 **Effort:** Low. ✅ *Done. Wave 13.*
 
-### 23. Fast Mode `/fast` (v0.9) ❌
+### 23. Fast Mode `/fast` (v0.9) ✅
 Priority processing. v0.12: whitelist broadened to all OpenAI + Anthropic models.  
 **Effort:** Low.
 
-### 24. `notify_on_complete` (v0.8) ❌
+### 24. `notify_on_complete` (v0.8) ✅
 Auto-notification when background tasks finish.  
 **Effort:** Low-Med.
 
-### 25. Approval Buttons (v0.8) ❌
+### 25. Approval Buttons (v0.8) ✅
 Platform-native buttons on Slack/Telegram.  
 **Effort:** Low-Med.
 
