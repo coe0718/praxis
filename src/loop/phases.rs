@@ -523,8 +523,14 @@ where
             .with_tool(&manifest.name, Some(request.id));
         hooks.fire_observer("tool.after", &tool_after_ctx, &manifest.name);
 
+        // (#5) Plugin output rewrite — transform tool output through plugin pipelines.
+        // Each plugin's `tool_rewrite` commands receive the output on stdin
+        // and return the rewritten output on stdout, chained in load order.
+        let final_summary =
+            self.plugins.borrow().rewrite_tool_output(&manifest.name, &execution.summary);
+
         state.last_outcome = Some("tool_executed".to_string());
-        state.action_summary = Some(execution.summary);
+        state.action_summary = Some(final_summary);
         state.updated_at = self.clock.now_utc();
         Ok(())
     }

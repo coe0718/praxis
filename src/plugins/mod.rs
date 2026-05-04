@@ -199,6 +199,61 @@ impl PluginRegistry {
         None
     }
 
+    /// Rewrite tool output through all plugin `tool_rewrite` commands.
+    ///
+    /// Each rewrite command receives the current output on stdin and must
+    /// write the rewritten output to stdout.  Commands are chained in plugin
+    /// load order.  If a command fails (non-zero exit), its rewrite is
+    /// skipped and a warning is logged.  (#5)
+    pub fn rewrite_tool_output(&self, tool_name: &str, output: &str) -> String {
+        let mut current = output.to_string();
+        for plugin in self.plugins.values() {
+            for rewrite_cmd in &plugin.hooks.tool_rewrite {
+                // The command is a shell command template; {tool} is replaced
+                // with the tool name.
+                let cmd = rewrite_cmd.replace("{tool}", tool_name);
+                match std::process::Command::new("sh")
+                    .arg("-c")
+                    .arg(&cmd)
+                    .stdin(std::process::Stdio::piped())
+                    .stdout(std::process::Stdio::piped())
+                    .spawn()
+                {
+                    Ok(mut child) => {
+                        use std::io::Write;
+                        if let Some(stdin) = child.stdin.as_mut() {
+                            let _ = stdin.write_all(current.as_bytes());
+                        }
+                        match child.wait_with_output() {
+                            Ok(out) if out.status.success() => {
+                                current = String::from_utf8_lossy(&out.stdout).to_string();
+                            }
+                            Ok(out) => {
+                                log::warn!(
+                                    "plugin {} rewrite command '{}' failed (exit {})",
+                                    plugin.name,
+                                    cmd,
+                                    out.status.code().unwrap_or(-1)
+                                );
+                            }
+                            Err(e) => {
+                                log::warn!(
+                                    "plugin {} rewrite command '{}' error: {e}",
+                                    plugin.name,
+                                    cmd
+                                );
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        log::warn!("plugin {} failed to spawn rewrite '{cmd}': {e}", plugin.name);
+                    }
+                }
+            }
+        }
+        current
+    }
+
     /// Collect all tool registrations from all plugins.
     pub fn tool_registrations(&self) -> Vec<(String, String)> {
         let mut out = Vec::new();

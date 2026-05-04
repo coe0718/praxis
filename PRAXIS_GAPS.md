@@ -40,10 +40,10 @@ The original GAP_ANALYSIS_HERMES.md (2026-04-25) identified 34 gaps. Praxis clos
 **Praxis:** ✅ Full implementation — `src/skills/mod.rs`: local `load_catalog`, `render_catalog`, `read_skill_content`, `SkillSynthesizer`. **Remote registry:** `fetch_remote_catalog` (JSON catalog from agentskills.io), `search_remote_catalog` (name/description/tag matching), `install_skill_from_url` (download + validate + save), `update_skills_from_registry` (batch update). **CLI:** `praxis skills list`, `praxis skills search <query>`, `praxis skills install <url|id>`, `praxis skills update`. `src/cli/skills_cmd.rs`.  
 **Effort:** High.
 
-### 5. Plugin Surface — Block/Rewrite/Intercept (v0.11) ⚠️ Deferred (depends on Plugin System #3)
+### 5. Plugin Surface — Block/Rewrite/Intercept (v0.11) ✅ Implemented (block + output rewrite wired into runtime)
 Plugins as middleware — block tool execution, rewrite results, transform terminal output.  
-**Praxis:** ❌ HookRunner aborts phases but can't rewrite tool output.  
-**Effort:** Very High. Depends on #3.
+**Praxis:** ✅ `should_block` checked before `SecurityPolicy` in `execute_tool_request`. `rewrite_tool_output` pipes tool output through plugin `tool_rewrite` shell commands (stdin→stdout chain, load order). Plugins can block by pattern (`tool_block`) and transform output (`tool_rewrite`). `{tool}` template variable in rewrite commands. `src/plugins/mod.rs`, wired in `src/loop/phases.rs`.  
+**Effort:** Very High.
 
 ### 6. Autonomous Curator (v0.12) ✅ Implemented + Wired
 **Hermes's headline v0.12 feature.** Background agent that grades, prunes, and consolidates the agent's OWN skill library on a 7-day cycle. Per-run reports. `hermes curator status` ranks skills by usage. Rubric-based grading. Scoped toolsets (memory + skills only).  
