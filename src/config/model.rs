@@ -59,6 +59,22 @@ pub struct SecurityConfig {
     /// the configured `window_secs`, re-approval is skipped automatically.
     #[serde(default)]
     pub tool_cooldowns: Vec<crate::tools::cooldown::CooldownPolicy>,
+    /// When `true`, tool output is scanned for common secret patterns (API
+    /// keys, tokens, passwords, private keys) and matches are replaced with
+    /// `[REDACTED]`.  Opt-in (default `false`) to avoid corrupting patch
+    /// diffs or other structured output.
+    #[serde(default)]
+    pub redact_secrets: bool,
+    /// When `true`, the bot only responds to Telegram messages that contain
+    /// an @mention entity directed at it.  Private (1:1) chats are exempt.
+    /// Opt-in via `[security] require_mention = true` in `praxis.toml`.
+    #[serde(default)]
+    pub require_mention: bool,
+    /// Whitelist of Telegram user IDs (as strings) allowed to interact with
+    /// the bot.  When non-empty, messages from users not in the list are
+    /// silently skipped.  Opt-in via `[security] allowed_users = [...]`.
+    #[serde(default)]
+    pub allowed_users: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -84,6 +100,13 @@ pub struct AgentConfig {
     /// When true, the agent may not spawn sub-agents.  Set by the `lite` profile.
     #[serde(default)]
     pub disable_sub_agents: bool,
+    /// Time-to-live in seconds for cached prompt content (default 5 min).
+    #[serde(default = "default_prompt_cache_ttl_secs")]
+    pub prompt_cache_ttl_secs: u64,
+    /// Opt-in extended prompt cache (~1 h).  When `true`, `prompt_cache_ttl_secs`
+    /// is overridden to 3600 automatically.
+    #[serde(default)]
+    pub extended_prompt_cache: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -145,6 +168,9 @@ impl AppConfig {
             security: SecurityConfig {
                 level: 2,
                 tool_cooldowns: Vec::new(),
+                redact_secrets: false,
+                require_mention: false,
+                allowed_users: Vec::new(),
             },
             agent: AgentConfig {
                 backend: "stub".to_string(),
@@ -156,6 +182,8 @@ impl AppConfig {
                 prompt_caching: false,
                 max_session_tool_calls: None,
                 disable_sub_agents: false,
+                prompt_cache_ttl_secs: default_prompt_cache_ttl_secs(),
+                extended_prompt_cache: false,
             },
             context: ContextConfig::default(),
             features: FeatureFlags::default(),
@@ -223,6 +251,10 @@ fn default_profile() -> String {
 
 fn default_snapshot_retention_days() -> usize {
     7
+}
+
+fn default_prompt_cache_ttl_secs() -> u64 {
+    300
 }
 
 /// Runtime feature flags for toggling capabilities without code changes.

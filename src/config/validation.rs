@@ -50,6 +50,14 @@ impl AppConfig {
             bail!("database.path must not be empty");
         }
 
+        if self.agent.prompt_cache_ttl_secs == 0 {
+            bail!("agent.prompt_cache_ttl_secs must be greater than 0");
+        }
+
+        if self.agent.extended_prompt_cache && !self.agent.prompt_caching {
+            bail!("agent.extended_prompt_cache requires agent.prompt_caching to be true");
+        }
+
         if self.runtime.state_file.as_os_str().is_empty() {
             bail!("runtime.state_file must not be empty");
         }
