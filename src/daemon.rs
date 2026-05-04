@@ -546,6 +546,10 @@ fn record_operator_activity(paths: &PraxisPaths, now: DateTime<Utc>) {
 
 /// Check scheduled jobs for due triggers.  Returns a task description if a
 /// job is ready to fire, and persists the updated job store.
+///
+/// When a due job has `workdir` set, the returned task is prefixed with a
+/// `cd <workdir>` instruction.  When `context_from` is set, the upstream
+/// jobs' most recent output is injected as context before the task.
 fn check_scheduled_jobs(paths: &PraxisPaths, now: DateTime<Utc>) -> Option<String> {
     use crate::tools::cron::ScheduledJobs;
 
@@ -569,12 +573,54 @@ fn check_scheduled_jobs(paths: &PraxisPaths, now: DateTime<Utc>) -> Option<Strin
         log::warn!("daemon: failed to save scheduled jobs: {e}");
     }
 
-    // Collect all due task descriptions.
-    let tasks: Vec<String> = due.iter().map(|j| j.task.clone()).collect();
-    let names: Vec<&str> = due.iter().map(|j| j.name.as_str()).collect();
+    // Ensure the cron outputs directory exists.
+    let _ = std::fs::create_dir_all(&paths.cron_outputs_dir);
+
+    // Collect all due task descriptions, enriched with workdir and context_from.
+    let mut tasks = Vec::new();
+    let mut names = Vec::new();
+
+    for job in &due {
+        names.push(job.name.clone());
+
+        let mut parts = Vec::new();
+
+        // Inject workdir context.
+        if let Some(ref wd) = job.workdir {
+            parts.push(format!("[workdir: {wd}]"));
+        }
+
+        // Inject context from upstream jobs.
+        if let Some(ref upstream_ids) = job.context_from {
+            if !upstream_ids.is_empty() {
+                let outputs =
+                    ScheduledJobs::read_upstream_outputs(&paths.cron_outputs_dir, upstream_ids);
+                if !outputs.is_empty() {
+                    parts.push("[context from previous jobs]".to_string());
+                    for (upstream_id, output) in &outputs {
+                        // Truncate very long outputs to avoid overwhelming the session.
+                        let trimmed = if output.len() > 4000 {
+                            format!(
+                                "{}...\n[truncated — full output is {} bytes]",
+                                &output[..4000],
+                                output.len()
+                            )
+                        } else {
+                            output.clone()
+                        };
+                        parts.push(format!("--- output of {upstream_id} ---\n{trimmed}"));
+                    }
+                }
+            }
+        }
+
+        parts.push(job.task.clone());
+        tasks.push(parts.join("\n"));
+    }
+
     log::info!("daemon: scheduled jobs due: [{}]", names.join(", "));
 
-    Some(tasks.join("; "))
+    Some(tasks.join("\n\n"))
 }
 
 // ── Signal handling ───────────────────────────────────────────────────────────

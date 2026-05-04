@@ -122,6 +122,8 @@ pub struct PraxisPaths {
     pub master_key_file: PathBuf,
     /// Agent-callable scheduled jobs (`scheduled_jobs.json`).
     pub scheduled_jobs_file: PathBuf,
+    /// Cron job output files directory (`cron_outputs/`).
+    pub cron_outputs_dir: PathBuf,
     /// Dynamic webhook subscriptions (`webhooks.json`).
     pub webhooks_file: PathBuf,
 }
@@ -251,6 +253,7 @@ impl PraxisPaths {
             watchdog_update_file: data_dir.join("watchdog_update.json"),
             master_key_file: data_dir.join("master.key"),
             scheduled_jobs_file: data_dir.join("scheduled_jobs.json"),
+            cron_outputs_dir: data_dir.join("cron_outputs"),
             webhooks_file: data_dir.join("webhooks.json"),
             benchmarks_dir,
             data_dir,

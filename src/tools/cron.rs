@@ -12,7 +12,10 @@
 //! - `"in Ns"` / `"in Nm"` / `"in Nh"` — one-shot, fires once then auto-removes
 //! - `"hourly"` / `"daily"` / `"weekly"` — fixed presets
 
-use std::{fs, path::Path};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use anyhow::{Context, Result, bail};
 use chrono::{DateTime, Timelike, Utc};
@@ -47,6 +50,15 @@ pub struct ScheduledJob {
     pub recurring: bool,
     /// How many times this job has fired.
     pub fire_count: u64,
+    /// Absolute path to run the job from.  When set, the daemon changes to this
+    /// directory before executing the triggered session.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workdir: Option<String>,
+    /// List of other job IDs whose most recent output is injected as context
+    /// before this job's task is executed.  Enables chaining: job B can depend
+    /// on the output of job A.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_from: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -131,6 +143,26 @@ impl ScheduledJobs {
     /// Find a job by ID.
     pub fn get(&self, id: &str) -> Option<&ScheduledJob> {
         self.jobs.iter().find(|j| j.id == id)
+    }
+
+    /// Return the filesystem path where a job's last output is stored.
+    pub fn output_path(outputs_dir: &Path, job_id: &str) -> PathBuf {
+        outputs_dir.join(format!("{job_id}.txt"))
+    }
+
+    /// Read the most recent output from a set of upstream job IDs.
+    pub fn read_upstream_outputs(
+        outputs_dir: &Path,
+        upstream_ids: &[String],
+    ) -> Vec<(String, String)> {
+        let mut results = Vec::new();
+        for id in upstream_ids {
+            let path = Self::output_path(outputs_dir, id);
+            if let Ok(text) = std::fs::read_to_string(&path) {
+                results.push((id.clone(), text));
+            }
+        }
+        results
     }
 }
 
@@ -218,7 +250,13 @@ fn compute_next_fire(kind: &ScheduleKind, now: DateTime<Utc>) -> DateTime<Utc> {
 }
 
 /// Create a new scheduled job with auto-generated ID and computed next fire time.
-pub fn create_job(name: String, schedule: String, task: String) -> Result<ScheduledJob> {
+pub fn create_job(
+    name: String,
+    schedule: String,
+    task: String,
+    workdir: Option<String>,
+    context_from: Option<Vec<String>>,
+) -> Result<ScheduledJob> {
     let (kind, recurring) = parse_schedule(&schedule)?;
     let now = Utc::now();
     let next_fire_at = compute_next_fire(&kind, now);
@@ -235,6 +273,8 @@ pub fn create_job(name: String, schedule: String, task: String) -> Result<Schedu
         next_fire_at,
         recurring,
         fire_count: 0,
+        workdir,
+        context_from,
     })
 }
 

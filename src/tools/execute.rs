@@ -836,10 +836,13 @@ fn execute_cron_tool(
             let context_from = payload
                 .params
                 .get("context_from")
-                .and_then(|v| {
-                    v.as_array()
-                        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
-                });
+                .map(|s| {
+                    s.split(',')
+                        .map(|id| id.trim().to_string())
+                        .filter(|id| !id.is_empty())
+                        .collect::<Vec<_>>()
+                })
+                .filter(|v| !v.is_empty());
 
             let job = create_job(name, schedule, task, workdir, context_from)?;
             jobs.add(job.clone());
@@ -851,7 +854,16 @@ fn execute_cron_tool(
             } else {
                 jobs.jobs
                     .iter()
-                    .map(|j| format!("- [{}] {} ({})", j.id, j.name, j.schedule))
+                    .map(|j| {
+                        let mut line = format!("- [{}] {} ({})", j.id, j.name, j.schedule);
+                        if let Some(ref wd) = j.workdir {
+                            line.push_str(&format!(" workdir={wd}"));
+                        }
+                        if let Some(ref ctx) = j.context_from {
+                            line.push_str(&format!(" context_from=[{}]", ctx.join(",")));
+                        }
+                        line
+                    })
                     .collect::<Vec<_>>()
                     .join("\n")
             }
