@@ -19,5 +19,5 @@ pub use router::{
 };
 #[cfg(feature = "slack")]
 pub use slack::{SlackClient, SlackPollMessage, parse_allowed_user_ids as slack_allowed_user_ids};
-pub use telegram::{TelegramBot, TelegramMessage, TelegramUpdate};
+pub use telegram::{MessageGating, TelegramBot, TelegramMessage, TelegramUpdate};
 pub use typing::{NoopTypingIndicator, TypingIndicator};

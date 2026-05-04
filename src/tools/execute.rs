@@ -39,12 +39,13 @@ pub fn execute_request(
     paths: &PraxisPaths,
     manifest: &ToolManifest,
     request: &StoredApprovalRequest,
+    redact_secrets: bool,
 ) -> Result<ToolExecutionResult> {
     let vault = Vault::load(&paths.vault_file).unwrap_or_default();
     let tool_name = manifest.name.clone();
     let start = std::time::Instant::now();
 
-    let result = match manifest.name.as_str() {
+    let mut result = match manifest.name.as_str() {
         "internal-maintenance" => Ok(ToolExecutionResult {
             summary: "Internal maintenance completed without external side effects.".to_string(),
         }),
@@ -101,6 +102,13 @@ pub fn execute_request(
     let elapsed = start.elapsed();
     if elapsed.as_secs() >= 5 {
         notify_completion(paths, &tool_name, &result, elapsed);
+    }
+
+    // Opt-in secret redaction: replace common secret patterns in tool output.
+    if redact_secrets {
+        if let Ok(ref mut r) = result {
+            r.summary = super::redact::redact_output(&r.summary);
+        }
     }
 
     result

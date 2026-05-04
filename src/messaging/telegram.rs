@@ -9,6 +9,27 @@ use crate::{
     messaging::{ActivationStore, TypingIndicator, pairing::PairingStore},
 };
 
+/// Gating configuration extracted from `SecurityConfig` for use during
+/// Telegram message filtering.  Keeps the messaging layer decoupled from
+/// the full config module.
+#[derive(Debug, Clone)]
+pub struct MessageGating {
+    /// When `true`, skip group messages that don't @mention the bot.
+    pub require_mention: bool,
+    /// When non-empty, only messages from these user IDs (as strings) are
+    /// accepted.  Empty means all users are allowed.
+    pub allowed_users: Vec<String>,
+}
+
+impl Default for MessageGating {
+    fn default() -> Self {
+        Self {
+            require_mention: false,
+            allowed_users: Vec::new(),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct TelegramBot {
     client: Client,
@@ -117,6 +138,7 @@ impl TelegramBot {
         pairing_path: &Path,
         bus: &dyn MessageBus,
         activation: &ActivationStore,
+        gating: &MessageGating,
     ) -> Result<(Vec<TelegramMessage>, Vec<CallbackQuery>)> {
         let _lock = acquire_poll_lock(state_path)?;
         let offset = load_offset(state_path).unwrap_or(0);
@@ -146,8 +168,15 @@ impl TelegramBot {
             }
         }
 
-        let messages =
-            filter_messages(self, &self.allowed_chat_ids, pairing_path, &updates, bus, activation)?;
+        let messages = filter_messages(
+            self,
+            &self.allowed_chat_ids,
+            pairing_path,
+            &updates,
+            bus,
+            activation,
+            gating,
+        )?;
         Ok((messages, callbacks))
     }
 
@@ -351,6 +380,7 @@ fn filter_messages(
     updates: &[TelegramUpdate],
     bus: &dyn MessageBus,
     activation: &ActivationStore,
+    gating: &MessageGating,
 ) -> Result<Vec<TelegramMessage>> {
     let mut accepted = Vec::new();
     let mut pairing = PairingStore::load(pairing_path)?;
@@ -403,6 +433,22 @@ fn filter_messages(
         // Private chats always pass through; groups obey the activation mode.
         if !is_private && !activation.should_respond(&conversation_id, is_mention, is_reply) {
             continue;
+        }
+
+        // --- Security gating (opt-in via [security] in praxis.toml) ---
+
+        // require_mention: skip group messages that don't @mention the bot.
+        // Private chats are exempt — the user clearly intends to talk to the bot.
+        if gating.require_mention && !is_private && !is_mention {
+            continue;
+        }
+
+        // allowed_users: when non-empty, only accept messages from whitelisted users.
+        if !gating.allowed_users.is_empty() {
+            let sender_str = sender_id.to_string();
+            if !gating.allowed_users.contains(&sender_str) {
+                continue;
+            }
         }
 
         let event =

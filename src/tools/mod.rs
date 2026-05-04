@@ -9,6 +9,7 @@ mod guard;
 mod image;
 mod manifest;
 mod policy;
+mod redact;
 mod registry;
 mod request;
 mod todo;

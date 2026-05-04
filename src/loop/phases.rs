@@ -434,7 +434,8 @@ where
             }
         }
 
-        let execution = execute_request(self.paths, &manifest, &request)?;
+        let execution =
+            execute_request(self.paths, &manifest, &request, self.config.security.redact_secrets)?;
         self.store.mark_approval_consumed(request.id)?;
         sync_capabilities(self.tools, self.store, self.paths)?;
         self.emit("agent:tool_call", &format!("{} {}", manifest.name, request.summary))?;

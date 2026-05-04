@@ -303,7 +303,7 @@ fn handle_tool_call(
         updated_at: chrono::Utc::now().to_rfc3339(),
     };
 
-    match execute_request(paths, manifest, &synthetic_request) {
+    match execute_request(paths, manifest, &synthetic_request, false) {
         Ok(ToolExecutionResult { summary }) => {
             let result = CallToolResult::text(summary);
             serde_json::to_value(result).map_err(|e| JsonRpcError::internal_error(e.to_string()))

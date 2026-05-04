@@ -200,8 +200,13 @@ fn retries_skip_files_that_already_contain_the_append_block() {
     fs::create_dir_all(&paths.data_dir).unwrap();
     fs::write(&paths.journal_file, "Approved operator note\n").unwrap();
 
-    execute_request(&paths, &write_manifest(), &write_request(vec!["JOURNAL.md", "PROPOSALS.md"]))
-        .unwrap();
+    execute_request(
+        &paths,
+        &write_manifest(),
+        &write_request(vec!["JOURNAL.md", "PROPOSALS.md"]),
+        false,
+    )
+    .unwrap();
 
     let journal = fs::read_to_string(&paths.journal_file).unwrap();
     let proposals = fs::read_to_string(&paths.proposals_file).unwrap();
@@ -225,6 +230,7 @@ fn rejects_symlink_targets_before_any_append_happens() {
         &paths,
         &write_manifest(),
         &write_request(vec!["JOURNAL.md", "PROPOSALS.md"]),
+        false,
     )
     .unwrap_err()
     .to_string();

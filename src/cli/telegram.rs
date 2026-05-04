@@ -5,7 +5,10 @@ use clap::{Args, Subcommand};
 
 use crate::{
     bus::FileBus,
-    messaging::{ActivationStore, TelegramBot, TypingIndicator, handle_telegram_command},
+    config::SecurityConfig,
+    messaging::{
+        ActivationStore, MessageGating, TelegramBot, TypingIndicator, handle_telegram_command,
+    },
 };
 
 use super::core::load_initialized_config;
@@ -60,21 +63,23 @@ pub(crate) fn handle_telegram(
 }
 
 fn run_poll_cycle(data_dir_override: Option<PathBuf>) -> Result<String> {
-    let (_, paths) = load_initialized_config(data_dir_override)?;
+    let (config, paths) = load_initialized_config(data_dir_override)?;
     let bot = TelegramBot::from_env()?;
-    let processed = process_messages(&bot, &paths)?;
+    let gating = gating_from_config(&config.security);
+    let processed = process_messages(&bot, &paths, &gating)?;
     Ok(format!("telegram: processed {processed}"))
 }
 
 fn run_poll_loop(data_dir_override: Option<PathBuf>, args: TelegramRunArgs) -> Result<String> {
-    let (_, paths) = load_initialized_config(data_dir_override)?;
+    let (config, paths) = load_initialized_config(data_dir_override)?;
     let bot = TelegramBot::from_env()?;
+    let gating = gating_from_config(&config.security);
     let delay = Duration::from_millis(args.sleep_ms.max(250));
     let mut cycles = 0_u32;
     let mut processed_total = 0_usize;
 
     loop {
-        processed_total += process_messages(&bot, &paths)?;
+        processed_total += process_messages(&bot, &paths, &gating)?;
         cycles += 1;
         if args.cycles > 0 && cycles >= args.cycles {
             break;
@@ -85,12 +90,21 @@ fn run_poll_loop(data_dir_override: Option<PathBuf>, args: TelegramRunArgs) -> R
     Ok(format!("telegram: processed {processed_total} messages across {cycles} cycles"))
 }
 
-fn process_messages(bot: &TelegramBot, paths: &crate::paths::PraxisPaths) -> Result<usize> {
+fn process_messages(
+    bot: &TelegramBot,
+    paths: &crate::paths::PraxisPaths,
+    gating: &MessageGating,
+) -> Result<usize> {
     let bus = FileBus::new(&paths.bus_file);
     let activation = ActivationStore::load(&paths.activation_file)?;
 
-    let (messages, callbacks) =
-        bot.poll_once(&paths.telegram_state_file, &paths.sender_pairing_file, &bus, &activation)?;
+    let (messages, callbacks) = bot.poll_once(
+        &paths.telegram_state_file,
+        &paths.sender_pairing_file,
+        &bus,
+        &activation,
+        gating,
+    )?;
 
     // Handle callback queries (inline button presses for approvals).
     for cq in &callbacks {
@@ -132,4 +146,12 @@ fn process_messages(bot: &TelegramBot, paths: &crate::paths::PraxisPaths) -> Res
     }
 
     Ok(messages.len())
+}
+
+/// Extract message gating settings from the security config.
+fn gating_from_config(security: &SecurityConfig) -> MessageGating {
+    MessageGating {
+        require_mention: security.require_mention,
+        allowed_users: security.allowed_users.clone(),
+    }
 }
