@@ -32,6 +32,7 @@ pub mod oauth;
 pub mod profile;
 mod sandbox;
 mod serve;
+pub(crate) mod skills_cmd;
 #[cfg(feature = "slack")]
 mod slack;
 mod telegram;
@@ -85,6 +86,7 @@ pub enum Commands {
     Telegram(telegram::TelegramArgs),
     Serve(serve::ServeArgs),
     Tools(tools::ToolsArgs),
+    Skills(skills_cmd::SkillsArgs),
     Wake(WakeArgs),
     Bench(BenchArgs),
     Compact(CompactArgs),
@@ -471,6 +473,7 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::Telegram(args) => telegram::handle_telegram(cli.data_dir, args),
         Commands::Serve(args) => serve::handle_serve(cli.data_dir, args),
         Commands::Tools(args) => tools::handle_tools(cli.data_dir, args),
+        Commands::Skills(args) => skills_cmd::handle_skills(cli.data_dir, args),
         Commands::Wake(args) => handle_wake(cli.data_dir, args),
         Commands::Bench(args) => handle_bench(cli.data_dir, args),
         Commands::Compact(args) => handle_compact(cli.data_dir, args),

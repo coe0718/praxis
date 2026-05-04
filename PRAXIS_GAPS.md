@@ -34,10 +34,10 @@ The original GAP_ANALYSIS_HERMES.md (2026-04-25) identified 34 gaps. Praxis clos
 **Praxis:** ✅ TOML-based plugin manifests with `libloading` for `.so` dynamic libraries. `PluginRegistry` with `load_all`, `get`, `list`, `should_block`. 5 lifecycle hooks. **Runtime wiring:** plugin `should_block` checked in `execute_tool_request` before `SecurityPolicy`. Plugin registry loaded at session start in `PraxisRuntime`. `src/plugins/mod.rs`.  
 **Effort:** Very High.
 
-### 4. Skills Hub & Registry ⚠️ Partial (local catalog + synthesis — remote fetch deferred)
+### 4. Skills Hub & Registry ✅ Implemented (local catalog + remote fetch + URL install + CLI)
 **Hermes:** agentskills.io. 104+ bundled skills. v0.12: ComfyUI v5 built-in, TouchDesigner-MCP bundled, Humanizer, claude-design, airtable, pretext, spike, sketch, llm-wiki. Direct URL install. `/reload-skills`.  
 **OpenClaw:** ClawHub — 100+ bundles.  
-**Praxis:** ✅ Local `load_catalog`, `render_catalog`, `read_skill_content`, `SkillSynthesizer` in `src/skills/mod.rs`. Remote fetch (agentskills.io) deferred.  
+**Praxis:** ✅ Full implementation — `src/skills/mod.rs`: local `load_catalog`, `render_catalog`, `read_skill_content`, `SkillSynthesizer`. **Remote registry:** `fetch_remote_catalog` (JSON catalog from agentskills.io), `search_remote_catalog` (name/description/tag matching), `install_skill_from_url` (download + validate + save), `update_skills_from_registry` (batch update). **CLI:** `praxis skills list`, `praxis skills search <query>`, `praxis skills install <url|id>`, `praxis skills update`. `src/cli/skills_cmd.rs`.  
 **Effort:** High.
 
 ### 5. Plugin Surface — Block/Rewrite/Intercept (v0.11) ⚠️ Deferred (depends on Plugin System #3)
