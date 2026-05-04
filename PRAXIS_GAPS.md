@@ -159,7 +159,7 @@ Switch models mid-session without restart.
 
 ## 🟡 NICE-TO-HAVE (36)
 
-### 30. Self-Improvement Loop Upgrades (v0.12)
+### 30. Self-Improvement Loop Upgrades (v0.12) ✅
 Rubric-based grading, active-update bias, runtime inheritance, scoped toolsets, clean context.  
 **Effort:** Medium.
 
@@ -217,11 +217,11 @@ Parity across Discord/Telegram/Slack gatekeeping.
 OpenAI provider for image generation.  
 **Effort:** Low-Med.
 
-### 45. Podman Support (v0.11)
+### 45. Podman Support (v0.11) ✅
 Rootless container entrypoint alongside Docker.  
 **Effort:** Low-Med.
 
-### 46. Nix Support (v0.12)
+### 46. Nix Support (v0.12) ✅
 Nix/NixOS package + plugin install.  
 **Effort:** Low.
 

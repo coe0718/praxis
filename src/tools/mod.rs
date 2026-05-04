@@ -2,6 +2,7 @@ pub mod audio;
 mod browser;
 mod clarify;
 mod code_exec;
+mod container;
 pub mod cooldown;
 pub mod cron;
 mod docs;
