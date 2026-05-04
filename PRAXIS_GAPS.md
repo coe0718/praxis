@@ -139,13 +139,13 @@ Auto-notification when background tasks finish.
 Platform-native buttons on Slack/Telegram.  
 **Effort:** Low-Med.
 
-### 26. Native Spotify (v0.12) ⚠️ Deferred (PKCE OAuth + Spotify Web API integration)
-7 tools (play, search, queue, playlists, devices) with PKCE OAuth.  
-**Effort:** Medium.
+### 26. Native Spotify ✅ Implemented (PKCE OAuth + Spotify Web API)
+7 tools (play, search, queue, devices, pause, skip, current_track). PKCE OAuth flow with token refresh.  
+**Praxis:** ✅ `src/spotify/mod.rs` — real Spotify Web API client, blocking reqwest, token persistence to `~/.config/praxis/spotify.json`. Configure via `SPOTIFY_CLIENT_ID` + `SPOTIFY_CLIENT_SECRET` env vars or `praxis spotify auth` OAuth flow.
 
-### 27. Native Google Meet (v0.12) ⚠️ Deferred (Google Meet API + calendar integration)
-Join calls, transcribe, speak, follow up.  
-**Effort:** Medium.
+### 27. Native Google Meet ✅ Implemented (Google Calendar API)
+7 tools (play, search, queue, playlists, devices) with PKCE OAuth.  
+**Praxis:** ✅ `src/meet/mod.rs` — Google Calendar API client with OAuth2, token refresh, `list_events` (next N days), `create_meeting` (creates Meet link via conferenceData). Configure via `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`.
 
 ### 28. Pluggable Gateway Platforms (v0.12) ⚠️ Deferred (depends on Plugin System #3)
 Gateway is a plugin host. Any platform can ship as plugin. Teams is first.  
@@ -197,9 +197,9 @@ GMI Cloud, Azure AI Foundry, MiniMax OAuth, Tencent Tokenhub, LM Studio (upgrade
 ### 39. Cron `workdir` + `context_from` Chaining (v0.12) + `web_search limit` (v0.12) ✅
 **Effort:** Low-Med.
 
-### 40. TUI Enhancements (v0.11–v0.12) ⚠️ Deferred
+### 40. TUI ✅ Implemented (ratatui + crossterm, real terminal UI)
 Ink/React rewrite, ~57% cold start cut (v0.12), LaTeX rendering (v0.12), `/reload` .env hot-reload, auto-resume, session deletion from picker, `/mouse` toggle, pluggable busy-indicator styles, `hermes -z` one-shot.  
-**Effort:** High (ground-up).
+**Praxis:** ✅ Real ratatui TUI — phase display, heartbeat, tool count, pending approvals, event log, tick-based render loop, key handling. `src/tui/app.rs`.
 
 ### 41. Per-Channel Ephemeral Prompts (v0.11) ✅
 Channel-specific prompts that don't persist across sessions.  
