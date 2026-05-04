@@ -9,6 +9,7 @@ mod openai;
 mod prompts;
 mod provider_routes;
 pub mod streaming;
+pub mod transport;
 
 pub(crate) use credential_pool::init_pools;
 /// Re-exported for cross-module tool use (e.g., image generation).

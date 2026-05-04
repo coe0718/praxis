@@ -128,7 +128,7 @@ pub(super) async fn api_tools(State(state): State<DashboardState>) -> impl IntoR
 }
 
 pub(super) async fn api_models(State(state): State<DashboardState>) -> impl IntoResponse {
-    use crate::cli::models::{load_catalog, CatalogEntry};
+    use crate::cli::models::{CatalogEntry, load_catalog};
     let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
     let catalog_path = paths.data_dir.join("model_catalog.json");
 
@@ -137,26 +137,33 @@ pub(super) async fn api_models(State(state): State<DashboardState>) -> impl Into
             "local": [],
             "cached": false,
             "message": "No cached model catalog. Run `praxis models fetch` to download."
-        })).into_response();
+        }))
+        .into_response();
     }
 
     match load_catalog(&catalog_path) {
         Ok(cached) => {
-            let models: Vec<_> = cached.models.iter().take(100).map(|m| {
-                json!({
-                    "id": m.id,
-                    "name": m.name,
-                    "context_length": m.context_length,
-                    "pricing": m.pricing
+            let models: Vec<_> = cached
+                .models
+                .iter()
+                .take(100)
+                .map(|m| {
+                    json!({
+                        "id": m.id,
+                        "name": m.name,
+                        "context_length": m.context_length,
+                        "pricing": m.pricing
+                    })
                 })
-            }).collect();
+                .collect();
 
             Json(json!({
                 "local": models,
                 "cached": true,
                 "fetched_at": cached.fetched_at.to_rfc3339(),
                 "count": cached.models.len()
-            })).into_response()
+            }))
+            .into_response()
         }
         Err(e) => api_error(e).into_response(),
     }

@@ -216,7 +216,9 @@ pub(super) async fn api_chat_completions(
     };
 
     let max_tokens = body.max_completion_tokens.unwrap_or(1024);
-    let decision = budgets.ask.check_estimate(max_tokens as i64, crate::usage::UsageBudgetMode::Ask);
+    let decision = budgets
+        .ask
+        .check_estimate(max_tokens as i64, crate::usage::UsageBudgetMode::Ask);
     if decision.blocked {
         return (
             StatusCode::SERVICE_UNAVAILABLE,

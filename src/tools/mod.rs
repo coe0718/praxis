@@ -1,3 +1,4 @@
+pub mod audio;
 mod browser;
 mod clarify;
 mod code_exec;
@@ -13,6 +14,7 @@ mod redact;
 mod registry;
 mod request;
 mod todo;
+pub mod tool_policy;
 mod vision;
 mod voice;
 

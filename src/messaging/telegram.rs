@@ -239,6 +239,67 @@ impl TelegramBot {
         Ok(())
     }
 
+    /// Send a single photo to a chat. `image` can be a URL or a local file path.
+    pub fn send_photo(&self, chat_id: i64, image: &str, caption: Option<&str>) -> Result<()> {
+        let mut body = serde_json::json!({
+            "chat_id": chat_id,
+            "photo": image,
+        });
+        if let Some(c) = caption {
+            body["caption"] = serde_json::json!(c);
+        }
+        self.client
+            .post(api_url(&self.token, "sendPhoto"))
+            .json(&body)
+            .send()
+            .context("failed to send Telegram photo")?
+            .error_for_status()
+            .context("Telegram sendPhoto returned an error")?;
+        Ok(())
+    }
+
+    /// Send multiple photos as a media group (album). Maximum 10 items.
+    /// Each item is a tuple of (image_url_or_path, optional_caption).
+    pub fn send_media_group(&self, chat_id: i64, items: &[(&str, Option<&str>)]) -> Result<()> {
+        if items.is_empty() {
+            return Ok(());
+        }
+        // Telegram allows max 10 items in a media group.
+        let media: Vec<serde_json::Value> = items
+            .iter()
+            .take(10)
+            .enumerate()
+            .map(|(i, (url, caption))| {
+                let mut item = serde_json::json!({
+                    "type": "photo",
+                    "media": url,
+                });
+                if let Some(c) = caption {
+                    item["caption"] = serde_json::json!(c);
+                }
+                // Telegram requires unique media items in a group — attach
+                // an empty caption as a tiebreaker when there are duplicates.
+                if i > 0 {
+                    item["parse_mode"] = serde_json::json!("HTML");
+                }
+                item
+            })
+            .collect();
+
+        let body = serde_json::json!({
+            "chat_id": chat_id,
+            "media": media,
+        });
+        self.client
+            .post(api_url(&self.token, "sendMediaGroup"))
+            .json(&body)
+            .send()
+            .context("failed to send Telegram media group")?
+            .error_for_status()
+            .context("Telegram sendMediaGroup returned an error")?;
+        Ok(())
+    }
+
     /// Emit a "typing…" presence indicator in the given chat.
     /// Telegram cancels it automatically after 5 seconds or on message send.
     pub fn send_typing(&self, chat_id: i64) -> Result<()> {
