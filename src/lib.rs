@@ -33,6 +33,7 @@ pub mod memory;
 pub mod merkle;
 pub mod messaging;
 pub mod oauth;
+pub mod observability;
 pub mod paths;
 pub mod postmortem;
 pub mod profiles;

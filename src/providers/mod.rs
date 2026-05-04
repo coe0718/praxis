@@ -65,6 +65,31 @@ impl Default for ProviderSettings {
                 ProviderRoute::new("kimi", "moonshot-v1-8k", Some("https://api.moonshot.cn")),
                 ProviderRoute::new("minimax", "abab6.5s-chat", Some("https://api.minimax.chat")),
                 ProviderRoute::new("glm", "glm-4", Some("https://open.bigmodel.cn/api/paas/v4")),
+                // #38: Additional inference providers (stubs)
+                ProviderRoute::new(
+                    "azure",
+                    "gpt-4o",
+                    Some("https://<your-resource>.openai.azure.com"),
+                ),
+                ProviderRoute::new(
+                    "bedrock",
+                    "anthropic.claude-3-sonnet",
+                    Some("https://bedrock.<region>.amazonaws.com"),
+                ),
+                ProviderRoute::new(
+                    "nvidia",
+                    "nvidia/llama-3.1-nemotron-70b-instruct",
+                    Some("https://integrate.api.nvidia.com"),
+                ),
+                ProviderRoute::new("vercel", "ai-default", Some("https://api.vercel.ai")),
+                ProviderRoute::new("gmi", "gmi-default", Some("https://api.gmi.cloud")),
+                ProviderRoute::new("arcee", "arcee-default", Some("https://api.arcee.ai")),
+                ProviderRoute::new("step", "step-default", Some("https://api.step.ai")),
+                ProviderRoute::new(
+                    "lmstudio",
+                    "lmstudio-default",
+                    Some("http://localhost:1234/v1"),
+                ),
             ],
         }
     }
