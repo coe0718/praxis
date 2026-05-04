@@ -365,9 +365,15 @@ pub struct AskArgs {
     #[arg(long, default_value = "reject")]
     pub attachment_policy: String,
 
-    /// Run the full agent loop with tool execution instead of a single LLM call.
+    /// Disable tool execution in ask mode. Runs a single LLM call only.
+    /// Off by default — tools are enabled so the agent loop runs.
     #[arg(long)]
-    pub tools: bool,
+    pub no_tools: bool,
+
+    /// Shortcut for one-shot with full tool access: `praxis ask -z "do X"` is
+    /// equivalent to `praxis ask --tools "do X"`.  (#7)
+    #[arg(short = 'z')]
+    pub one_shot: bool,
 
     #[arg(required = true)]
     pub prompt: Vec<String>,

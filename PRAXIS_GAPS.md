@@ -50,9 +50,9 @@ Plugins as middleware — block tool execution, rewrite results, transform termi
 **Praxis:** ✅ `src/curator/mod.rs` — weighted grading (usage 40%, age 20%, quality 20%, deps 20%), 7-day cycle, per-run JSON reports, `praxis curator status` CLI. **Runtime wiring:** `Curator::run_cycle()` called in `execute_reflect` (after learning) with `is_cycle_due()` check. Gated by `LiteCapability::Curator`. `CuratorReport` persisted to `data_dir/curator_report.json`.  
 **Effort:** Medium-High.
 
-### 7. One-Shot Mode `hermes -z` (v0.12) ✅
+### 7. One-Shot Mode `hermes -z` (v0.12) ✅ Implemented (tools by default, `-z` shortcut, `--no-tools` opt-out)
 Non-interactive fire-and-forget with FULL tool access. `--model`/`--provider` flags.  
-**Praxis:** ⚠️ `praxis ask` exists but is read-only. No tool-executing one-shot.  
+**Praxis:** ✅ `praxis ask "do X"` runs the full agent loop with tools by default. `praxis ask -z "do X"` is a shortcut. `praxis ask --no-tools "do X"` for simple LLM-only call. `praxis run --one-shot --task "..."` also works. Budget checking, attachments, secret redaction all supported. `src/cli/core.rs` `handle_ask`, `src/cli/mod.rs` `AskArgs`.  
 **Effort:** Low.
 
 ---

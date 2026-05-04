@@ -120,7 +120,8 @@ pub fn handle_telegram_command(
             AskArgs {
                 files: Vec::new(),
                 attachment_policy: "reject".to_string(),
-                tools: false,
+                no_tools: true,
+                one_shot: false,
                 prompt: vec![prompt],
                 redact_secrets: false,
             },

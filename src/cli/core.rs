@@ -203,6 +203,11 @@ pub(crate) fn handle_ask(data_dir_override: Option<PathBuf>, args: AskArgs) -> R
         format!("{base_prompt}\n\nAttached files:\n{attachments}")
     };
 
+    // One-shot mode — run the full agent loop.
+    // Enabled by: tools=true (default), --one-shot / -z, or --no-tools=false.
+    // Disabled by: --no-tools.
+    let use_tools = !args.no_tools;
+
     let (mut config, paths) = load_initialized_config(data_dir_override)?;
 
     // #47 — CLI override: force secret redaction on for this invocation.
@@ -217,7 +222,7 @@ pub(crate) fn handle_ask(data_dir_override: Option<PathBuf>, args: AskArgs) -> R
         .rule(UsageBudgetMode::Ask)
         .check_estimate(estimate, UsageBudgetMode::Ask);
 
-    if decision.blocked {
+    if decision.blocked && !use_tools {
         let mut rendered = String::new();
         writeln!(rendered, "mode: ask")?;
         writeln!(rendered, "backend: {}", backend.name())?;
@@ -228,7 +233,7 @@ pub(crate) fn handle_ask(data_dir_override: Option<PathBuf>, args: AskArgs) -> R
     }
 
     // One-shot mode with tools — run the full agent loop.
-    if args.tools {
+    if use_tools {
         let identity = LocalIdentityPolicy;
         let tools = FileToolRegistry;
         let events = FileEventSink::new(paths.events_file.clone());
