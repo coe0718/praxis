@@ -42,12 +42,13 @@ struct AddHookArgs {
     filter: Option<String>,
     /// Timeout in seconds (default: 10).
     #[arg(long, default_value_t = 10)]
-    timeout: u64,
+    timeout_secs: u64,
 }
 
 #[derive(Debug, Args)]
 struct RemoveHookArgs {
     /// Absolute path of the script to remove.
+    #[arg(long)]
     script: PathBuf,
 }
 
@@ -98,7 +99,7 @@ pub(super) fn handle_hooks(data_dir_override: Option<PathBuf>, args: HooksArgs) 
                 kind,
                 script: a.script.clone(),
                 filter: a.filter,
-                timeout_secs: a.timeout,
+                timeout_secs: a.timeout_secs,
             };
             install_hook(&paths, entry)?;
             Ok(format!(

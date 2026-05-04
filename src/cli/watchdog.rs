@@ -1,12 +1,20 @@
-use std::{fs, path::PathBuf, process::Command};
+use std::{
+    fs::{self, File},
+    io::Write,
+    path::PathBuf,
+    process::Command,
+};
 
 use anyhow::{Context, Result, bail};
 use chrono::Utc;
 use clap::{Args, Subcommand};
+use flate2::{Compression, write::GzEncoder};
 use serde::{Deserialize, Serialize};
+use tar::Builder;
 
 use crate::{
     canary::{CanaryFreezeState, CanaryStatus, ModelCanaryLedger},
+    config::AppConfig,
     heartbeat::check_heartbeat,
     paths::{PraxisPaths, default_data_dir},
     time::SystemClock,

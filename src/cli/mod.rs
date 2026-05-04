@@ -24,6 +24,7 @@ mod learning;
 mod mcp;
 mod memory;
 mod migrate;
+mod model;
 mod oauth;
 mod profile;
 mod sandbox;
@@ -72,6 +73,7 @@ pub enum Commands {
     Canary(canary::CanaryArgs),
     Learn(learning::LearningArgs),
     Mcp(mcp::McpArgs),
+    Model(model::ModelArgs),
     Forensics(forensics::ForensicsArgs),
     Heartbeat(heartbeat::HeartbeatArgs),
     Queue(QueueArgs),
@@ -416,6 +418,7 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::Canary(args) => canary::handle_canary(cli.data_dir, args),
         Commands::Learn(args) => learning::handle_learning(cli.data_dir, args),
         Commands::Mcp(args) => mcp::handle_mcp(cli.data_dir, args),
+        Commands::Model(args) => model::handle_model(cli.data_dir, args),
         Commands::Forensics(args) => forensics::handle_forensics(cli.data_dir, args),
         Commands::Heartbeat(args) => heartbeat::handle_heartbeat(cli.data_dir, args),
         Commands::Queue(args) => approvals::handle_queue(cli.data_dir, args),

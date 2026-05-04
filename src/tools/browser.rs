@@ -5,7 +5,7 @@
 
 use std::{
     fs,
-    path::{Path},
+    path::Path,
     process::{Command, Stdio},
 };
 

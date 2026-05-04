@@ -165,6 +165,37 @@ pub enum LiteCapability {
     Deterministic,
 }
 
+// ---------------------------------------------------------------------------
+// Model-override flag file (live model switching, gap #29)
+// ---------------------------------------------------------------------------
+
+/// Write a model override that the session runner picks up on the next cycle.
+/// Format: `provider/model` (e.g. `anthropic/claude-3-5-sonnet-latest`).
+pub fn set_model_override(data_dir: &Path, model: &str) -> anyhow::Result<()> {
+    let model = model.trim();
+    anyhow::ensure!(!model.is_empty(), "model override must not be blank");
+    fs::write(data_dir.join("model_override"), model)
+        .map_err(|e| anyhow::anyhow!("failed to write model_override flag: {e}"))
+}
+
+/// Read the current model override, if any.
+pub fn get_model_override(data_dir: &Path) -> Option<String> {
+    let path = data_dir.join("model_override");
+    fs::read_to_string(&path)
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+}
+
+/// Remove the model override flag file.
+pub fn clear_model_override(data_dir: &Path) -> anyhow::Result<()> {
+    let path = data_dir.join("model_override");
+    if path.exists() {
+        fs::remove_file(&path)?;
+    }
+    Ok(())
+}
+
 impl LiteMode {
     /// Create a "fast" lite mode that disables all expensive capabilities.
     /// Used by `/fast` command and `--fast` flag.

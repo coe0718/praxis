@@ -15,7 +15,7 @@ use super::{
     gating::CanaryGate,
     ollama, openai,
     prompts::{request_for_ask, request_for_finalize, request_for_plan},
-    provider_routes::{default_route, route_for, validate_provider, route_for_with_override},
+    provider_routes::{default_route, route_for, route_for_with_override, validate_provider},
 };
 
 pub enum ConfiguredBackend {
