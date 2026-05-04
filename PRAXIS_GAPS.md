@@ -59,10 +59,10 @@ Non-interactive fire-and-forget with FULL tool access. `--model`/`--provider` fl
 
 ## 🟠 HIGH — Major Capability Gaps (22)
 
-### 8. Messaging Platforms ⚠️ ✅ Partial (Discord, Telegram, Slack) — 16 more platforms deferred
+### 8. Messaging Platforms ⚠️ Partial (3/19 — Discord, Slack, Telegram; 16 more as Platform plugins)
 **Hermes: 19 platforms** (+ Teams v0.12, + Yuanbao v0.12, + QQBot v0.11). Gateway is now a **plugin host for platforms** (v0.12).  
 **OpenClaw:** 23+.  
-**Praxis:** ⚠️ 3.  
+**Praxis:** ✅ 3 (Discord, Slack, Telegram) — Platform trait + PlatformRegistry defined in `src/messaging/platform.rs`. Additional platforms as plugins.  
 **Effort:** Variable.
 
 ### 9. Voice / TTS ✅ Implemented (STT via whisper, TTS via espeak/edge-tts, audio routing)
@@ -108,18 +108,18 @@ Wire shell scripts as lifecycle hooks, no Python required.
 Forward webhooks to chat bypassing agent/LLM.  
 **Effort:** Low.
 
-### 19. Dashboard Plugin System (v0.11) + Chat Tab (v0.12) ⚠️ Deferred (requires SPA plugin slot architecture)
+### 19. Dashboard Plugin System (v0.11) + Chat Tab (v0.12) ⚠️ Partial (backend API done; SPA deferred)
 v0.11: 3rd-party tabs/widgets. v0.12: **Dashboard Chat tab** (xterm.js + JSON-RPC sidecar — full web-based terminal to agent). **Models tab** with per-model analytics. **Page-scoped plugin slots**. Configure main + auxiliary models from dashboard.  
-**Praxis:** ⚠️ Static SPA dashboard.  
+**Praxis:** ⚠️ Plugin tab API (`/api/plugins/tabs`, `/api/plugins/widgets/:name`) in `src/dashboard/routes_plugins.rs`. SPA tab rendering is a separate React app (port 5173) — deferred to that project.  
 **Effort:** Medium-High.
 
 ### 20. Transport ABC (v0.11) ✅
 Pluggable provider transport layer. Clean architecture for adding providers.  
 **Effort:** Medium.
 
-### 21. `hermes fallback` Command (v0.12) ✅
+### 21. `hermes fallback` Command (v0.12) ✅ Implemented (`praxis fallback list|add|remove|reorder|test`)
 CLI for managing fallback provider chains.  
-**Praxis:** ⚠️ Auto-failover (Wave 7) but no CLI for managing fallback chains.  
+**Praxis:** ✅ Full implementation — `src/cli/fallback.rs` (233 lines): `praxis fallback list`, `praxis fallback add <provider>`, `praxis fallback remove <provider>`, `praxis fallback reorder <csv>`, `praxis fallback test [--primary-fails] [--fail-count N]`. Works against `praxis.toml` `agent.fallback_providers`.  
 **Effort:** Low-Med.
 
 ### 22. Auto-Backup Before Update (v0.12) ✅
@@ -147,8 +147,9 @@ Platform-native buttons on Slack/Telegram.
 7 tools (play, search, queue, playlists, devices) with PKCE OAuth.  
 **Praxis:** ✅ `src/meet/mod.rs` — Google Calendar API client with OAuth2, token refresh, `list_events` (next N days), `create_meeting` (creates Meet link via conferenceData). Configure via `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`.
 
-### 28. Pluggable Gateway Platforms (v0.12) ⚠️ Deferred (depends on Plugin System #3)
+### 28. Pluggable Gateway Platforms (v0.12) ⚠️ Partial (trait + registry defined; platform implementations pending)
 Gateway is a plugin host. Any platform can ship as plugin. Teams is first.  
+**Praxis:** ⚠️ `Platform` trait + `PlatformRegistry` defined in `src/messaging/platform.rs`. Existing Discord/Slack/Telegram clients need migration to implement `Platform`. Gateway-as-plugin-host wired after migration.  
 **Effort:** High. Depends on #3.
 
 ### 29. Live Model Switching `/model` (v0.8) ✅ Implemented (CLI + runtime switching)
