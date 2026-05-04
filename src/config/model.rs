@@ -75,6 +75,12 @@ pub struct SecurityConfig {
     /// silently skipped.  Opt-in via `[security] allowed_users = [...]`.
     #[serde(default)]
     pub allowed_users: Vec<String>,
+    /// Hardline blocklist — commands matching these patterns are **always**
+    /// rejected regardless of approval level.  Unrecoverable block; no
+    /// override.  Add patterns like `"rm -rf /"`, `"drop table"`,
+    /// `":(){ :|:& };:"`.  Checked before any other policy.
+    #[serde(default)]
+    pub hardline_blocklist: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -171,6 +177,7 @@ impl AppConfig {
                 redact_secrets: false,
                 require_mention: false,
                 allowed_users: Vec::new(),
+                hardline_blocklist: Vec::new(),
             },
             agent: AgentConfig {
                 backend: "stub".to_string(),

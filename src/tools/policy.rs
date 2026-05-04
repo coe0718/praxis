@@ -24,6 +24,24 @@ impl SecurityPolicy {
         manifest: &ToolManifest,
         request: &StoredApprovalRequest,
     ) -> Result<()> {
+        // Hardline blocklist — checked first, no override.
+        if let Some(blocked) = check_hardline_blocklist(config, request) {
+            bail!(
+                "tool request {} blocked by hardline blocklist: matched pattern '{blocked}'",
+                request.id
+            );
+        }
+
+        // [IMPORTANT:] marker check — Azure content filter dodge pattern.
+        if let Some(payload) = request.payload_json.as_deref() {
+            if payload.contains("[IMPORTANT:") || payload.contains("[IMPORTANT]") {
+                bail!(
+                    "tool request {} contains [IMPORTANT:] marker — possible content filter injection",
+                    request.id
+                );
+            }
+        }
+
         if manifest.required_level > config.security.level {
             bail!(
                 "tool {} requires security level {}, but Praxis is configured for level {}",
@@ -127,6 +145,21 @@ fn is_locked_path(path: &Path) -> bool {
         path.to_string_lossy().as_ref(),
         "SOUL.md" | "praxis.toml" | ".env" | "hooks.toml"
     ) || path.starts_with("tools")
+}
+
+/// Check if the tool request payload matches any hardline blocklist pattern.
+/// Returns the first matched pattern, or `None` if clean.
+fn check_hardline_blocklist(config: &AppConfig, request: &StoredApprovalRequest) -> Option<String> {
+    if config.security.hardline_blocklist.is_empty() {
+        return None;
+    }
+    let haystack = request.payload_json.as_deref().unwrap_or("").to_lowercase();
+    for pattern in &config.security.hardline_blocklist {
+        if haystack.contains(&pattern.to_lowercase()) {
+            return Some(pattern.clone());
+        }
+    }
+    None
 }
 
 fn is_protected_path(path: &Path) -> bool {
