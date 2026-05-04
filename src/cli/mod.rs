@@ -23,12 +23,12 @@ mod heartbeat;
 mod hooks;
 mod learning;
 mod mcp;
-mod memory;
-mod migrate;
-mod model;
-mod models;
-mod oauth;
-mod profile;
+pub mod memory;
+pub mod migrate;
+pub mod model;
+pub mod models;
+pub mod oauth;
+pub mod profile;
 mod sandbox;
 mod serve;
 #[cfg(feature = "slack")]

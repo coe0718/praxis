@@ -135,8 +135,9 @@ pub async fn serve_dashboard(data_dir: PathBuf, host: String, port: u16) -> Resu
             get(routes_core::api_identity_read).put(routes_core::api_identity_write),
         )
         .route("/api/config", get(routes_core::api_config))
-        .route("/api/tools", get(routes_core::api_tools))
-        .route("/api/heartbeat", get(routes_core::api_heartbeat))
+.route("/api/tools", get(routes_core::api_tools))
+    .route("/api/models", get(routes_core::api_models))
+    .route("/api/heartbeat", get(routes_core::api_heartbeat))
         .route("/api/score", get(routes_core::api_score))
         .route("/api/report", get(routes_core::api_report))
         .route("/api/canary", get(routes_core::api_canary))
@@ -160,8 +161,13 @@ pub async fn serve_dashboard(data_dir: PathBuf, host: String, port: u16) -> Resu
         .route("/api/canary/run", post(routes_control::api_canary_run))
         .route("/api/evolution", get(routes_control::api_evolution))
         .route("/api/evolution/:id/approve", post(routes_control::api_evolution_approve))
-        .route("/api/delegation", get(routes_control::api_delegation))
-        // Learning
+.route("/api/delegation", get(routes_control::api_delegation))
+    // OpenAI-compatible API
+    .route(
+        "/v1/chat/completions",
+        post(routes_control::api_chat_completions),
+    )
+    // Learning
         .route("/api/learning", get(routes_learning::api_learning_list))
         .route("/api/learning/note", post(routes_learning::api_learning_note))
         .route("/api/learning/run", post(routes_learning::api_learning_run))

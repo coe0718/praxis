@@ -264,7 +264,7 @@ fn catalog_path(data_dir: &std::path::Path) -> PathBuf {
     data_dir.join("model_catalog.json")
 }
 
-fn load_catalog(path: &std::path::Path) -> Result<CachedCatalog> {
+pub fn load_catalog(path: &std::path::Path) -> Result<CachedCatalog> {
     let raw =
         fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))?;
     serde_json::from_str(&raw).with_context(|| format!("failed to parse {}", path.display()))
