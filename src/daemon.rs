@@ -473,6 +473,7 @@ fn run_session_blocking(data_dir: &Path, task: Option<String>) -> Result<RunSumm
         store: &store,
         tools: &tools,
         lite: &lite,
+        last_tool_activity: std::cell::Cell::new(None),
     };
 
     runtime.run_once(RunOptions {

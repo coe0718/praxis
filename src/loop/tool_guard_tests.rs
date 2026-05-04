@@ -148,6 +148,7 @@ fn run_once(
         store,
         tools: &FileToolRegistry,
         lite: &LiteMode::default(),
+        last_tool_activity: std::cell::Cell::new(None),
     }
     .run_once(RunOptions {
         once: true,

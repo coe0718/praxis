@@ -1,4 +1,4 @@
-mod model;
+pub mod model;
 mod security;
 mod validation;
 mod watcher;

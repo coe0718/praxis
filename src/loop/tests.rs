@@ -47,6 +47,7 @@ fn runtime_runs_single_session() {
         store: &store,
         tools: &FileToolRegistry,
         lite: &LiteMode::default(),
+        last_tool_activity: std::cell::Cell::new(None),
     };
 
     let summary = runtime
@@ -92,6 +93,7 @@ fn runtime_reaches_stop_condition_when_all_goals_are_done() {
         store: &store,
         tools: &FileToolRegistry,
         lite: &LiteMode::default(),
+        last_tool_activity: std::cell::Cell::new(None),
     };
 
     let summary = runtime

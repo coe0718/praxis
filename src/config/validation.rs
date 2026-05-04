@@ -58,6 +58,20 @@ impl AppConfig {
             bail!("agent.extended_prompt_cache requires agent.prompt_caching to be true");
         }
 
+        // (#50) Orchestrator agents must have max_spawn_depth > 0.
+        if self.agent.role == super::model::AgentRole::Orchestrator
+            && self.agent.max_spawn_depth == 0
+        {
+            bail!("agent.max_spawn_depth must be > 0 when agent.role is 'orchestrator'");
+        }
+
+        // (#51) Inactivity timeout must be at least 60 seconds if set.
+        if let Some(secs) = self.agent.inactivity_timeout_secs {
+            if secs < 60 {
+                bail!("agent.inactivity_timeout_secs must be at least 60 seconds when set");
+            }
+        }
+
         if self.runtime.state_file.as_os_str().is_empty() {
             bail!("runtime.state_file must not be empty");
         }

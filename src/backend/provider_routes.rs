@@ -20,7 +20,12 @@ pub fn route_for(
     Ok(route)
 }
 
-/// Like `route_for` but also checks for a runtime model override file.
+/// Like `route_for` but also checks for runtime model override sources.
+///
+/// Priority order (highest first):
+/// 1. `ModelOverride` in-memory cell (set by `/model` command or API)
+/// 2. `model_override` file (set by `praxis model <name>` CLI)
+/// 3. `agent.model_pin` in config
 pub fn route_for_with_override(
     provider: &str,
     config: &AppConfig,
@@ -28,6 +33,22 @@ pub fn route_for_with_override(
     data_dir: &std::path::Path,
 ) -> Result<ProviderRoute> {
     let mut route = route_for(provider, config, settings)?;
+
+    // (#29) Check in-memory override first (highest priority).
+    // The ModelOverride is typically held by the running session and passed
+    // through the provider_routes call chain.  For the initial backend
+    // construction in `ConfiguredBackend::from_runtime`, we use a static
+    // global so the override can be set from the chat REPL or API without
+    // requiring the backend to be rebuilt.
+    if let Some(m) = crate::backend::model_override::global_model_override().get() {
+        let m = m.trim().to_string();
+        if !m.is_empty() {
+            route.model = m;
+            return Ok(route);
+        }
+    }
+
+    // File-based override (second priority).
     let override_file = data_dir.join("model_override");
     if let Ok(m) = std::fs::read_to_string(&override_file) {
         let m = m.trim();

@@ -243,6 +243,9 @@ fn cmd_model(ctx: &mut ReplContext, args: &[&str]) -> Result<String> {
     match args.first() {
         Some(name) => {
             ctx.model = Some(name.to_string());
+            // (#29) Also set the in-memory override so subsequent LLM calls
+            // use the new model without restarting the session.
+            crate::backend::model_override::global_model_override().set(name.to_string());
             Ok(format!("Model set to: {name}"))
         }
         None => {

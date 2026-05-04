@@ -151,7 +151,7 @@ Join calls, transcribe, speak, follow up.
 Gateway is a plugin host. Any platform can ship as plugin. Teams is first.  
 **Effort:** High. Depends on #3.
 
-### 29. Live Model Switching `/model` (v0.8) ❌
+### 29. Live Model Switching `/model` (v0.8) ✅
 Switch models mid-session without restart.  
 **Effort:** Medium.
 
@@ -178,11 +178,11 @@ Across 6 platforms.
 ### 34. Centralized Audio Routing + FLAC (v0.12) ✅
 **Effort:** Medium. Depends on #9.
 
-### 35. Remote Model Catalog (v0.12)
+### 35. Remote Model Catalog (v0.12) ✅
 Auto-discovery of new models from OpenRouter + Nous Portal manifests.  
 **Effort:** Low-Med.
 
-### 36. Configurable Prompt Cache TTL (v0.12)
+### 36. Configurable Prompt Cache TTL (v0.12) ✅
 5-min default, 1-hour opt-in.  
 **Effort:** Low.
 
@@ -194,22 +194,22 @@ Serverless execution for code/terminal.
 GMI Cloud, Azure AI Foundry, MiniMax OAuth, Tencent Tokenhub, LM Studio (upgraded), NVIDIA NIM, Arcee AI, Step Plan, Gemini CLI OAuth, Vercel ai-gateway, AWS Bedrock. GPT-5.5 via Codex. DeepSeek-v4-pro/flash, Qwen 3.6 Plus, GLM-5V-Turbo.  
 **Effort:** Low-Med per provider.
 
-### 39. Cron `workdir` + `context_from` Chaining (v0.12) + `web_search limit` (v0.12)
+### 39. Cron `workdir` + `context_from` Chaining (v0.12) + `web_search limit` (v0.12) ✅
 **Effort:** Low-Med.
 
 ### 40. TUI Enhancements (v0.11–v0.12)
 Ink/React rewrite, ~57% cold start cut (v0.12), LaTeX rendering (v0.12), `/reload` .env hot-reload, auto-resume, session deletion from picker, `/mouse` toggle, pluggable busy-indicator styles, `hermes -z` one-shot.  
 **Effort:** High (ground-up).
 
-### 41. Per-Channel Ephemeral Prompts (v0.11)
+### 41. Per-Channel Ephemeral Prompts (v0.11) ✅
 Channel-specific prompts that don't persist across sessions.  
 **Effort:** Low-Med.
 
-### 42. `require_mention` + `allowed_users` Gating (v0.11)
+### 42. `require_mention` + `allowed_users` Gating (v0.11) ✅
 Parity across Discord/Telegram/Slack gatekeeping.  
 **Effort:** Low.
 
-### 43. Inline Image Inputs on API (v0.11)
+### 43. Inline Image Inputs on API (v0.11) ✅
 `/v1/chat/completions` and `/v1/responses` accept inline images.  
 **Effort:** Low-Med.
 
@@ -225,23 +225,23 @@ Rootless container entrypoint alongside Docker.
 Nix/NixOS package + plugin install.  
 **Effort:** Low.
 
-### 47. Secret Redaction Off by Default (v0.12)
+### 47. Secret Redaction Off by Default (v0.12) ✅
 Security design decision — prevents patch corruption. Opt-in.  
 **Effort:** Low.
 
-### 48. Hardline Blocklist + `[IMPORTANT:` Markers (v0.12)
+### 48. Hardline Blocklist + `[IMPORTANT:` Markers (v0.12) ✅
 Unrecoverable command blocklist. Azure content filter dodge.  
 **Effort:** Low.
 
-### 49. Dashboard Models Tab (v0.12)
+### 49. Dashboard Models Tab (v0.12) ✅
 Rich per-model analytics.  
 **Effort:** Low-Med.
 
-### 50. Orchestrator Role + max_spawn_depth (v0.11)
+### 50. Orchestrator Role + max_spawn_depth (v0.11) ✅
 Cross-agent file state coordination.  
 **Effort:** Medium.
 
-### 51. Inactivity-Based Timeouts (v0.8)
+### 51. Inactivity-Based Timeouts (v0.8) ✅
 Track tool activity, not wall-clock.  
 **Effort:** Low.
 

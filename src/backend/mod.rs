@@ -4,6 +4,7 @@ mod configured;
 mod credential_pool;
 mod gating;
 mod health;
+pub mod model_override;
 mod ollama;
 mod openai;
 mod prompts;

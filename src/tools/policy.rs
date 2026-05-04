@@ -149,17 +149,51 @@ fn is_locked_path(path: &Path) -> bool {
 
 /// Check if the tool request payload matches any hardline blocklist pattern.
 /// Returns the first matched pattern, or `None` if clean.
+///
+/// (#48) The check is case-insensitive and matches substrings in the payload.
+/// Patterns are loaded from `security.hardline_blocklist` in `praxis.toml`.
+/// These are **unrecoverable** — no approval level can override them.
 fn check_hardline_blocklist(config: &AppConfig, request: &StoredApprovalRequest) -> Option<String> {
     if config.security.hardline_blocklist.is_empty() {
         return None;
     }
-    let haystack = request.payload_json.as_deref().unwrap_or("").to_lowercase();
+    // Build a combined haystack from all available text fields so we catch
+    // dangerous commands regardless of which field the payload uses.
+    let mut haystack = String::new();
+    if let Some(ref payload) = request.payload_json {
+        haystack.push_str(payload);
+        haystack.push(' ');
+    }
+    haystack.push_str(&request.summary);
+    haystack.push(' ');
+    haystack.push_str(&request.tool_name);
+    let haystack = haystack.to_lowercase();
+
     for pattern in &config.security.hardline_blocklist {
         if haystack.contains(&pattern.to_lowercase()) {
             return Some(pattern.clone());
         }
     }
     None
+}
+
+/// (#48) Return a curated set of default hardline blocklist patterns.
+/// These cover the most destructive shell commands that should never be
+/// executed regardless of approval level.
+pub fn default_hardline_blocklist() -> Vec<String> {
+    vec![
+        "rm -rf /".to_string(),
+        "rm -rf /*".to_string(),
+        "mkfs".to_string(),
+        "dd if=/dev/zero".to_string(),
+        "dd if=/dev/random".to_string(),
+        ":(){ :|:& };:".to_string(), // fork bomb
+        "chmod -R 777 /".to_string(),
+        "wget .* | sh".to_string(),
+        "curl .* | sh".to_string(),
+        "> /dev/sda".to_string(),
+        "mv / /dev/null".to_string(),
+    ]
 }
 
 fn is_protected_path(path: &Path) -> bool {
@@ -278,5 +312,33 @@ mod tests {
             .to_string();
 
         assert!(error.contains("append-size circuit breaker"));
+    }
+
+    #[test]
+    fn rejects_hardline_blocklisted_commands() {
+        let mut config = AppConfig::default_for_data_dir("/tmp/praxis".into());
+        config.security.hardline_blocklist = vec!["rm -rf /".to_string(), "mkfs".to_string()];
+        let paths = PraxisPaths::for_data_dir("/tmp/praxis".into());
+
+        let blocked = StoredApprovalRequest {
+            id: 99,
+            tool_name: "shell-exec".to_string(),
+            summary: "Run destructive command".to_string(),
+            requested_by: "agent".to_string(),
+            write_paths: vec!["out.txt".to_string()],
+            payload_json: Some("{\"command\":\"rm -rf /\"}".to_string()),
+            status: ApprovalStatus::Approved,
+            status_note: None,
+            created_at: String::new(),
+            updated_at: String::new(),
+        };
+
+        let error = SecurityPolicy
+            .validate_request(&config, &paths, &manifest(&["out.txt"]), &blocked)
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("hardline blocklist"));
+        assert!(error.contains("rm -rf /"));
     }
 }

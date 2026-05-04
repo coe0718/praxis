@@ -132,11 +132,15 @@ pub(super) async fn api_models(State(state): State<DashboardState>) -> impl Into
     let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
     let catalog_path = paths.data_dir.join("model_catalog.json");
 
+    // (#49) Collect per-model analytics from the provider_attempts table.
+    let analytics = collect_model_analytics(&paths.database_file);
+
     if !catalog_path.exists() {
         return Json(json!({
             "local": [],
             "cached": false,
-            "message": "No cached model catalog. Run `praxis models fetch` to download."
+            "message": "No cached model catalog. Run `praxis models fetch` to download.",
+            "analytics": analytics,
         }))
         .into_response();
     }
@@ -161,12 +165,65 @@ pub(super) async fn api_models(State(state): State<DashboardState>) -> impl Into
                 "local": models,
                 "cached": true,
                 "fetched_at": cached.fetched_at.to_rfc3339(),
-                "count": cached.models.len()
+                "count": cached.models.len(),
+                "analytics": analytics,
             }))
             .into_response()
         }
         Err(e) => api_error(e).into_response(),
     }
+}
+
+/// (#49) Query the `provider_attempts` table for per-model analytics.
+fn collect_model_analytics(db_path: &std::path::Path) -> serde_json::Value {
+    if !db_path.exists() {
+        return serde_json::json!([]);
+    }
+    let conn = match rusqlite::Connection::open(db_path) {
+        Ok(c) => c,
+        Err(_) => return serde_json::json!([]),
+    };
+    let mut stmt = match conn.prepare(
+        "SELECT
+            model,
+            COUNT(*) AS total_requests,
+            SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) AS error_count,
+            COALESCE(SUM(input_tokens), 0) AS total_input_tokens,
+            COALESCE(SUM(output_tokens), 0) AS total_output_tokens,
+            COALESCE(AVG(input_tokens + output_tokens), 0) AS avg_tokens_per_request
+         FROM provider_attempts
+         GROUP BY model
+         ORDER BY total_requests DESC",
+    ) {
+        Ok(s) => s,
+        Err(_) => return serde_json::json!([]),
+    };
+    let rows: Vec<serde_json::Value> = match stmt.query_map([], |row| {
+        let model: String = row.get(0)?;
+        let total_requests: i64 = row.get(1)?;
+        let error_count: i64 = row.get(2)?;
+        let total_input_tokens: i64 = row.get(3)?;
+        let total_output_tokens: i64 = row.get(4)?;
+        let avg_tokens: f64 = row.get(5)?;
+        let error_rate = if total_requests > 0 {
+            error_count as f64 / total_requests as f64
+        } else {
+            0.0
+        };
+        Ok(serde_json::json!({
+            "model": model,
+            "total_requests": total_requests,
+            "error_count": error_count,
+            "total_input_tokens": total_input_tokens,
+            "total_output_tokens": total_output_tokens,
+            "avg_tokens_per_request": (avg_tokens * 100.0).round() / 100.0,
+            "error_rate": (error_rate * 10000.0).round() / 10000.0,
+        }))
+    }) {
+        Ok(rows) => rows.filter_map(|r| r.ok()).collect(),
+        Err(_) => return serde_json::json!([]),
+    };
+    serde_json::json!(rows)
 }
 
 pub(super) async fn api_heartbeat(State(state): State<DashboardState>) -> impl IntoResponse {

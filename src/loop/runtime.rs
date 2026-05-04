@@ -21,6 +21,10 @@ use crate::{
 
 use super::{AgentBackend, RunOptions, RunSummary};
 
+/// (#50) Maximum depth of sub-agent spawning allowed.  A depth of 0 means
+/// no spawning (the default for `Worker` agents).
+const DEFAULT_MAX_SPAWN_DEPTH: u32 = 0;
+
 pub struct PraxisRuntime<'a, B, C, E, G, I, S, T> {
     pub config: &'a AppConfig,
     pub paths: &'a PraxisPaths,
@@ -32,6 +36,9 @@ pub struct PraxisRuntime<'a, B, C, E, G, I, S, T> {
     pub store: &'a S,
     pub tools: &'a T,
     pub lite: &'a LiteMode,
+    /// (#51) Tracks the timestamp of the last tool activity for inactivity
+    /// timeout enforcement.  Updated after each phase completes.
+    pub last_tool_activity: std::cell::Cell<Option<chrono::DateTime<chrono::Utc>>>,
 }
 
 impl<'a, B, C, E, G, I, S, T> PraxisRuntime<'a, B, C, E, G, I, S, T>
@@ -94,8 +101,17 @@ where
         state.save(&self.paths.state_file)?;
         record_snapshot(&self.paths.database_file, &state, "session_loaded")?;
 
+        // (#51) Initialize the inactivity tracker at session start.
+        self.last_tool_activity.set(Some(now));
+
         while state.current_phase != SessionPhase::Sleep {
+            // (#51) Check inactivity timeout before each phase.
+            if let Some(inactive_summary) = self.check_inactivity_timeout(&state)? {
+                return Ok(inactive_summary);
+            }
             self.run_phase(&mut state)?;
+            // (#51) Update last activity timestamp after each phase completes.
+            self.last_tool_activity.set(Some(self.clock.now_utc()));
         }
 
         Ok(RunSummary {
@@ -276,6 +292,75 @@ where
 
         Ok(())
     }
+
+    /// (#51) Check whether the session has exceeded the inactivity timeout.
+    /// Returns `Some(RunSummary)` if the session should be ended gracefully,
+    /// or `None` if the session should continue.
+    fn check_inactivity_timeout(&self, state: &SessionState) -> Result<Option<RunSummary>> {
+        let timeout_secs = match self.config.agent.inactivity_timeout_secs {
+            Some(secs) => secs,
+            None => return Ok(None),
+        };
+
+        let last = match self.last_tool_activity.get() {
+            Some(ts) => ts,
+            None => return Ok(None),
+        };
+
+        let now = self.clock.now_utc();
+        let elapsed = (now - last).num_seconds().max(0) as u64;
+
+        if elapsed >= timeout_secs {
+            log::info!(
+                "session exceeded inactivity timeout of {timeout_secs}s \
+                 (last activity {elapsed}s ago) — ending session gracefully"
+            );
+            self.emit(
+                "agent:inactivity_timeout",
+                &format!("Session ended due to inactivity ({elapsed}s > {timeout_secs}s timeout)."),
+            )?;
+
+            // Gracefully end the session — mark as sleep.
+            return Ok(Some(RunSummary {
+                outcome: "inactivity_timeout".to_string(),
+                phase: SessionPhase::Sleep,
+                resumed: state.resume_count > 0,
+                selected_goal_id: state.selected_goal_id.clone(),
+                selected_goal_title: state.selected_goal_title.clone(),
+                selected_task: state.selected_task_label(),
+                action_summary: format!(
+                    "Session ended after {elapsed}s of inactivity (timeout: {timeout_secs}s)."
+                ),
+            }));
+        }
+
+        Ok(None)
+    }
+}
+
+/// (#50) Check whether the agent is allowed to spawn a sub-agent at the given
+/// depth.  Returns `Ok(())` if allowed, or an error describing why not.
+///
+/// This is a standalone function so it can be called from any phase without
+/// needing the full runtime generic context.
+pub fn check_spawn_depth(config: &AppConfig, current_depth: u32) -> Result<()> {
+    use crate::config::model::AgentRole;
+
+    if config.agent.disable_sub_agents {
+        anyhow::bail!("sub-agent spawning is disabled for this agent");
+    }
+    if config.agent.role == AgentRole::Worker {
+        anyhow::bail!("agent role is 'worker' — only orchestrators can spawn sub-agents");
+    }
+    let max_depth = if config.agent.max_spawn_depth > 0 {
+        config.agent.max_spawn_depth
+    } else {
+        DEFAULT_MAX_SPAWN_DEPTH
+    };
+    if current_depth >= max_depth {
+        anyhow::bail!("spawn depth {} exceeds maximum allowed depth {}", current_depth, max_depth);
+    }
+    Ok(())
 }
 
 fn try_send_morning_brief(paths: &crate::paths::PraxisPaths, now: chrono::DateTime<chrono::Utc>) {

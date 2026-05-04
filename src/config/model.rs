@@ -90,6 +90,18 @@ pub struct SecurityConfig {
     pub hardline_blocklist: Vec<String>,
 }
 
+/// Role of the agent within the Praxis hierarchy.
+///
+/// `Worker` — the default; a single agent that executes tasks directly.
+/// `Orchestrator` — may spawn sub-agents up to `max_spawn_depth` levels deep.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentRole {
+    #[default]
+    Worker,
+    Orchestrator,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AgentConfig {
     pub backend: String,
@@ -124,6 +136,19 @@ pub struct AgentConfig {
     /// fails.  Each entry is tried in order until one succeeds.
     #[serde(default)]
     pub fallback_providers: Vec<String>,
+    /// (#50) Role of this agent — Worker (default) or Orchestrator.
+    /// Orchestrators may spawn sub-agents up to `max_spawn_depth` levels.
+    #[serde(default)]
+    pub role: AgentRole,
+    /// (#50) Maximum depth of sub-agent spawning allowed.  0 means no spawning
+    /// (equivalent to `disable_sub_agents = true`).  Default is 0.
+    #[serde(default)]
+    pub max_spawn_depth: u32,
+    /// (#51) If set, the agent loop will end the session gracefully when no
+    /// tool activity has occurred for this many seconds.  `None` disables the
+    /// timeout (sessions run until completion).
+    #[serde(default)]
+    pub inactivity_timeout_secs: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -203,6 +228,9 @@ impl AppConfig {
                 prompt_cache_ttl_secs: default_prompt_cache_ttl_secs(),
                 extended_prompt_cache: false,
                 fallback_providers: Vec::new(),
+                role: AgentRole::default(),
+                max_spawn_depth: 0,
+                inactivity_timeout_secs: None,
             },
             context: ContextConfig::default(),
             features: FeatureFlags::default(),
