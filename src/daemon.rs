@@ -69,6 +69,7 @@ use crate::{
     lite::LiteMode,
     r#loop::{PraxisRuntime, RunOptions, RunSummary},
     paths::PraxisPaths,
+    plugins::PluginRegistry,
     profiles::ProfileSettings,
     storage::{SessionStore, SqliteSessionStore},
     time::SystemClock,
@@ -474,6 +475,7 @@ fn run_session_blocking(data_dir: &Path, task: Option<String>) -> Result<RunSumm
         tools: &tools,
         lite: &lite,
         last_tool_activity: std::cell::Cell::new(None),
+        plugins: std::cell::RefCell::new(PluginRegistry::new(&paths)),
     };
 
     runtime.run_once(RunOptions {

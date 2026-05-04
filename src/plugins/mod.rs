@@ -23,7 +23,7 @@
 //! tool_block = ["rm -rf /", "format filesystem"]
 //!
 //! [tools]
-!// my_tool = "scripts/my_tool.sh"
+//! my_tool = "scripts/my_tool.sh"
 //!
 //! [[messaging_platforms]]
 //! name = "teams"
@@ -58,7 +58,8 @@ impl Plugin {
         let raw = fs::read_to_string(&manifest_path)?;
         let manifest: PluginManifest = toml::from_str(&raw)
             .with_context(|| format!("invalid plugin.toml in {}", dir.display()))?;
-        manifest.try_into().with_context(|| format!("plugin {}", manifest.name))
+        let name = manifest.name.clone();
+        manifest.try_into().with_context(|| format!("plugin {name}"))
     }
 }
 
@@ -131,7 +132,9 @@ pub struct PlatformRegistration {
     #[serde(default = "default_true")]
     pub enabled: bool,
 }
-fn default_true() -> bool { true }
+fn default_true() -> bool {
+    true
+}
 
 /// Global plugin registry.
 pub struct PluginRegistry {

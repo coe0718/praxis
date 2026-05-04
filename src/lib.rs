@@ -37,6 +37,7 @@ pub mod messaging;
 pub mod oauth;
 pub mod observability;
 pub mod paths;
+pub mod plugins;
 pub mod postmortem;
 pub mod profiles;
 pub mod providers;

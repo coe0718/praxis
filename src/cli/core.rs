@@ -16,6 +16,7 @@ use crate::{
     lite::LiteMode,
     r#loop::{PraxisRuntime, RunOptions},
     paths::{PraxisPaths, default_data_dir},
+    plugins::PluginRegistry,
     profiles::ProfileSettings,
     providers::ProviderSettings,
     quality::{EvalRunner, LocalEvalSuite, LocalReviewer, Reviewer},
@@ -145,6 +146,7 @@ pub(crate) fn handle_run(data_dir_override: Option<PathBuf>, args: RunArgs) -> R
         tools: &tools,
         lite: &lite,
         last_tool_activity: std::cell::Cell::new(None),
+        plugins: std::cell::RefCell::new(PluginRegistry::new(&paths)),
     };
 
     // #7 — one-shot: force a single pass with no loop continuation.
@@ -252,6 +254,7 @@ pub(crate) fn handle_ask(data_dir_override: Option<PathBuf>, args: AskArgs) -> R
             tools: &tools,
             lite: &lite,
             last_tool_activity: std::cell::Cell::new(None),
+            plugins: std::cell::RefCell::new(PluginRegistry::new(&paths)),
         };
 
         let summary = runtime.run_once(RunOptions {

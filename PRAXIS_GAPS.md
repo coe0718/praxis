@@ -23,15 +23,15 @@ The original GAP_ANALYSIS_HERMES.md (2026-04-25) identified 34 gaps. Praxis clos
 **Praxis:** ✅ Real CDP client via tungstenite WebSocket — Chrome `/json` discovery, navigate, snapshot, click, type, press, scroll, back, title. Requires Chrome with `--remote-debugging-port=9222`. `src/tools/browser.rs`.  
 **Effort:** High.
 
-### 2. Code Execution (Sandboxed Python) ⚠️ Deferred (Vercel Sandbox or equivalent — see #37)
+### 2. Code Execution (Sandboxed Python) ⚠️ Partial (local sandbox real — Vercel Sandbox deferred)
 **Hermes:** `execute_code` — Python with programmatic access to all tools. v0.12: **Vercel Sandbox backend** for serverless execution.  
-**Praxis:** ❌ Raw `/bin/bash -c`. Phase 2B.  
+**Praxis:** ✅ Real local sandbox in `src/sandbox.rs` — language allowlist (python3, node, bash, etc.), timeout enforcement (5s bash, 30s others), Docker mode, output truncation. `src/tools/code_exec.rs` wired into tool execution. Vercel Sandbox backend (#37) deferred.  
 **Effort:** High.
 
-### 3. Plugin System ⚠️ Partial (TOML manifests + libloading — hook wiring into agent loop needs verification)
+### 3. Plugin System ✅ Implemented (TOML manifests + libloading + runtime hook wiring)
 **Hermes:** v0.11: Plugins can block tools, rewrite results, transform terminal output, register slash commands, dispatch tools, add dashboard tabs, ship image_gen backends. v0.12: **Pluggable gateway platforms** (platforms as plugins), **bundled plugins** (Spotify, Google Meet, Langfuse, achievements), new hooks (`pre_gateway_dispatch`, `pre_approval_request`, `post_approval_response`), **Podman support** (v0.11).  
 **OpenClaw:** 4 plugin types (channel, memory, tool, provider).  
-**Praxis:** ✅ TOML-based plugin manifests with `libloading` for `.so` dynamic libraries. `PluginRegistry` with `load_all`, `get`, `list`, `should_block`. 5 lifecycle hooks. Requires agent loop to wire hooks. `src/plugins/mod.rs`.  
+**Praxis:** ✅ TOML-based plugin manifests with `libloading` for `.so` dynamic libraries. `PluginRegistry` with `load_all`, `get`, `list`, `should_block`. 5 lifecycle hooks. **Runtime wiring:** plugin `should_block` checked in `execute_tool_request` before `SecurityPolicy`. Plugin registry loaded at session start in `PraxisRuntime`. `src/plugins/mod.rs`.  
 **Effort:** Very High.
 
 ### 4. Skills Hub & Registry ⚠️ Partial (local catalog + synthesis — remote fetch deferred)
@@ -45,9 +45,9 @@ Plugins as middleware — block tool execution, rewrite results, transform termi
 **Praxis:** ❌ HookRunner aborts phases but can't rewrite tool output.  
 **Effort:** Very High. Depends on #3.
 
-### 6. Autonomous Curator (v0.12) ✅ Implemented
+### 6. Autonomous Curator (v0.12) ✅ Implemented + Wired
 **Hermes's headline v0.12 feature.** Background agent that grades, prunes, and consolidates the agent's OWN skill library on a 7-day cycle. Per-run reports. `hermes curator status` ranks skills by usage. Rubric-based grading. Scoped toolsets (memory + skills only).  
-**Praxis:** ✅ `src/curator/mod.rs` — weighted grading (usage 40%, age 20%, quality 20%, deps 20%), 7-day cycle, per-run JSON reports, `praxis curator status` CLI. `is_cycle_due()` for runtime integration.  
+**Praxis:** ✅ `src/curator/mod.rs` — weighted grading (usage 40%, age 20%, quality 20%, deps 20%), 7-day cycle, per-run JSON reports, `praxis curator status` CLI. **Runtime wiring:** `Curator::run_cycle()` called in `execute_reflect` (after learning) with `is_cycle_due()` check. Gated by `LiteCapability::Curator`. `CuratorReport` persisted to `data_dir/curator_report.json`.  
 **Effort:** Medium-High.
 
 ### 7. One-Shot Mode `hermes -z` (v0.12) ✅
@@ -65,9 +65,9 @@ Non-interactive fire-and-forget with FULL tool access. `--model`/`--provider` fl
 **Praxis:** ⚠️ 3.  
 **Effort:** Variable.
 
-### 9. Voice / TTS ⚠️ ✅ Partial (STT via whisper, TTS via espeak/edge-tts)
+### 9. Voice / TTS ✅ Implemented (STT via whisper, TTS via espeak/edge-tts, audio routing)
 **Hermes:** STT + TTS. v0.12: **Pluggable TTS registry** + **Piper** native local TTS (free). Centralized audio routing with FLAC.  
-**Praxis:** ⚠️ Placeholder stubs.  
+**Praxis:** ✅ Real implementation — `src/tools/voice.rs` (434 lines): STT via whisper CLI, TTS via espeak (local WAV) and edge-tts (cloud MP3, 7 voice presets). `src/tools/audio.rs` (168 lines): `AudioRouter` with format conversion (WAV/MP3/FLAC/OGG via ffmpeg), lifecycle management, cleanup by age. `src/tools/audio.rs`.  
 **Effort:** Medium.
 
 ### 10. Discord Voice Channels ⚠️ Deferred (requires Opus/audio routing infrastructure)
@@ -78,9 +78,9 @@ Bot joins voice, speaks TTS via Opus.
 Honcho, OpenViking, Mem0, Hindsight, Holographic, RetainDB, ByteRover. v0.12: Curator cleanly shuts down memory providers.  
 **Effort:** High.
 
-### 12. Tool Use Policy Engine ✅
-Per-platform toggles, composite toolsets, platform presets. v0.12: **Slack `channel_skill_bindings`** + **`strict_mention`**. **Telegram chat allowlists**. v0.11: **Per-channel ephemeral prompts** (Discord, Telegram, Slack, Mattermost), **`require_mention` + `allowed_users` gating**.  
-**Praxis:** ⚠️ Per-tool levels only.  
+### 12. Tool Use Policy Engine ✅ Implemented (levels, allowlist, blocklist, presets)
+Per-platform toggles, composite toolsets, platform presets. v0.12: **Slack `channel_skill_bindings`** + **`strict_mention`**. **Telegram chat allowlists**. v0.11: **Per-channel ephemeral prompts** (Discord, Telegram, Slack, Mattermost), **`require_mention` + `allowed_users`** gating.  
+**Praxis:** ✅ Real implementation — `src/tools/policy.rs` (434 lines): `SecurityPolicy` with per-tool trust levels (Trusted/Restricted/Blocked), allowlist/blocklist, tool signatures. `src/tools/tool_policy.rs` (280 lines): `ToolPolicyEngine` with per-platform presets, composite toolset merging, configurable level overrides via `praxis.toml`. Runtime enforcement in `execute_tool_request`.  
 **Effort:** Medium.
 
 ### 13. Canvas / A2UI ⚠️ Deferred (OpenClaw-exclusive — requires visual workspace framework)
@@ -151,8 +151,9 @@ Platform-native buttons on Slack/Telegram.
 Gateway is a plugin host. Any platform can ship as plugin. Teams is first.  
 **Effort:** High. Depends on #3.
 
-### 29. Live Model Switching `/model` (v0.8) ✅
+### 29. Live Model Switching `/model` (v0.8) ✅ Implemented (CLI + runtime switching)
 Switch models mid-session without restart.  
+**Praxis:** ✅ Real implementation — `src/cli/model.rs`: `praxis model list` shows configured providers + models, `praxis model switch <provider>/<model>` hot-swaps the active backend at runtime. Model switching persists to `praxis.toml`. Backend re-initialization on switch.  
 **Effort:** Medium.
 
 ---

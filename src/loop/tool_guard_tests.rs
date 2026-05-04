@@ -8,6 +8,7 @@ use crate::{
     identity::{IdentityPolicy, LocalIdentityPolicy, MarkdownGoalParser},
     lite::LiteMode,
     paths::PraxisPaths,
+    plugins::PluginRegistry,
     state::{SessionPhase, SessionState},
     storage::{
         ApprovalStatus, ApprovalStore, NewApprovalRequest, SessionStore, SqliteSessionStore,
@@ -149,6 +150,7 @@ fn run_once(
         tools: &FileToolRegistry,
         lite: &LiteMode::default(),
         last_tool_activity: std::cell::Cell::new(None),
+        plugins: std::cell::RefCell::new(PluginRegistry::new(paths)),
     }
     .run_once(RunOptions {
         once: true,

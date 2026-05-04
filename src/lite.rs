@@ -8,6 +8,7 @@
 //! - no synthetic example generation
 //! - no daily learning runs
 //! - no morning brief generation
+//! - no autonomous curator skill grading cycles
 //! - reduced anatomy refresh frequency
 //! - disabled dashboard SSE stream
 //!
@@ -40,6 +41,8 @@ pub struct LiteMode {
     pub disable_sse: bool,
     #[serde(default = "default_disable_deterministic")]
     pub disable_deterministic: bool,
+    #[serde(default = "default_disable_curator")]
+    pub disable_curator: bool,
 }
 
 impl Default for LiteMode {
@@ -55,6 +58,7 @@ impl Default for LiteMode {
             anatomy_refresh_hours: default_anatomy_refresh_hours(),
             disable_deterministic: default_disable_deterministic(),
             disable_sse: default_disable_sse(),
+            disable_curator: default_disable_curator(),
         }
     }
 }
@@ -84,6 +88,9 @@ fn default_disable_sse() -> bool {
     true
 }
 fn default_disable_deterministic() -> bool {
+    false
+}
+fn default_disable_curator() -> bool {
     false
 }
 
@@ -132,6 +139,9 @@ impl LiteMode {
             if let Some(v) = t.get("lite_disable_sse").and_then(toml::Value::as_bool) {
                 lite.disable_sse = v;
             }
+            if let Some(v) = t.get("lite_disable_curator").and_then(toml::Value::as_bool) {
+                lite.disable_curator = v;
+            }
         }
         Ok(lite)
     }
@@ -149,6 +159,7 @@ impl LiteMode {
             LiteCapability::Brief => self.disable_brief,
             LiteCapability::SseStream => self.disable_sse,
             LiteCapability::Deterministic => self.disable_deterministic,
+            LiteCapability::Curator => self.disable_curator,
         }
     }
 }
@@ -163,6 +174,9 @@ pub enum LiteCapability {
     Brief,
     SseStream,
     Deterministic,
+    /// (#6) Autonomous curator — skill grading cycle.  Skipping this in lite
+    /// mode leaves curator reports stale but does not affect agent behaviour.
+    Curator,
 }
 
 // ---------------------------------------------------------------------------
@@ -210,6 +224,7 @@ impl LiteMode {
             disable_brief: true,
             disable_sse: true,
             disable_deterministic: true,
+            disable_curator: true,
             anatomy_refresh_hours: 24,
         }
     }

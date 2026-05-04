@@ -9,6 +9,7 @@ use crate::{
     lite::LiteMode,
     memory::MemoryStore,
     paths::PraxisPaths,
+    plugins::PluginRegistry,
     state::{SessionPhase, SessionState},
     storage::{SessionStore, SqliteSessionStore},
     time::FixedClock,
@@ -48,6 +49,7 @@ fn runtime_runs_single_session() {
         tools: &FileToolRegistry,
         lite: &LiteMode::default(),
         last_tool_activity: std::cell::Cell::new(None),
+        plugins: std::cell::RefCell::new(PluginRegistry::new(&paths)),
     };
 
     let summary = runtime
@@ -94,6 +96,7 @@ fn runtime_reaches_stop_condition_when_all_goals_are_done() {
         tools: &FileToolRegistry,
         lite: &LiteMode::default(),
         last_tool_activity: std::cell::Cell::new(None),
+        plugins: std::cell::RefCell::new(PluginRegistry::new(&paths)),
     };
 
     let summary = runtime

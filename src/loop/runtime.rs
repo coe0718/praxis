@@ -2,6 +2,7 @@ use anyhow::Result;
 
 use crate::{
     config::AppConfig,
+    curator::Curator,
     events::EventSink,
     forensics::record_snapshot,
     heartbeat::write_heartbeat,
@@ -10,6 +11,7 @@ use crate::{
     lite::LiteMode,
     memory::{MemoryLinkStore, MemoryStore},
     paths::PraxisPaths,
+    plugins::PluginRegistry,
     state::{SessionPhase, SessionState},
     storage::{
         AnatomyStore, ApprovalStore, DecisionReceiptStore, OperationalMemoryStore,
@@ -39,6 +41,8 @@ pub struct PraxisRuntime<'a, B, C, E, G, I, S, T> {
     /// (#51) Tracks the timestamp of the last tool activity for inactivity
     /// timeout enforcement.  Updated after each phase completes.
     pub last_tool_activity: std::cell::Cell<Option<chrono::DateTime<chrono::Utc>>>,
+    /// (#3) Loaded plugin registry — loaded once at session start.
+    pub plugins: std::cell::RefCell<PluginRegistry>,
 }
 
 impl<'a, B, C, E, G, I, S, T> PraxisRuntime<'a, B, C, E, G, I, S, T>
@@ -68,6 +72,13 @@ where
         let startup_hooks = HookRunner::from_paths(self.paths);
         let startup_ctx = HookContext::new("session.start", self.paths.data_dir.clone());
         startup_hooks.fire_observer("session.start", &startup_ctx, "*");
+
+        // (#3) Load plugin registry for this session.
+        let mut registry = PluginRegistry::new(self.paths);
+        if let Err(e) = registry.load_all() {
+            log::warn!("failed to load plugins: {e}");
+        }
+        *self.plugins.borrow_mut() = registry;
 
         // Consume any pending wake intent before the quiet-hours gate.
         // An urgent intent bypasses quiet hours; a normal intent respects them
@@ -260,6 +271,36 @@ where
                 }
                 Err(e) => log::warn!("learning run failed: {e}"),
                 _ => {}
+            }
+        }
+
+        // (#6) Autonomous curator: run skill grading cycle if due.
+        // The curator evaluates skills by usage (40%), age (20%), quality (20%),
+        // and dependencies (20%) on a 7-day schedule.  Results are written to
+        // curator reports in the data directory.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::Curator) {
+            let curator_config = crate::curator::CuratorConfig::default();
+            let curator = Curator::new(curator_config, self.paths);
+            match curator.is_cycle_due() {
+                Ok(true) => match curator.run_cycle() {
+                    Ok(report) => {
+                        curator.mark_cycle_run()?;
+                        if let Err(e) = self.emit(
+                            "agent:curator_cycle_complete",
+                            &format!(
+                                "curator: graded {} skills, {} prune candidates, {} promote candidates",
+                                report.total_skills,
+                                report.prune_candidates.len(),
+                                report.promote_candidates.len(),
+                            ),
+                        ) {
+                            log::warn!("failed to emit curator event: {e}");
+                        }
+                    }
+                    Err(e) => log::warn!("curator cycle failed: {e}"),
+                },
+                Ok(false) => {} // not due yet
+                Err(e) => log::warn!("curator cycle check failed: {e}"),
             }
         }
 

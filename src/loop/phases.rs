@@ -452,6 +452,21 @@ where
             .get(self.paths, &request.tool_name)?
             .with_context(|| format!("tool manifest {} is missing", request.tool_name))?;
 
+        // (#3) Plugin block check — interceptors can block tools by pattern.
+        // Checked before SecurityPolicy so plugins can deny even approved requests.
+        let command = request.payload_json.as_deref().unwrap_or("");
+        if let Some(reason) = self.plugins.borrow().should_block(command) {
+            self.emit(
+                "agent:tool_blocked_by_plugin",
+                &format!("{} — {}", request.tool_name, reason),
+            )?;
+            state.last_outcome = Some("plugin_blocked".to_string());
+            state.action_summary =
+                Some(format!("Tool '{}' blocked by plugin policy: {reason}", request.tool_name));
+            state.updated_at = self.clock.now_utc();
+            return Ok(());
+        }
+
         SecurityPolicy.validate_request(self.config, self.paths, &manifest, &request)?;
         let invocation_key = invocation_key(&manifest, &request);
 
