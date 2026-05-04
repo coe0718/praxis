@@ -78,7 +78,7 @@ Bot joins voice, speaks TTS via Opus.
 Honcho, OpenViking, Mem0, Hindsight, Holographic, RetainDB, ByteRover. v0.12: Curator cleanly shuts down memory providers.  
 **Effort:** High.
 
-### 12. Tool Use Policy Engine ❌
+### 12. Tool Use Policy Engine ✅
 Per-platform toggles, composite toolsets, platform presets. v0.12: **Slack `channel_skill_bindings`** + **`strict_mention`**. **Telegram chat allowlists**. v0.11: **Per-channel ephemeral prompts** (Discord, Telegram, Slack, Mattermost), **`require_mention` + `allowed_users` gating**.  
 **Praxis:** ⚠️ Per-tool levels only.  
 **Effort:** Medium.
@@ -99,9 +99,10 @@ Per-platform toggles, composite toolsets, platform presets. v0.12: **Slack `chan
 Inject notes agent sees after next tool call.  
 **Effort:** Low-Med.
 
-### 17. Shell Hooks (v0.11) ❌
+### 17. Shell Hooks (v0.11) ✅
 Wire shell scripts as lifecycle hooks, no Python required.  
-**Effort:** Low.
+**Praxis:** ✅ HookRunner fires observer/interceptor/approval hooks. `session.start`, `session.end`, `phase.*.start`, `phase.*.end`, `tool.before`, `tool.after`, `approval.before` events wired into runtime. CLI: `praxis hooks add|list|remove|test`.  
+**Effort:** Low. ✅ *Done. Wave 13.*
 
 ### 18. Webhook Direct-Delivery (v0.11) ❌
 Forward webhooks to chat bypassing agent/LLM.  
@@ -112,7 +113,7 @@ v0.11: 3rd-party tabs/widgets. v0.12: **Dashboard Chat tab** (xterm.js + JSON-RP
 **Praxis:** ⚠️ Static SPA dashboard.  
 **Effort:** Medium-High.
 
-### 20. Transport ABC (v0.11) ❌
+### 20. Transport ABC (v0.11) ✅
 Pluggable provider transport layer. Clean architecture for adding providers.  
 **Effort:** Medium.
 
@@ -121,10 +122,10 @@ CLI for managing fallback provider chains.
 **Praxis:** ⚠️ Auto-failover (Wave 7) but no CLI for managing fallback chains.  
 **Effort:** Low-Med.
 
-### 22. Auto-Backup Before Update (v0.12) ❌
-Auto-backup HERMES_HOME before `hermes update` (opt-in). `hermes update --check` preflight.  
-**Praxis:** ❌ Watchdog binary update exists but no auto-backup.  
-**Effort:** Low.
+### 22. Auto-Backup Before Update (v0.12) ✅
+Auto-backup HERMES_HOME before `hermes update` (opt-out, default on). `praxis watchdog update --check` preflight.  
+**Praxis:** ✅ `backup_before_update = true` by default. `watchdog update --apply` tars the entire data_dir before replacing the binary. `watchdog update --check` reports available updates without downloading. Configurable via `[runtime] backup_before_update = false` to opt out.  
+**Effort:** Low. ✅ *Done. Wave 13.*
 
 ### 23. Fast Mode `/fast` (v0.9) ❌
 Priority processing. v0.12: whitelist broadened to all OpenAI + Anthropic models.  
@@ -170,11 +171,11 @@ Creative and productivity skill ecosystem.
 LLM tracing plugin + gamification.  
 **Effort:** Medium.
 
-### 33. Native Multi-Image Sending (v0.12)
+### 33. Native Multi-Image Sending (v0.12) ✅
 Across 6 platforms.  
 **Effort:** Low-Med.
 
-### 34. Centralized Audio Routing + FLAC (v0.12)
+### 34. Centralized Audio Routing + FLAC (v0.12) ✅
 **Effort:** Medium. Depends on #9.
 
 ### 35. Remote Model Catalog (v0.12)
@@ -212,7 +213,7 @@ Parity across Discord/Telegram/Slack gatekeeping.
 `/v1/chat/completions` and `/v1/responses` accept inline images.  
 **Effort:** Low-Med.
 
-### 44. GPT Image 2 (v0.11) + Pluggable image_gen Backends (v0.11)
+### 44. GPT Image 2 (v0.11) + Pluggable image_gen Backends (v0.11) ✅
 OpenAI provider for image generation.  
 **Effort:** Low-Med.
 

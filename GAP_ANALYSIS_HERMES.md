@@ -437,3 +437,12 @@ The remaining items (browser, code execution, plugin system, full profiles, term
 | #11 | Profile Isolation | ✅ DONE | `src/cli/profile.rs` — `praxis profile create|switch|list|remove|show`. Each profile gets isolated tools/, skills/, memory/, sessions/ subdirectories. |
 
 **Remaining open: 10 gaps** (was 14, 4 closed)
+
+### 2026-05-04 — Wave 13 (Shell Hooks + Auto-Backup)
+
+|| Gap | Feature | Status | Commit |
+|-----|---------|--------|--------|
+| #17 | Shell Hooks | ✅ DONE | `src/loop/phases.rs` + `src/loop/runtime.rs` — Wired `session.start`, `session.end`, `phase.*.start/end`, `tool.before`, `tool.after`, `approval.before` hook events into runtime. Interceptor hooks can abort phases and tool execution. Approval hooks auto-approve/reject/defer tools. |
+| #22 | Auto-Backup Before Update | ✅ DONE | `src/cli/watchdog.rs` + `src/config/model.rs` — `backup_before_update` defaults to `true` (opt-out). `watchdog update --check` preflight reports available updates. `--apply` tars entire data_dir before binary replacement. |
+
+**Remaining open: 8 gaps** (was 10, 2 closed)

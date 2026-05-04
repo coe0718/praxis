@@ -49,7 +49,8 @@ pub struct RuntimeConfig {
     pub snapshot_retention_days: usize,
     /// When `true`, the watchdog update flow tars the entire `data_dir` into
     /// `backups/praxis-data-<timestamp>.tar.gz` before replacing the binary.
-    #[serde(default)]
+    /// Defaults to `true` (opt-out) so updates are always recoverable.
+    #[serde(default = "default_true")]
     pub backup_before_update: bool,
 }
 
@@ -172,7 +173,7 @@ impl AppConfig {
                 state_file: PathBuf::from("session_state.json"),
                 daily_backup_snapshots: false,
                 snapshot_retention_days: default_snapshot_retention_days(),
-                backup_before_update: false,
+                backup_before_update: true,
             },
             database: DatabaseConfig {
                 path: PathBuf::from("praxis.db"),
@@ -261,6 +262,10 @@ fn source(name: &str, priority: u8, max_pct: f32) -> ContextSourceConfig {
 
 fn default_profile() -> String {
     "quality".to_string()
+}
+
+fn default_true() -> bool {
+    true
 }
 
 fn default_snapshot_retention_days() -> usize {

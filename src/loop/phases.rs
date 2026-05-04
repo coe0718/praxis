@@ -5,13 +5,14 @@ use crate::{
         ContextLoadRequest, LocalContextLoader, compact_if_needed, consume_compact, handoff,
     },
     hands::HandStore,
+    hooks::{ApprovalVerdict, HookContext, HookRunner},
     memory::{MemoryLinkStore, MemoryStore},
     paths::PraxisPaths,
     speculative::{SpeculativeBranch, select_branch},
     state::SessionState,
     storage::{
-        AnatomyStore, ApprovalStore, DecisionReceiptStore, NewApprovalRequest, NewDecisionReceipt,
-        OperationalMemoryStore, ProviderUsageStore, QualityStore, SessionStore,
+        AnatomyStore, ApprovalStatus, ApprovalStore, DecisionReceiptStore, NewApprovalRequest,
+        NewDecisionReceipt, OperationalMemoryStore, ProviderUsageStore, QualityStore, SessionStore,
     },
     tools::{
         DEFAULT_LOOP_GUARD_LIMIT, GuardDecision, LoopGuard, SecurityPolicy, ToolRegistry,
@@ -172,6 +173,51 @@ where
         }
 
         if let Some(request) = self.store.next_approved_request()? {
+            // ── Shell Hook: approval.before ────────────────────────────────
+            // Allow approval hooks to auto-approve, reject, or defer the request.
+            let hooks = HookRunner::from_paths(self.paths);
+            let approval_ctx = HookContext::new("approval.before", self.paths.data_dir.clone())
+                .with_phase("decide")
+                .with_tool(&request.tool_name, Some(request.id));
+            let verdict = hooks.fire_approval_hooks(
+                &request.tool_name,
+                &approval_ctx,
+                request.payload_json.as_deref(),
+            );
+            match verdict {
+                ApprovalVerdict::Approve => {
+                    // Hook approved — proceed as normal (already approved in queue).
+                    log::info!(
+                        "hooks: approval hook auto-approved tool '{}' (request #{})",
+                        request.tool_name,
+                        request.id
+                    );
+                }
+                ApprovalVerdict::Reject(note) => {
+                    // Hook rejected — mark the request as rejected.
+                    log::info!(
+                        "hooks: approval hook rejected tool '{}' (request #{}): {note}",
+                        request.tool_name,
+                        request.id
+                    );
+                    self.store.set_approval_status(
+                        request.id,
+                        ApprovalStatus::Rejected,
+                        Some(&format!("auto-rejected by approval hook: {note}")),
+                    )?;
+                    state.last_outcome = Some("hook_rejected_tool".to_string());
+                    state.action_summary = Some(format!(
+                        "Approval hook rejected tool '{}' (request #{}): {note}",
+                        request.tool_name, request.id
+                    ));
+                    state.updated_at = self.clock.now_utc();
+                    return Ok(());
+                }
+                ApprovalVerdict::Defer => {
+                    // No opinion — proceed with normal approved flow.
+                }
+            }
+
             state.last_outcome = Some("approved_tool_selected".to_string());
             state.selected_tool_name = Some(request.tool_name.clone());
             state.selected_tool_request_id = Some(request.id);
@@ -434,11 +480,34 @@ where
             }
         }
 
+        // ── Shell Hook: tool.before ───────────────────────────────────────
+        // Interceptor hooks can abort tool execution before it starts.
+        let hooks = HookRunner::from_paths(self.paths);
+        let tool_ctx = HookContext::new("tool.before", self.paths.data_dir.clone())
+            .with_phase("act")
+            .with_tool(&manifest.name, Some(request.id));
+
+        if let Err(e) = hooks.fire_interceptor("tool.before", &tool_ctx, &manifest.name) {
+            log::info!("hooks: tool.before interceptor blocked tool '{}': {e}", manifest.name);
+            state.last_outcome = Some("blocked_by_hook".to_string());
+            state.action_summary =
+                Some(format!("Hook interceptor blocked tool '{}' execution: {e}", manifest.name));
+            state.updated_at = self.clock.now_utc();
+            return Ok(());
+        }
+
         let execution =
             execute_request(self.paths, &manifest, &request, self.config.security.redact_secrets)?;
         self.store.mark_approval_consumed(request.id)?;
         sync_capabilities(self.tools, self.store, self.paths)?;
         self.emit("agent:tool_call", &format!("{} {}", manifest.name, request.summary))?;
+
+        // ── Shell Hook: tool.after ────────────────────────────────────────
+        let tool_after_ctx = HookContext::new("tool.after", self.paths.data_dir.clone())
+            .with_phase("act")
+            .with_tool(&manifest.name, Some(request.id));
+        hooks.fire_observer("tool.after", &tool_after_ctx, &manifest.name);
+
         state.last_outcome = Some("tool_executed".to_string());
         state.action_summary = Some(execution.summary);
         state.updated_at = self.clock.now_utc();

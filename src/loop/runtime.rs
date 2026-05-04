@@ -56,6 +56,12 @@ where
         let now = self.clock.now_utc();
         self.validate_options(&options)?;
 
+        // ── Shell Hook: session.start ──────────────────────────────────────
+        // Observer hooks fire at session start (non-blocking, fire-and-forget).
+        let startup_hooks = HookRunner::from_paths(self.paths);
+        let startup_ctx = HookContext::new("session.start", self.paths.data_dir.clone());
+        startup_hooks.fire_observer("session.start", &startup_ctx, "*");
+
         // Consume any pending wake intent before the quiet-hours gate.
         // An urgent intent bypasses quiet hours; a normal intent respects them
         // but injects its task into the session.

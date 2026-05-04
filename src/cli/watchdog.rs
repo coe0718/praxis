@@ -50,6 +50,10 @@ struct WatchdogUpdateArgs {
     /// Apply the downloaded binary immediately without prompting.
     #[arg(long)]
     apply: bool,
+
+    /// Only check for a newer release; do not download or apply.
+    #[arg(long)]
+    check: bool,
 }
 
 #[derive(Debug, Args)]
@@ -186,6 +190,7 @@ struct GitHubRelease {
 #[derive(Debug, Deserialize)]
 struct GitHubAsset {
     name: String,
+    size: Option<u64>,
     browser_download_url: String,
 }
 
@@ -218,6 +223,25 @@ fn watchdog_update(paths: &PraxisPaths, args: WatchdogUpdateArgs) -> Result<Stri
     let asset = release.assets.iter().find(|a| a.name.contains(target)).with_context(|| {
         format!("no asset matching '{target}' found in release {}", release.tag_name)
     })?;
+
+    // ── Preflight check: report availability without downloading ─────────
+    if args.check {
+        let asset_size = asset.size.unwrap_or(0);
+        let size_mb = asset_size as f64 / (1024.0 * 1024.0);
+        let size_str = if asset_size > 0 {
+            format!("{size_mb:.1} MB")
+        } else {
+            "unknown size".to_string()
+        };
+        return Ok(format!(
+            "watchdog: update available {CURRENT_VERSION} → {latest}\n\
+             asset: {} ({size_str})\n\
+             url: {}\n\
+             \n\
+             Run 'praxis watchdog update' to download, or 'praxis watchdog update --apply' to download and apply.",
+            asset.name, asset.browser_download_url,
+        ));
+    }
 
     let download_url = &asset.browser_download_url;
     let tmp_path = paths.data_dir.join(format!("praxis-{latest}.tmp"));
@@ -252,16 +276,19 @@ fn watchdog_update(paths: &PraxisPaths, args: WatchdogUpdateArgs) -> Result<Stri
     }
 
     // Load config to check backup_before_update flag.
+    // Default is true (opt-out via backup_before_update = false in config).
     let config = if paths.config_file.exists() {
         AppConfig::load(&paths.config_file).ok()
     } else {
         None
     };
 
+    let should_backup = config.as_ref().is_none_or(|c| c.runtime.backup_before_update);
+
     let mut data_backup_path: Option<PathBuf> = None;
 
-    // Optionally backup the entire data_dir before replacing the binary.
-    if config.as_ref().is_some_and(|c| c.runtime.backup_before_update) {
+    // Auto-backup the entire data_dir before replacing the binary.
+    if should_backup {
         let timestamp = Utc::now().format("%Y%m%dT%H%M%SZ");
         let archive_name = format!("praxis-data-{timestamp}.tar.gz");
         let archive_path = paths.backups_dir.join(&archive_name);
