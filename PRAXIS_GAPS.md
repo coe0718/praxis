@@ -163,11 +163,11 @@ Switch models mid-session without restart.
 Rubric-based grading, active-update bias, runtime inheritance, scoped toolsets, clean context.  
 **Effort:** Medium.
 
-### 31. ComfyUI v5 + TouchDesigner-MCP + Humanizer + claude-design + pretext + spike + sketch + airtable + llm-wiki (v0.11–v0.12)
+### 31. ComfyUI v5 + TouchDesigner-MCP + Humanizer + claude-design + pretext + spike + sketch + airtable + llm_wiki (v0.11–v0.12) ✅
 Creative and productivity skill ecosystem.  
 **Effort:** Low-Med (curation, not engineering).
 
-### 32. Langfuse Observability + Hermes Achievements (v0.12)
+### 32. Langfuse Observability + Hermes Achievements (v0.12) ✅
 LLM tracing plugin + gamification.  
 **Effort:** Medium.
 
@@ -186,18 +186,18 @@ Auto-discovery of new models from OpenRouter + Nous Portal manifests.
 5-min default, 1-hour opt-in.  
 **Effort:** Low.
 
-### 37. Vercel Sandbox Backend (v0.12)
+### 37. Vercel Sandbox Backend (v0.12) ⚠️ Deferred
 Serverless execution for code/terminal.  
 **Effort:** High.
 
-### 38. 9 New Inference Providers (v0.11–v0.12)
+### 38. 9 New Inference Providers (v0.11–v0.12) ✅
 GMI Cloud, Azure AI Foundry, MiniMax OAuth, Tencent Tokenhub, LM Studio (upgraded), NVIDIA NIM, Arcee AI, Step Plan, Gemini CLI OAuth, Vercel ai-gateway, AWS Bedrock. GPT-5.5 via Codex. DeepSeek-v4-pro/flash, Qwen 3.6 Plus, GLM-5V-Turbo.  
 **Effort:** Low-Med per provider.
 
 ### 39. Cron `workdir` + `context_from` Chaining (v0.12) + `web_search limit` (v0.12) ✅
 **Effort:** Low-Med.
 
-### 40. TUI Enhancements (v0.11–v0.12)
+### 40. TUI Enhancements (v0.11–v0.12) ⚠️ Deferred
 Ink/React rewrite, ~57% cold start cut (v0.12), LaTeX rendering (v0.12), `/reload` .env hot-reload, auto-resume, session deletion from picker, `/mouse` toggle, pluggable busy-indicator styles, `hermes -z` one-shot.  
 **Effort:** High (ground-up).
 
@@ -245,7 +245,7 @@ Cross-agent file state coordination.
 Track tool activity, not wall-clock.  
 **Effort:** Low.
 
-### 52–65. OpenClaw + Ecosystem Gaps
+### 52–65. OpenClaw + Ecosystem Gaps ✅ N/A for Praxis
 Session Tools, Named Persistent Sessions, Device Nodes, Control UI, WebChat, WebSocket Control Plane, DM Scoping, Tool Profiles, WASM Sandbox, Vector/Embedding Memory, Secret Zeroization, Merkle Audit Trail, Rule-Based Routing, Autonomy Levels, CodeAct Mode, Mission System, Hands System, Context References, Batch Processing, API Server (OpenAI-compat), OpenClaw Migration.  
 **Effort:** Low to Very High.
 
