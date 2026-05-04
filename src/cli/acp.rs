@@ -215,6 +215,7 @@ fn handle_chat(paths: &PraxisPaths, req: &JsonRpcRequest) -> JsonRpcResponse {
         attachment_policy: "reject".to_string(),
         tools: false,
         prompt: message.split_whitespace().map(String::from).collect(),
+        redact_secrets: false,
     };
 
     match crate::cli::core::handle_ask(Some(paths.data_dir.clone()), ask_args) {

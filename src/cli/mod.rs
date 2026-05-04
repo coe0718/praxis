@@ -335,6 +335,24 @@ pub struct RunArgs {
     /// Override the execution profile (quality, budget, offline, deterministic).
     #[arg(long)]
     pub profile: Option<String>,
+
+    /// Run exactly one pass through the agent loop then exit.
+    /// Equivalent to `--once --force` but semantically clearer for
+    /// non-interactive / CI invocations.  (#7)
+    #[arg(long)]
+    pub one_shot: bool,
+
+    /// Activate fast mode for this run — disables expensive capabilities
+    /// (speculative execution, sub-agent reviewers, learning, briefs, SSE)
+    /// and drops the context ceiling to 50 %.  (#23)
+    #[arg(long)]
+    pub fast: bool,
+
+    /// Override the config-level `redact_secrets` setting to `true` for this
+    /// run.  Tool output will be scanned for common secret patterns and
+    /// matches replaced with `[REDACTED]`.  (#47)
+    #[arg(long)]
+    pub redact_secrets: bool,
 }
 
 #[derive(Debug, Args)]
@@ -351,6 +369,12 @@ pub struct AskArgs {
 
     #[arg(required = true)]
     pub prompt: Vec<String>,
+
+    /// Override the config-level `redact_secrets` setting to `true` for this
+    /// invocation.  Tool output is scanned for common secret patterns and
+    /// matches replaced with `[REDACTED]`.  (#47)
+    #[arg(long)]
+    pub redact_secrets: bool,
 }
 
 #[derive(Debug, Args)]

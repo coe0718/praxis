@@ -50,6 +50,9 @@ pub(super) async fn api_run(
             force: true,
             task: body.task,
             profile: None,
+            one_shot: false,
+            fast: false,
+            redact_secrets: false,
         },
     ) {
         Ok(summary) => Json(json!({ "outcome": summary })).into_response(),
@@ -72,6 +75,7 @@ pub(super) async fn api_ask(
             attachment_policy: "reject".to_string(),
             tools: false,
             prompt: vec![body.prompt],
+            redact_secrets: false,
         },
     ) {
         Ok(output) => Json(json!({ "output": output })).into_response(),

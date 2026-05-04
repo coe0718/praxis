@@ -205,6 +205,7 @@ fn dispatch_message(ctx: &ReplContext, input: &str) -> Result<String> {
         attachment_policy: "reject".to_string(),
         tools: false,
         prompt: input.split_whitespace().map(String::from).collect(),
+        redact_secrets: false,
     };
 
     core::handle_ask(Some(ctx.paths.data_dir.clone()), ask_args)

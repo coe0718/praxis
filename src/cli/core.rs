@@ -104,6 +104,12 @@ pub(crate) fn handle_run(data_dir_override: Option<PathBuf>, args: RunArgs) -> R
         let profiles = ProfileSettings::load_or_default(&paths.profiles_file)?;
         config = profiles.apply(&config)?;
     }
+
+    // #47 — CLI override: force secret redaction on for this run.
+    if args.redact_secrets {
+        config.security.redact_secrets = true;
+    }
+
     let identity = LocalIdentityPolicy;
     let tools = FileToolRegistry;
     let backend = ConfiguredBackend::from_runtime(&config, &paths)?;
@@ -123,8 +129,8 @@ pub(crate) fn handle_run(data_dir_override: Option<PathBuf>, args: RunArgs) -> R
 
     let clock = SystemClock::from_env()?;
     let mut lite = LiteMode::from_file(&paths.config_file).unwrap_or_default();
-    // If fast_mode flag file exists, override with fast_all settings.
-    if LiteMode::is_fast_active(&paths.data_dir) {
+    // #23 — CLI flag: activate fast mode for this run.
+    if args.fast || LiteMode::is_fast_active(&paths.data_dir) {
         lite = LiteMode::fast_all();
     }
     let runtime = PraxisRuntime {
@@ -140,11 +146,14 @@ pub(crate) fn handle_run(data_dir_override: Option<PathBuf>, args: RunArgs) -> R
         lite: &lite,
     };
 
-    let summary = runtime.run_once(RunOptions {
-        once: args.once,
-        force: args.force,
-        task: args.task,
-    })?;
+    // #7 — one-shot: force a single pass with no loop continuation.
+    let (once, force) = if args.one_shot {
+        (true, true)
+    } else {
+        (args.once, args.force)
+    };
+
+    let summary = runtime.run_once(RunOptions { once, force, task: args.task })?;
     let snapshot = if config.runtime.daily_backup_snapshots {
         maybe_create_daily_snapshot(&config, &paths, clock.now_utc())?
     } else {
@@ -191,7 +200,13 @@ pub(crate) fn handle_ask(data_dir_override: Option<PathBuf>, args: AskArgs) -> R
         format!("{base_prompt}\n\nAttached files:\n{attachments}")
     };
 
-    let (config, paths) = load_initialized_config(data_dir_override)?;
+    let (mut config, paths) = load_initialized_config(data_dir_override)?;
+
+    // #47 — CLI override: force secret redaction on for this invocation.
+    if args.redact_secrets {
+        config.security.redact_secrets = true;
+    }
+
     let backend = ConfiguredBackend::from_runtime(&config, &paths)?;
     let budgets = UsageBudgetPolicy::load_or_default(&paths.budgets_file)?;
     let estimate = estimate_tokens(&prompt) + 220;

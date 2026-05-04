@@ -122,6 +122,7 @@ pub fn handle_telegram_command(
                 attachment_policy: "reject".to_string(),
                 tools: false,
                 prompt: vec![prompt],
+                redact_secrets: false,
             },
         ),
         TelegramCommand::Run(task) => core::handle_run(
@@ -131,6 +132,9 @@ pub fn handle_telegram_command(
                 force: true,
                 task: Some(task),
                 profile: None,
+                one_shot: false,
+                fast: false,
+                redact_secrets: false,
             },
         ),
         TelegramCommand::Status => core::handle_status(Some(data_dir)),
