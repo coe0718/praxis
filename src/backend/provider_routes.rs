@@ -20,6 +20,24 @@ pub fn route_for(
     Ok(route)
 }
 
+/// Like `route_for` but also checks for a runtime model override file.
+pub fn route_for_with_override(
+    provider: &str,
+    config: &AppConfig,
+    settings: &ProviderSettings,
+    data_dir: &std::path::Path,
+) -> Result<ProviderRoute> {
+    let mut route = route_for(provider, config, settings)?;
+    let override_file = data_dir.join("model_override");
+    if let Ok(m) = std::fs::read_to_string(&override_file) {
+        let m = m.trim();
+        if !m.is_empty() {
+            route.model = m.to_string();
+        }
+    }
+    Ok(route)
+}
+
 pub fn default_route(provider: &str) -> ProviderRoute {
     ProviderSettings::default().first_for(provider).unwrap_or(ProviderRoute {
         provider: provider.to_string(),

@@ -8,7 +8,7 @@ use std::{
     path::PathBuf,
 };
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -169,7 +169,7 @@ fn handle_tools_list(paths: &PraxisPaths, req: &JsonRpcRequest) -> JsonRpcRespon
     ok_response(req.id.clone(), json!({ "tools": tools }))
 }
 
-fn handle_tools_call(paths: &PraxisPaths, req: &JsonRpcRequest) -> JsonRpcResponse {
+fn handle_tools_call(_paths: &PraxisPaths, req: &JsonRpcRequest) -> JsonRpcResponse {
     let params = &req.params;
     let tool_name = match params.get("name").and_then(|v| v.as_str()) {
         Some(name) => name,

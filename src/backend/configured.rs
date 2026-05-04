@@ -15,7 +15,7 @@ use super::{
     gating::CanaryGate,
     ollama, openai,
     prompts::{request_for_ask, request_for_finalize, request_for_plan},
-    provider_routes::{default_route, route_for, validate_provider},
+    provider_routes::{default_route, route_for, validate_provider, route_for_with_override},
 };
 
 pub enum ConfiguredBackend {
@@ -58,7 +58,7 @@ impl ConfiguredBackend {
                     .unwrap_or_default(),
             }),
             provider => Self::Single(Box::new(SingleBackend {
-                route: route_for(provider, config, &settings)?,
+                route: route_for_with_override(provider, config, &settings, &paths.data_dir)?,
                 local_route: settings
                     .first_for("ollama")
                     .unwrap_or_else(|| default_route("ollama")),

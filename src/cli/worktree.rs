@@ -217,7 +217,7 @@ fn name_from_path(path: &Path) -> String {
     path.file_name().unwrap_or_default().to_string_lossy().to_string()
 }
 
-fn parse_branch_from_gitdir(git_dir: &Path, gitdir_content: &str) -> Option<String> {
+fn parse_branch_from_gitdir(_git_dir: &Path, gitdir_content: &str) -> Option<String> {
     // gitdir content is like: "git: /path/to/.git/worktrees/name"
     // The actual HEAD is in .git/worktrees/name/HEAD
     let worktree_name = gitdir_content.trim().rsplit('/').next().unwrap_or("").to_string();

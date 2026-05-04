@@ -43,6 +43,8 @@ pub enum TelegramCommand {
     Steer(String),
     /// Toggle fast mode (skip speculative, learning, brief, etc.).
     Fast,
+    /// Show or set the active model.
+    Model(Option<String>),
     Help,
 }
 
@@ -82,6 +84,8 @@ pub fn parse_telegram_command(text: &str) -> TelegramCommand {
         TelegramCommand::ApproveSender(rest.trim().to_string())
     } else if let Some(rest) = trimmed.strip_prefix("/steer ") {
         TelegramCommand::Steer(rest.trim().to_string())
+    } else if let Some(rest) = trimmed.strip_prefix("/model ") {
+        TelegramCommand::Model(Some(rest.trim().to_string()))
     } else if let Some(rest) = trimmed.strip_prefix("/link ") {
         parse_link_command(rest.trim())
     } else {
@@ -95,6 +99,7 @@ pub fn parse_telegram_command(text: &str) -> TelegramCommand {
             "/memories" => TelegramCommand::Memories,
             "/decisions" => TelegramCommand::Decisions,
             "/fast" => TelegramCommand::Fast,
+            "/model" => TelegramCommand::Model(None),
             _ => TelegramCommand::Help,
         }
     }
@@ -156,6 +161,7 @@ pub fn handle_telegram_command(
         TelegramCommand::ApproveSender(code) => handle_approve_sender(data_dir, &code),
         TelegramCommand::Steer(task) => handle_steer(data_dir, &task),
         TelegramCommand::Fast => handle_fast(data_dir),
+        TelegramCommand::Model(model) => handle_model(data_dir, model.as_deref()),
         TelegramCommand::Help => Ok(help_text().to_string()),
     }
 }
@@ -383,6 +389,38 @@ fn handle_fast(data_dir: std::path::PathBuf) -> Result<String> {
         Ok("⚡ fast mode ON — speculative execution, learning, brief, and sub-agent reviewers disabled".to_string())
     } else {
         Ok("🔄 fast mode OFF — full capabilities restored".to_string())
+    }
+}
+
+fn handle_model(data_dir: std::path::PathBuf, model: Option<&str>) -> Result<String> {
+    let paths = PraxisPaths::for_data_dir(data_dir);
+    let override_file = paths.data_dir.join("model_override");
+
+    match model {
+        Some(m) if m == "clear" || m == "reset" || m == "default" => {
+            if override_file.exists() {
+                fs::remove_file(&override_file)?;
+            }
+            Ok("🔄 model override cleared — using config default".to_string())
+        }
+        Some(m) => {
+            fs::write(&override_file, m)?;
+            Ok(format!(
+                "🔧 model override set to: {m}\n\
+                        Takes effect on next session. Use /model clear to reset."
+            ))
+        }
+        None => {
+            let current = if override_file.exists() {
+                fs::read_to_string(&override_file)?.trim().to_string()
+            } else {
+                "(config default)".to_string()
+            };
+            Ok(format!(
+                "🤖 active model: {current}\n\
+                        Usage: /model <name> to switch, /model clear to reset"
+            ))
+        }
     }
 }
 

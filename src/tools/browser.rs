@@ -5,7 +5,7 @@
 
 use std::{
     fs,
-    path::{Path, PathBuf},
+    path::{Path},
     process::{Command, Stdio},
 };
 
@@ -151,7 +151,7 @@ fn screenshot(url: &str, output_path: &Path) -> Result<BrowserResult> {
     let parent = output_path.parent().unwrap_or(Path::new("."));
     let _ = fs::create_dir_all(parent);
 
-    let output = Command::new(find_chromium())
+    let _output = Command::new(find_chromium())
         .args([
             "--headless",
             "--disable-gpu",
