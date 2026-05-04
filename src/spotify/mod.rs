@@ -346,7 +346,7 @@ pub fn execute_spotify_tool(params: &serde_json::Value) -> Result<String> {
         .join("praxis")
         .join("spotify.json");
 
-    let mut config = SpotifyConfig::from_file(&config_file).unwrap_or_default();
+    let config = SpotifyConfig::from_file(&config_file).unwrap_or_default();
 
     if !config.is_configured() {
         bail!(

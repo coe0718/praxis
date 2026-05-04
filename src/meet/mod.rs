@@ -11,7 +11,6 @@
 //!
 //! Usage: `praxis meet list --days 7` or `praxis meet create "Meeting title"`
 
-use std::collections::HashMap;
 use std::env;
 use std::fs;
 
@@ -385,7 +384,7 @@ pub fn execute_meet_tool(params: &serde_json::Value) -> Result<String> {
         .join("praxis")
         .join("meet.json");
 
-    let mut config = MeetConfig::from_file(&config_file).unwrap_or_default();
+    let config = MeetConfig::from_file(&config_file).unwrap_or_default();
 
     if !config.is_configured() {
         bail!(

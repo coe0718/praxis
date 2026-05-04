@@ -12,12 +12,13 @@ use axum::{
 
 use super::{
     routes_admin, routes_control, routes_core, routes_events, routes_learning, routes_memory,
+    routes_plugins,
 };
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
 #[derive(Clone)]
-pub(super) struct DashboardState {
+pub struct DashboardState {
     pub data_dir: PathBuf,
     /// Bearer token required on all API requests.  `None` when
     /// `PRAXIS_DASHBOARD_TOKEN` is unset — all requests are allowed but a
@@ -186,7 +187,10 @@ pub async fn serve_dashboard(data_dir: PathBuf, host: String, port: u16) -> Resu
         )
         .route("/api/boundaries/confirm", post(routes_admin::api_boundaries_confirm))
         .route("/api/forensics", get(routes_admin::api_forensics))
-        .route("/api/argus", get(routes_admin::api_argus));
+        .route("/api/argus", get(routes_admin::api_argus))
+        // Plugins
+        .route("/api/plugins/tabs", get(routes_plugins::list_plugin_tabs))
+        .route("/api/plugins/widgets/:name", get(routes_plugins::get_plugin_widget));
 
     let app = app
         .layer(axum::middleware::from_fn_with_state(state.clone(), require_auth))

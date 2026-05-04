@@ -90,7 +90,7 @@ impl CdpClient {
             }
             // Wait for next message
             let resp = self.socket.read_message()?;
-            let text = resp.into_text()?;
+            let _text = resp.into_text()?;
         }
     }
 

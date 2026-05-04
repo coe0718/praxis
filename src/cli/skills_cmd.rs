@@ -6,7 +6,7 @@ use anyhow::{Result, anyhow};
 use clap::{Args, Subcommand};
 
 use crate::cli::core::load_initialized_config;
-use crate::skills::{self, DEFAULT_REGISTRY_URL, RemoteSkillEntry};
+use crate::skills::{self, DEFAULT_REGISTRY_URL};
 
 #[derive(Debug, Args)]
 pub struct SkillsArgs {

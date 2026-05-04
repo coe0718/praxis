@@ -6,6 +6,7 @@ mod routes_core;
 mod routes_events;
 mod routes_learning;
 mod routes_memory;
+pub mod routes_plugins;
 mod server;
 mod types;
 

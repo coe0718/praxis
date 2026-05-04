@@ -194,7 +194,7 @@ pub(super) async fn api_chat_completions(
     use crate::usage::UsageBudgetPolicy;
 
     // Collect the last user message as the input.
-    let (system, user_input) = match extract_messages(&body) {
+    let (_system, user_input) = match extract_messages(&body) {
         Ok(pair) => pair,
         Err(e) => {
             return (
