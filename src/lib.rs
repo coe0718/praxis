@@ -14,6 +14,7 @@ pub mod cli;
 pub mod config;
 pub mod context;
 pub mod crypto;
+pub mod curator;
 pub mod daemon;
 pub mod dashboard;
 pub mod delegation;

@@ -128,7 +128,7 @@ pub(super) async fn api_tools(State(state): State<DashboardState>) -> impl IntoR
 }
 
 pub(super) async fn api_models(State(state): State<DashboardState>) -> impl IntoResponse {
-    use crate::cli::models::{CatalogEntry, load_catalog};
+    use crate::cli::models::load_catalog;
     let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
     let catalog_path = paths.data_dir.join("model_catalog.json");
 

@@ -17,37 +17,37 @@ The original GAP_ANALYSIS_HERMES.md (2026-04-25) identified 34 gaps. Praxis clos
 
 ## 🔴 CRITICAL — Must Have (7)
 
-### 1. Browser Automation ❌
+### 1. Browser Automation ✅ Implemented (CDP via tungstenite WebSocket)
 **Hermes:** 12 browser tools (navigate, snapshot, vision, click, type, press, scroll, back, console, get_images, cdp, dialog). Backends: Browserbase, Browser Use, Camofox anti-detect, local Chrome CDP, local Chromium. Zero-API-key via Nous Tool Gateway. v0.12: CDP supervisor with dialog detection + cross-origin iframe eval.
 **OpenClaw:** Isolated browser + signed-in Chrome via Chrome MCP. Playwright-backed.
-**Praxis:** ❌ Nothing.  
+**Praxis:** ✅ Real CDP client via tungstenite WebSocket — Chrome `/json` discovery, navigate, snapshot, click, type, press, scroll, back, title. Requires Chrome with `--remote-debugging-port=9222`. `src/tools/browser.rs`.  
 **Effort:** High.
 
-### 2. Code Execution (Sandboxed Python) ❌
+### 2. Code Execution (Sandboxed Python) ⚠️ Deferred (Vercel Sandbox or equivalent — see #37)
 **Hermes:** `execute_code` — Python with programmatic access to all tools. v0.12: **Vercel Sandbox backend** for serverless execution.  
 **Praxis:** ❌ Raw `/bin/bash -c`. Phase 2B.  
 **Effort:** High.
 
-### 3. Plugin System ❌
+### 3. Plugin System ⚠️ Partial (TOML manifests + libloading — hook wiring into agent loop needs verification)
 **Hermes:** v0.11: Plugins can block tools, rewrite results, transform terminal output, register slash commands, dispatch tools, add dashboard tabs, ship image_gen backends. v0.12: **Pluggable gateway platforms** (platforms as plugins), **bundled plugins** (Spotify, Google Meet, Langfuse, achievements), new hooks (`pre_gateway_dispatch`, `pre_approval_request`, `post_approval_response`), **Podman support** (v0.11).  
 **OpenClaw:** 4 plugin types (channel, memory, tool, provider).  
-**Praxis:** ❌ Rust recompile required.  
+**Praxis:** ✅ TOML-based plugin manifests with `libloading` for `.so` dynamic libraries. `PluginRegistry` with `load_all`, `get`, `list`, `should_block`. 5 lifecycle hooks. Requires agent loop to wire hooks. `src/plugins/mod.rs`.  
 **Effort:** Very High.
 
-### 4. Skills Hub & Registry ❌
+### 4. Skills Hub & Registry ⚠️ Partial (local catalog + synthesis — remote fetch deferred)
 **Hermes:** agentskills.io. 104+ bundled skills. v0.12: ComfyUI v5 built-in, TouchDesigner-MCP bundled, Humanizer, claude-design, airtable, pretext, spike, sketch, llm-wiki. Direct URL install. `/reload-skills`.  
 **OpenClaw:** ClawHub — 100+ bundles.  
-**Praxis:** ❌ Local SKILL.md only.  
+**Praxis:** ✅ Local `load_catalog`, `render_catalog`, `read_skill_content`, `SkillSynthesizer` in `src/skills/mod.rs`. Remote fetch (agentskills.io) deferred.  
 **Effort:** High.
 
-### 5. Plugin Surface — Block/Rewrite/Intercept (v0.11) ❌
+### 5. Plugin Surface — Block/Rewrite/Intercept (v0.11) ⚠️ Deferred (depends on Plugin System #3)
 Plugins as middleware — block tool execution, rewrite results, transform terminal output.  
 **Praxis:** ❌ HookRunner aborts phases but can't rewrite tool output.  
 **Effort:** Very High. Depends on #3.
 
-### 6. Autonomous Curator (v0.12) ❌
+### 6. Autonomous Curator (v0.12) ✅ Implemented
 **Hermes's headline v0.12 feature.** Background agent that grades, prunes, and consolidates the agent's OWN skill library on a 7-day cycle. Per-run reports. `hermes curator status` ranks skills by usage. Rubric-based grading. Scoped toolsets (memory + skills only).  
-**Praxis:** ❌ Evolution proposals touch config/identity only. No skill maintenance.  
+**Praxis:** ✅ `src/curator/mod.rs` — weighted grading (usage 40%, age 20%, quality 20%, deps 20%), 7-day cycle, per-run JSON reports, `praxis curator status` CLI. `is_cycle_due()` for runtime integration.  
 **Effort:** Medium-High.
 
 ### 7. One-Shot Mode `hermes -z` (v0.12) ✅
@@ -59,22 +59,22 @@ Non-interactive fire-and-forget with FULL tool access. `--model`/`--provider` fl
 
 ## 🟠 HIGH — Major Capability Gaps (22)
 
-### 8. Messaging Platforms ⚠️
+### 8. Messaging Platforms ⚠️ ✅ Partial (Discord, Telegram, Slack) — 16 more platforms deferred
 **Hermes: 19 platforms** (+ Teams v0.12, + Yuanbao v0.12, + QQBot v0.11). Gateway is now a **plugin host for platforms** (v0.12).  
 **OpenClaw:** 23+.  
 **Praxis:** ⚠️ 3.  
 **Effort:** Variable.
 
-### 9. Voice / TTS ⚠️
+### 9. Voice / TTS ⚠️ ✅ Partial (STT via whisper, TTS via espeak/edge-tts)
 **Hermes:** STT + TTS. v0.12: **Pluggable TTS registry** + **Piper** native local TTS (free). Centralized audio routing with FLAC.  
 **Praxis:** ⚠️ Placeholder stubs.  
 **Effort:** Medium.
 
-### 10. Discord Voice Channels ❌
+### 10. Discord Voice Channels ⚠️ Deferred (requires Opus/audio routing infrastructure)
 Bot joins voice, speaks TTS via Opus.  
 **Effort:** High. Depends on #9.
 
-### 11. Pluggable Memory Backends ❌
+### 11. Pluggable Memory Backends ⚠️ Deferred (Honcho/Mem0/Obsidian integration requires external SDKs)
 Honcho, OpenViking, Mem0, Hindsight, Holographic, RetainDB, ByteRover. v0.12: Curator cleanly shuts down memory providers.  
 **Effort:** High.
 
@@ -83,15 +83,15 @@ Per-platform toggles, composite toolsets, platform presets. v0.12: **Slack `chan
 **Praxis:** ⚠️ Per-tool levels only.  
 **Effort:** Medium.
 
-### 13. Canvas / A2UI ❌
+### 13. Canvas / A2UI ⚠️ Deferred (OpenClaw-exclusive — requires visual workspace framework)
 **OpenClaw exclusive.** Agent-driven visual workspace with interactive HTML/A2UI.  
 **Effort:** Very High.
 
-### 14. Multi-Agent Workspace Isolation ❌
+### 14. Multi-Agent Workspace Isolation ⚠️ Deferred (requires per-channel workspace isolation layer)
 **OpenClaw exclusive.** Per-channel/group agent routing to isolated workspaces.  
 **Effort:** High.
 
-### 15. Voice Wake / Talk Mode ❌
+### 15. Voice Wake / Talk Mode ⚠️ Deferred (OpenClaw-exclusive — requires OS-level audio)
 **OpenClaw exclusive.** "Hey OpenClaw" wake word on macOS/iOS/Android.  
 **Effort:** Very High.
 
@@ -108,7 +108,7 @@ Wire shell scripts as lifecycle hooks, no Python required.
 Forward webhooks to chat bypassing agent/LLM.  
 **Effort:** Low.
 
-### 19. Dashboard Plugin System (v0.11) + Chat Tab (v0.12) ❌
+### 19. Dashboard Plugin System (v0.11) + Chat Tab (v0.12) ⚠️ Deferred (requires SPA plugin slot architecture)
 v0.11: 3rd-party tabs/widgets. v0.12: **Dashboard Chat tab** (xterm.js + JSON-RPC sidecar — full web-based terminal to agent). **Models tab** with per-model analytics. **Page-scoped plugin slots**. Configure main + auxiliary models from dashboard.  
 **Praxis:** ⚠️ Static SPA dashboard.  
 **Effort:** Medium-High.
@@ -139,15 +139,15 @@ Auto-notification when background tasks finish.
 Platform-native buttons on Slack/Telegram.  
 **Effort:** Low-Med.
 
-### 26. Native Spotify (v0.12) ❌
+### 26. Native Spotify (v0.12) ⚠️ Deferred (PKCE OAuth + Spotify Web API integration)
 7 tools (play, search, queue, playlists, devices) with PKCE OAuth.  
 **Effort:** Medium.
 
-### 27. Native Google Meet (v0.12) ❌
+### 27. Native Google Meet (v0.12) ⚠️ Deferred (Google Meet API + calendar integration)
 Join calls, transcribe, speak, follow up.  
 **Effort:** Medium.
 
-### 28. Pluggable Gateway Platforms (v0.12) ❌
+### 28. Pluggable Gateway Platforms (v0.12) ⚠️ Deferred (depends on Plugin System #3)
 Gateway is a plugin host. Any platform can ship as plugin. Teams is first.  
 **Effort:** High. Depends on #3.
 
