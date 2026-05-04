@@ -14,6 +14,7 @@ mod delegation;
 #[cfg(feature = "discord")]
 mod discord;
 mod dryrun;
+mod ephemeral;
 mod evolution;
 mod forensics;
 pub(crate) mod git;
@@ -25,6 +26,7 @@ mod mcp;
 mod memory;
 mod migrate;
 mod model;
+mod models;
 mod oauth;
 mod profile;
 mod sandbox;
@@ -105,6 +107,7 @@ pub enum Commands {
     Vault(vault::VaultArgs),
     Webhook(webhook::WebhookArgs),
     Memory(memory::MemoryArgs),
+    Ephemeral(ephemeral::EphemeralArgs),
     Completions(CompletionsArgs),
     Sessions(SessionsArgs),
     Insights(InsightsArgs),
@@ -117,6 +120,7 @@ pub enum Commands {
     Worktree(WorktreeArgs),
     Plan(PlanArgs),
     Profile(ProfileArgs),
+    Models(models::ModelsArgs),
 }
 
 #[derive(Debug, Args)]
@@ -458,6 +462,7 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::Vault(args) => vault::handle_vault(cli.data_dir, args),
         Commands::Webhook(args) => webhook::handle_webhook(cli.data_dir, &args),
         Commands::Memory(args) => memory::handle_memory(cli.data_dir, args),
+        Commands::Ephemeral(args) => ephemeral::handle_ephemeral(cli.data_dir, args),
         Commands::Completions(args) => handle_completions(args),
         Commands::Sessions(args) => handle_sessions(cli.data_dir, args),
         Commands::Insights(args) => handle_insights(cli.data_dir, args),
@@ -476,6 +481,7 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::Worktree(args) => worktree::handle_worktree(cli.data_dir, args),
         Commands::Plan(args) => dryrun::handle_plan(cli.data_dir, args),
         Commands::Profile(args) => profile::handle_profile(cli.data_dir, args),
+        Commands::Models(args) => models::handle_models(cli.data_dir, args),
     }
 }
 

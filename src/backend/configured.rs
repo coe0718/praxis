@@ -153,6 +153,27 @@ impl AgentBackend for ConfiguredBackend {
     }
 }
 
+impl ConfiguredBackend {
+    /// Execute a raw provider request, bypassing the standard prompt templates.
+    /// Used by the OpenAI-compatible chat/completions API endpoint for
+    /// multi-modal and custom system-prompt support.
+    pub fn execute_raw_request(&self, request: ProviderRequest) -> Result<BackendOutput> {
+        match self {
+            Self::Stub(_) => {
+                Err(anyhow::anyhow!("stub backend does not support raw provider requests"))
+            }
+            Self::Single(inner) => {
+                execute_routes(&inner.routable(&request)?, request, inner.prompt_caching)
+            }
+            Self::Router(inner) => execute_routes(
+                &inner.routable_for_class(Some(&RouteClass::Fast), "ask")?,
+                request,
+                inner.prompt_caching,
+            ),
+        }
+    }
+}
+
 impl SingleBackend {
     fn routes_for(&self, request: &ProviderRequest) -> Vec<ProviderRoute> {
         if self.local_first_fallback

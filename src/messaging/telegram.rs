@@ -48,6 +48,8 @@ pub struct TelegramMessage {
     pub is_mention: bool,
     /// True if the chat is a private (1:1) conversation.
     pub is_private: bool,
+    /// Per-channel ephemeral prompt injected from config, if the channel has one.
+    pub ephemeral_prompt: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -139,6 +141,7 @@ impl TelegramBot {
         bus: &dyn MessageBus,
         activation: &ActivationStore,
         gating: &MessageGating,
+        ephemeral_prompts: &std::collections::HashMap<String, String>,
     ) -> Result<(Vec<TelegramMessage>, Vec<CallbackQuery>)> {
         let _lock = acquire_poll_lock(state_path)?;
         let offset = load_offset(state_path).unwrap_or(0);
@@ -176,6 +179,7 @@ impl TelegramBot {
             bus,
             activation,
             gating,
+            ephemeral_prompts,
         )?;
         Ok((messages, callbacks))
     }
@@ -381,6 +385,7 @@ fn filter_messages(
     bus: &dyn MessageBus,
     activation: &ActivationStore,
     gating: &MessageGating,
+    ephemeral_prompts: &std::collections::HashMap<String, String>,
 ) -> Result<Vec<TelegramMessage>> {
     let mut accepted = Vec::new();
     let mut pairing = PairingStore::load(pairing_path)?;
@@ -455,6 +460,11 @@ fn filter_messages(
             BusEvent::new("message", "telegram", &conversation_id, sender_id.to_string(), text);
         bus.publish(&event)?;
 
+        let ephemeral_prompt = ephemeral_prompts
+            .get(&chat_id.to_string())
+            .cloned()
+            .or_else(|| ephemeral_prompts.get(&conversation_id).cloned());
+
         accepted.push(TelegramMessage {
             chat_id,
             sender_id,
@@ -462,6 +472,7 @@ fn filter_messages(
             is_reply,
             is_mention,
             is_private,
+            ephemeral_prompt,
         });
     }
 

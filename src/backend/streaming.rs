@@ -57,7 +57,7 @@ impl StreamingBackend {
             let api_key = resolve_api_key(&route.provider)?;
             let endpoint = resolve_endpoint(route);
 
-            // Convert InputContent to string for streaming
+            // Convert InputContent to proper multi-modal format for streaming
             let user_content = match &request.input {
                 InputContent::Text(text) => text.clone(),
                 InputContent::Blocks(blocks) => {

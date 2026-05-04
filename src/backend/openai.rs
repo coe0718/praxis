@@ -36,10 +36,23 @@ pub(super) fn execute(
 
     // Convert InputContent to OpenAI message format
     let user_content = match &request.input {
-        InputContent::Text(text) => text.clone(),
+        InputContent::Text(text) => ChatMessageContent::Text(text.clone()),
         InputContent::Blocks(blocks) => {
-            // For multi-modal, we need to serialize the blocks as JSON
-            serde_json::to_string(blocks).context("failed to serialize content blocks")?
+            let chat_blocks: Vec<ChatContentBlock> = blocks
+                .iter()
+                .map(|b| match b {
+                    super::ContentBlock::Text { text } => {
+                        ChatContentBlock::Text { text: text.clone() }
+                    }
+                    super::ContentBlock::ImageUrl { image_url } => ChatContentBlock::ImageUrl {
+                        image_url: ChatImageUrl {
+                            url: image_url.url.clone(),
+                            detail: image_url.detail.clone(),
+                        },
+                    },
+                })
+                .collect();
+            ChatMessageContent::Blocks(chat_blocks)
         }
     };
 
@@ -48,7 +61,7 @@ pub(super) fn execute(
         messages: vec![
             ChatMessage {
                 role: "system".to_string(),
-                content: request.system.to_string(),
+                content: ChatMessageContent::Text(request.system.to_string()),
             },
             ChatMessage {
                 role: "user".to_string(),
@@ -80,7 +93,19 @@ pub(super) fn execute(
         .choices
         .into_iter()
         .find_map(|choice| {
-            let content = choice.message.content.trim().to_string();
+            let content = match &choice.message.content {
+                ChatMessageContent::Text(t) => t.trim().to_string(),
+                ChatMessageContent::Blocks(blocks) => blocks
+                    .iter()
+                    .filter_map(|b| match b {
+                        ChatContentBlock::Text { text } => Some(text.as_str()),
+                        ChatContentBlock::ImageUrl { .. } => None,
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" ")
+                    .trim()
+                    .to_string(),
+            };
             (!content.is_empty()).then_some(content)
         })
         .with_context(|| format!("provider {} returned no text content", route.provider))?;
@@ -192,10 +217,33 @@ struct ChatRequest {
     max_completion_tokens: Option<u32>,
 }
 
+/// Message content: either a plain text string or an array of typed content
+/// blocks (text + image_url) for multi-modal requests.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+enum ChatMessageContent {
+    Text(String),
+    Blocks(Vec<ChatContentBlock>),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+enum ChatContentBlock {
+    Text { text: String },
+    ImageUrl { image_url: ChatImageUrl },
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ChatImageUrl {
+    url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    detail: Option<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 struct ChatMessage {
     role: String,
-    content: String,
+    content: ChatMessageContent,
 }
 
 #[derive(Debug, Deserialize)]

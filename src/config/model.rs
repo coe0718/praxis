@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     fs,
     path::{Path, PathBuf},
     str::FromStr,
@@ -23,6 +24,11 @@ pub struct AppConfig {
     /// opt-in until explicitly enabled in `praxis.toml`.
     #[serde(default)]
     pub features: FeatureFlags,
+    /// Per-channel ephemeral prompts — channel/chat IDs mapped to prompt text.
+    /// These prompts are injected into the agent's context when processing a
+    /// message from the corresponding channel but don't persist across sessions.
+    #[serde(default)]
+    pub ephemeral_prompts: HashMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -194,6 +200,7 @@ impl AppConfig {
             },
             context: ContextConfig::default(),
             features: FeatureFlags::default(),
+            ephemeral_prompts: HashMap::new(),
         }
     }
 

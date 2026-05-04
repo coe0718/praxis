@@ -104,6 +104,7 @@ fn process_messages(
         &bus,
         &activation,
         gating,
+        &std::collections::HashMap::new(),
     )?;
 
     // Handle callback queries (inline button presses for approvals).
