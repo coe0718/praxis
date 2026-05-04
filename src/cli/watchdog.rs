@@ -305,7 +305,7 @@ fn watchdog_update(paths: &PraxisPaths, args: WatchdogUpdateArgs) -> Result<Stri
         backup_path.display()
     );
     if let Some(ref dp) = data_backup_path {
-        msg.push_str(&format!ndata_backup: {}", dp.display()));
+        msg.push_str(&format!("\ndata_backup: {}", dp.display()));
     }
 
     Ok(msg)
@@ -337,6 +337,45 @@ fn watchdog_rollback(paths: &PraxisPaths) -> Result<String> {
         record.version,
         current_exe.display()
     ))
+}
+
+/// Archive `data_dir` into a gzip-compressed tarball at `archive_path`.
+///
+/// The archive root is the basename of `data_dir` so that extracting it
+/// produces a self-contained directory rather than scattering contents.
+fn backup_data_dir(data_dir: &std::path::Path, archive_path: &std::path::Path) -> Result<()> {
+    let file = File::create(archive_path)
+        .with_context(|| format!("failed to create archive {}", archive_path.display()))?;
+    let enc = GzEncoder::new(file, Compression::default());
+    let mut tar = Builder::new(enc);
+
+    // Iterate over the *contents* of data_dir so the archive root is the
+    // data_dir basename (not an absolute path prefix).
+    let dir_name = data_dir.file_name().context("data_dir has no directory name")?;
+
+    for entry in fs::read_dir(data_dir)
+        .with_context(|| format!("failed to read data_dir {}", data_dir.display()))?
+    {
+        let entry = entry.context("failed to read directory entry")?;
+        let path = entry.path();
+        // Skip the backups directory itself to avoid recursive archiving.
+        if entry.file_name() == "backups" {
+            continue;
+        }
+        let name = path.file_name().context("entry has no file name")?;
+        let archived_path = std::path::Path::new(dir_name).join(&name);
+        if path.is_dir() {
+            tar.append_dir_all(&archived_path, &path)
+                .with_context(|| format!("failed to archive directory {}", path.display()))?;
+        } else {
+            tar.append_path_with_name(&path, &archived_path)
+                .with_context(|| format!("failed to archive file {}", path.display()))?;
+        }
+    }
+
+    let enc = tar.into_inner().context("failed to finalize tar archive")?;
+    enc.finish().context("failed to compress tar archive")?;
+    Ok(())
 }
 
 fn platform_asset_name() -> &'static str {
