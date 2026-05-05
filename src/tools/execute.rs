@@ -8,6 +8,7 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail};
+use super::ToolRegistry;
 use reqwest::blocking::Client;
 
 use crate::{
@@ -98,6 +99,17 @@ pub fn execute_request(
                 Ok(output) => Ok(ToolExecutionResult { summary: output }),
                 Err(e) => Ok(ToolExecutionResult {
                     summary: format!("meet error: {e}"),
+                }),
+            }
+        }
+        _ if manifest.name.starts_with("mcp:") => {
+            // MCP tool — route through MCP client.
+            let payload = parse_payload(request.payload_json.as_deref())?;
+            let params = serde_json::to_value(&payload.params).unwrap_or(serde_json::Value::Null);
+            match execute_mcp_tool(&manifest.name, &params) {
+                Ok(output) => Ok(ToolExecutionResult { summary: output }),
+                Err(e) => Ok(ToolExecutionResult {
+                    summary: format!("mcp error: {e}"),
                 }),
             }
         }
@@ -1139,4 +1151,98 @@ fn fallback_result(
             manifest.name, "no-adapter", message, params_json
         ),
     }
+}
+
+// ── MCP tool dispatch ────────────────────────────────────────────────────────
+
+/// Execute a tool call routed through the MCP client.
+/// Tool names follow the pattern `mcp:<server>:<tool>`.
+fn execute_mcp_tool(tool_name: &str, params: &serde_json::Value) -> anyhow::Result<String> {
+    // Parse "mcp:<server>:<tool>" → (server, tool)
+    let parts: Vec<&str> = tool_name.splitn(3, ':').collect();
+    if parts.len() < 3 {
+        anyhow::bail!("invalid MCP tool name '{tool_name}': expected mcp:<server>:<tool>");
+    }
+    let server = parts[1];
+    let tool = parts[2];
+
+    // Load MCP server config from praxis.toml [mcp_servers.<server>]
+    let config = crate::mcp::McpServerConfig::load_for_server(server)?;
+    let mut client = crate::mcp::McpClient::connect(&config)?;
+
+    let result = client.call_tool(tool, Some(params.clone()))?;
+    // Extract text from CallToolResult
+    let text = result
+        .content
+        .into_iter()
+        .filter_map(|c| match c {
+            crate::mcp::types::ToolContent::Text { text } => Some(text),
+            _ => None,
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    Ok(text)
+}
+
+/// Discover tools from all configured MCP servers and register them
+/// as TOML manifests in the tool registry.  Called once at daemon startup.
+pub fn discover_mcp_tools(paths: &crate::paths::PraxisPaths) -> anyhow::Result<()> {
+    let configs = crate::mcp::McpServerConfig::load_all()?;
+    if configs.is_empty() {
+        return Ok(());
+    }
+
+    let registry = super::FileToolRegistry;
+
+    for (server_name, config) in &configs {
+        let mut client = match crate::mcp::McpClient::connect(config) {
+            Ok(c) => c,
+            Err(e) => {
+                log::warn!("mcp: failed to connect to server '{server_name}': {e}");
+                continue;
+            }
+        };
+
+        let tools = match client.list_tools() {
+            Ok(t) => t,
+            Err(e) => {
+                log::warn!("mcp: failed to list tools from '{server_name}': {e}");
+                continue;
+            }
+        };
+
+        for tool in tools {
+            let manifest_name = format!("mcp:{server_name}:{}", tool.name);
+            let manifest = super::ToolManifest {
+                name: manifest_name.clone(),
+                description: if tool.description.is_empty() {
+                    format!("MCP tool: {}", tool.name)
+                } else {
+                    tool.description.clone()
+                },
+                kind: super::ToolKind::Internal,
+                required_level: 2,
+                requires_approval: false,
+                rehearsal_required: false,
+                allowed_paths: Vec::new(),
+                allowed_read_paths: Vec::new(),
+                path: None,
+                args: Vec::new(),
+                timeout_secs: Some(60),
+                endpoint: None,
+                method: None,
+                headers: Vec::new(),
+                body: None,
+                allowed_vault_keys: None,
+                allowed_oauth_providers: None,
+            };
+
+            if registry.get(paths, &manifest_name)?.is_none() {
+                registry.register(paths, &manifest)?;
+                log::info!("mcp: registered tool {manifest_name}");
+            }
+        }
+    }
+
+    Ok(())
 }

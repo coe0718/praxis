@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Set `PRAXIS_DISCORD_BOT_TOKEN` to a Discord bot token.
 /// Set `PRAXIS_DISCORD_WEBHOOK_URL` to post via an incoming webhook (no token needed).
+#[derive(Debug)]
 pub struct DiscordClient {
     client: Client,
     /// Bot token — used for the REST API (send DMs, channel messages, etc.)
@@ -347,4 +348,52 @@ fn save_discord_state(path: &Path, state: &DiscordPollState) -> Result<()> {
     }
     let raw = serde_json::to_string_pretty(state).context("failed to serialize discord state")?;
     fs::write(path, raw).with_context(|| format!("failed to write {}", path.display()))
+}
+
+impl crate::messaging::Platform for DiscordClient {
+    fn name(&self) -> &str {
+        "discord"
+    }
+
+    fn is_connected(&self) -> bool {
+        self.bot_token.is_some() || self.webhook_url.is_some()
+    }
+
+    fn send_message(&self, target: &str, text: &str) -> Result<()> {
+        // If target looks like a Discord channel ID (all digits), use REST API.
+        // Otherwise, fall back to webhook.
+        if target.parse::<u64>().is_ok() && self.bot_token.is_some() {
+            let _ = self.send_message(target, text)?;
+            Ok(())
+        } else {
+            self.send_webhook(text, None)
+        }
+    }
+
+    fn send_file(&self, target: &str, file_path: &str, caption: Option<&str>) -> Result<()> {
+        let message = caption.unwrap_or(file_path);
+        // Discord REST API supports multipart file uploads, but for simplicity
+        // send the file path as a message with a caption.
+        <Self as crate::messaging::Platform>::send_message(
+            self,
+            target,
+            &format!("{message}\nFile: {file_path}"),
+        )
+    }
+
+    fn send_typing(&self, target: &str) -> Result<()> {
+        let token = self
+            .bot_token
+            .as_deref()
+            .context("PRAXIS_DISCORD_BOT_TOKEN required for typing indicator")?;
+        let url = format!("https://discord.com/api/v10/channels/{target}/typing");
+        self.client
+            .post(&url)
+            .header("Authorization", format!("Bot {token}"))
+            .send()
+            .context("failed to send Discord typing indicator")?
+            .error_for_status()
+            .context("Discord typing indicator failed")?;
+        Ok(())
+    }
 }

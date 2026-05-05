@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Set `PRAXIS_SLACK_BOT_TOKEN` (xoxb-…) for the Web API.
 /// Set `PRAXIS_SLACK_WEBHOOK_URL` for an incoming webhook (no token needed).
+#[derive(Debug)]
 pub struct SlackClient {
     client: Client,
     bot_token: Option<String>,
@@ -283,4 +284,45 @@ fn save_slack_state(path: &Path, state: &SlackPollState) -> Result<()> {
     }
     let raw = serde_json::to_string_pretty(state).context("failed to serialize slack state")?;
     fs::write(path, raw).with_context(|| format!("failed to write {}", path.display()))
+}
+
+impl crate::messaging::Platform for SlackClient {
+    fn name(&self) -> &str {
+        "slack"
+    }
+
+    fn is_connected(&self) -> bool {
+        self.bot_token.is_some() || self.webhook_url.is_some()
+    }
+
+    fn send_message(&self, target: &str, text: &str) -> Result<()> {
+        if self.bot_token.is_some() {
+            let _ = self.post_message(target, text)?;
+            Ok(())
+        } else {
+            self.send_webhook(text)
+        }
+    }
+
+    fn send_file(&self, target: &str, file_path: &str, caption: Option<&str>) -> Result<()> {
+        let message = caption.unwrap_or(file_path);
+        // Slack files.upload API is deprecated; send file path as message.
+        self.send_message(target, &format!("{message}\nFile: {file_path}"))
+    }
+
+    fn send_typing(&self, target: &str) -> Result<()> {
+        let token = self
+            .bot_token
+            .as_deref()
+            .context("PRAXIS_SLACK_BOT_TOKEN required for typing indicator")?;
+        self.client
+            .post("https://slack.com/api/conversations.typing")
+            .header("Authorization", format!("Bearer {token}"))
+            .json(&serde_json::json!({ "channel": target }))
+            .send()
+            .context("failed to send Slack typing indicator")?
+            .error_for_status()
+            .context("Slack typing indicator failed")?;
+        Ok(())
+    }
 }

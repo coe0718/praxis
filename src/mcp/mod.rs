@@ -10,8 +10,9 @@
 //!
 //! Reference: https://modelcontextprotocol.io
 
-pub mod client;
-pub mod server;
-pub mod types;
+pub(crate) mod client;
+pub(crate) mod server;
+pub(crate) mod types;
 
-pub use client::McpClient;
+pub use client::{McpClient, McpServerConfig};
+pub use types::*;

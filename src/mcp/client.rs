@@ -16,7 +16,62 @@ pub struct McpClient {
     child: Child,
 }
 
+/// Configuration for an MCP server, loaded from `[mcp_servers.<name>]` in praxis.toml.
+/// ```toml
+/// [mcp_servers.filesystem]
+/// command = "npx"
+/// args = ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]
+/// ```
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct McpServerConfig {
+    pub command: String,
+    #[serde(default)]
+    pub args: Vec<String>,
+}
+
+impl McpServerConfig {
+    /// Load a single MCP server config by name from the active praxis.toml.
+    pub fn load_for_server(server: &str) -> anyhow::Result<Self> {
+        let configs = Self::load_all()?;
+        configs
+            .into_iter()
+            .find(|(name, _)| name == server)
+            .map(|(_, config)| config)
+            .ok_or_else(|| anyhow::anyhow!("MCP server '{server}' not found in praxis.toml"))
+    }
+
+    /// Load all MCP server configs from `[mcp_servers]` in praxis.toml.
+    /// Returns empty map if section is missing.
+    pub fn load_all() -> anyhow::Result<std::collections::HashMap<String, Self>> {
+        let config_path = std::env::var("PRAXIS_CONFIG")
+            .unwrap_or_else(|_| "praxis.toml".to_string());
+        let raw = std::fs::read_to_string(&config_path)
+            .with_context(|| format!("failed to read {config_path}"))?;
+        let doc: toml::Value = toml::from_str(&raw)
+            .with_context(|| format!("invalid TOML in {config_path}"))?;
+        let section = doc
+            .get("mcp_servers")
+            .and_then(|v| v.as_table())
+            .cloned()
+            .unwrap_or_default();
+        let mut configs = std::collections::HashMap::new();
+        for (name, value) in section {
+            let config: McpServerConfig = value
+                .try_into()
+                .with_context(|| format!("invalid config for mcp_servers.{name}"))?;
+            configs.insert(name, config);
+        }
+        Ok(configs)
+    }
+}
+
 impl McpClient {
+    /// Connect to an MCP server using a parsed config.
+    pub fn connect(config: &McpServerConfig) -> Result<Self> {
+        let args: Vec<&str> = config.args.iter().map(|s| s.as_str()).collect();
+        Self::spawn(&config.command, &args)
+    }
+
     /// Spawn an MCP server command and establish a stdio connection.
     ///
     /// ```ignore

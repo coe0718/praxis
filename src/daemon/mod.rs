@@ -339,6 +339,11 @@ async fn async_daemon_loop(
 
         // ── Reactive triggers (highest priority) ───────────────────────────
 
+        // Poll messaging platforms and publish inbound messages to the bus.
+        // This enables reactive sessions triggered by Discord/Slack/Telegram
+        // messages, similar to how the webhook system works.
+        poll_platforms(&paths);
+
         let trigger = if let Some(intent) = crate::wakeup::consume_intent(&paths.data_dir)? {
             log::info!("daemon: wake intent from '{}': {}", intent.source, intent.reason);
             Some(SessionTrigger::WakeIntent { task: intent.task })
@@ -449,7 +454,13 @@ fn run_session_blocking(data_dir: &Path, task: Option<String>) -> Result<RunSumm
     let events = FileEventSink::new(paths.events_file.clone());
 
     identity.validate(&paths)?;
+    tools.ensure_foundation(&paths)?;
     tools.validate(&paths)?;
+
+    // Discover and register MCP tools from configured servers.
+    if let Err(e) = crate::tools::discover_mcp_tools(&paths) {
+        log::warn!("mcp tool discovery failed (continuing without MCP tools): {e}");
+    }
 
     let vault = crate::vault::Vault::load(&paths.vault_file).unwrap_or_default();
     for warning in crate::vault::audit_literals(&vault) {
@@ -624,6 +635,102 @@ fn check_scheduled_jobs(paths: &PraxisPaths, now: DateTime<Utc>) -> Option<Strin
     log::info!("daemon: scheduled jobs due: [{}]", names.join(", "));
 
     Some(tasks.join("\n\n"))
+}
+
+// ── Platform polling ─────────────────────────────────────────────────────────
+
+/// Poll all configured messaging platforms for new messages and publish
+/// them to the message bus.  The daemon's bus watcher then triggers a
+/// reactive session.  Errors are logged but never propagated — a polling
+/// failure must not crash the daemon.
+fn poll_platforms(paths: &PraxisPaths) {
+    use crate::bus::{BusEvent, FileBus, MessageBus};
+    let bus = FileBus::new(&paths.bus_file);
+
+    // ── Telegram ──────────────────────────────────────────────────────
+    if crate::messaging::TelegramBot::validate_environment().is_ok() {
+        if let Ok(bot) = crate::messaging::TelegramBot::from_env() {
+            let activation = crate::messaging::ActivationStore::load(&paths.activation_file)
+                .unwrap_or_default();
+            let gating = crate::messaging::MessageGating::default();
+            let ephemeral = std::collections::HashMap::new();
+            match bot.poll_once(
+                &paths.telegram_state_file,
+                &paths.sender_pairing_file,
+                &bus,
+                &activation,
+                &gating,
+                &ephemeral,
+            ) {
+                Ok((msgs, _callbacks)) => {
+                    if !msgs.is_empty() {
+                        log::info!("daemon: telegram polled {} message(s)", msgs.len());
+                    }
+                }
+                Err(e) => log::debug!("daemon: telegram poll skipped: {e}"),
+            }
+        }
+    }
+
+    // ── Discord ───────────────────────────────────────────────────────
+    #[cfg(feature = "discord")]
+    {
+        if crate::messaging::DiscordClient::validate_environment().is_ok() {
+            if let Ok(client) = crate::messaging::DiscordClient::from_env() {
+                let allowed = crate::messaging::discord_allowed_user_ids();
+                match client.poll_once(&paths.discord_state_file, &allowed) {
+                    Ok(msgs) => {
+                        for msg in &msgs {
+                            let event = BusEvent::new(
+                                "message",
+                                "discord",
+                                &msg.channel_id,
+                                msg.author_id.clone(),
+                                &msg.content,
+                            );
+                            if let Err(e) = bus.publish(&event) {
+                                log::warn!("daemon: discord bus publish: {e}");
+                            }
+                        }
+                        if !msgs.is_empty() {
+                            log::info!("daemon: discord polled {} message(s)", msgs.len());
+                        }
+                    }
+                    Err(e) => log::debug!("daemon: discord poll skipped: {e}"),
+                }
+            }
+        }
+    }
+
+    // ── Slack ─────────────────────────────────────────────────────────
+    #[cfg(feature = "slack")]
+    {
+        if crate::messaging::SlackClient::validate_environment().is_ok() {
+            if let Ok(client) = crate::messaging::SlackClient::from_env() {
+                let allowed = crate::messaging::slack_allowed_user_ids();
+                match client.poll_once(&paths.slack_state_file, &allowed) {
+                    Ok(msgs) => {
+                        for msg in &msgs {
+                            let event = BusEvent::new(
+                                "message",
+                                "slack",
+                                &msg.channel_id,
+                                msg.user_id.clone(),
+                                &msg.text,
+                            );
+                            if let Err(e) = bus.publish(&event) {
+                                log::warn!("daemon: slack bus publish: {e}");
+                            }
+                        }
+                        if !msgs.is_empty() {
+                            log::info!("daemon: slack polled {} message(s)", msgs.len());
+                        }
+                    }
+                    Err(e) => log::debug!("daemon: slack poll skipped: {e}"),
+                }
+            }
+        }
+    }
 }
 
 // ── Signal handling ───────────────────────────────────────────────────────────

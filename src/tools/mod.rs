@@ -6,7 +6,7 @@ mod container;
 pub mod cooldown;
 pub mod cron;
 mod docs;
-mod execute;
+pub(crate) mod execute;
 mod guard;
 mod image;
 mod manifest;
@@ -21,7 +21,7 @@ mod voice;
 
 pub use clarify::{ClarifyQuestion, ClarifyResponse, execute_clarify};
 pub use docs::sync_capabilities;
-pub use execute::{ToolExecutionResult, execute_request};
+pub use execute::{discover_mcp_tools, ToolExecutionResult, execute_request};
 pub use guard::{DEFAULT_LOOP_GUARD_LIMIT, GuardDecision, LoopGuard};
 pub use manifest::{ToolKind, ToolManifest};
 pub use policy::SecurityPolicy;

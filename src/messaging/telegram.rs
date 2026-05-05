@@ -330,6 +330,64 @@ impl TelegramBot {
     }
 }
 
+impl crate::messaging::Platform for TelegramBot {
+    fn name(&self) -> &str {
+        "telegram"
+    }
+
+    fn is_connected(&self) -> bool {
+        !self.token.is_empty()
+    }
+
+    fn send_message(&self, target: &str, text: &str) -> Result<()> {
+        let chat_id: i64 = target
+            .parse()
+            .context("Telegram Platform: target must be a numeric chat_id")?;
+        self.send_message(chat_id, text)
+    }
+
+    fn send_file(&self, target: &str, file_path: &str, caption: Option<&str>) -> Result<()> {
+        let chat_id: i64 = target
+            .parse()
+            .context("Telegram Platform: target must be a numeric chat_id")?;
+        // Use sendPhoto for images, sendDocument for everything else.
+        let ext = std::path::Path::new(file_path)
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("");
+        if matches!(ext, "png" | "jpg" | "jpeg" | "gif" | "webp") {
+            // For local files, we pass the path directly — Telegram accepts
+            // local paths when using multipart, but our send_photo uses JSON.
+            // Best-effort: try URL first, fall back to error.
+            self.send_photo(chat_id, file_path, caption)
+        } else {
+            // Send as a document via sendDocument API.
+            let mut body = serde_json::json!({
+                "chat_id": chat_id,
+                "document": file_path,
+            });
+            if let Some(c) = caption {
+                body["caption"] = serde_json::json!(c);
+            }
+            self.client
+                .post(api_url(&self.token, "sendDocument"))
+                .json(&body)
+                .send()
+                .context("failed to send Telegram document")?
+                .error_for_status()
+                .context("Telegram sendDocument returned an error")?;
+            Ok(())
+        }
+    }
+
+    fn send_typing(&self, target: &str) -> Result<()> {
+        let chat_id: i64 = target
+            .parse()
+            .context("Telegram Platform: target must be a numeric chat_id")?;
+        self.send_typing(chat_id)
+    }
+}
+
 impl TypingIndicator for TelegramBot {
     fn begin(&self, conversation_id: &str) -> anyhow::Result<()> {
         if let Ok(chat_id) = conversation_id.parse::<i64>() {
