@@ -14,6 +14,7 @@ import {
   Key,
   Layers,
   MessageSquare,
+  Package,
   Radar,
   Settings,
   Shield,
@@ -29,6 +30,7 @@ interface SidebarProps {
   pendingApprovals: number
   collapsed: boolean
   onCollapse: () => void
+  pluginTabs?: { id: string; label: string; icon?: string }[]
 }
 
 interface NavItem {
@@ -91,7 +93,7 @@ const navGroups: NavGroup[] = [
   },
 ]
 
-export function Sidebar({ pendingApprovals, collapsed, onCollapse }: SidebarProps) {
+export function Sidebar({ pendingApprovals, collapsed, onCollapse, pluginTabs }: SidebarProps) {
   return (
     <aside
       className={cn(
@@ -168,6 +170,38 @@ export function Sidebar({ pendingApprovals, collapsed, onCollapse }: SidebarProp
             </ul>
           </div>
         ))}
+        {pluginTabs && pluginTabs.length > 0 && (
+          <div>
+            {!collapsed && (
+              <p className="px-2 mb-1 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                Plugins
+              </p>
+            )}
+            <ul className="space-y-0.5">
+              {pluginTabs.map((tab) => (
+                <li key={tab.id}>
+                  <NavLink
+                    to={`/plugins/${tab.id}`}
+                    className={({ isActive }) =>
+                      cn(
+                        'flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm font-medium transition-all',
+                        'hover:bg-slate-100 dark:hover:bg-slate-800',
+                        isActive
+                          ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-400'
+                          : 'text-slate-600 dark:text-slate-400',
+                        collapsed && 'justify-center',
+                      )
+                    }
+                    title={collapsed ? tab.label : undefined}
+                  >
+                    <span className="flex-shrink-0"><Package className="w-4 h-4" /></span>
+                    {!collapsed && <span className="flex-1">{tab.label}</span>}
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </nav>
 
       {/* Collapse toggle for mobile */}

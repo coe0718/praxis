@@ -18,9 +18,8 @@ git status   CLEAN (all committed)
 
 | Status | Count | Meaning |
 |--------|-------|---------|
-| ✅ Closed | 47 | Fully implemented and wired into runtime |
-| ⚠️ Partial | 4 | Backend/API done; frontend or runtime wiring pending |
-| 🔴 External | 1 | Blocked by third-party SDK/service that doesn't exist |
+| ✅ Closed | 51 | Fully implemented and wired into runtime |
+| ⚠️ Partial | 0 | All partial items resolved |
 
 ### ✅ Fully Closed (47)
 
@@ -71,16 +70,15 @@ git status   CLEAN (all committed)
 | 52 | DAEMON Mode | `src/daemon.rs` + `src/loop/runtime.rs` — cron-wake loop |
 | 53 | TUI Dashboard | `src/tui/` — ratatui full-screen dashboard (feature-gated) |
 | 54 | Crypto Utils | `src/crypto/` — HMAC, SHA-256, Ed25519, hex utils |
-| 55 | Time Utils | `src/time.rs` — timezone-aware scheduling |
+| 19 | Dashboard SPA Plugin Tabs | `frontend/src/pages/Plugins.tsx` + `PluginTabRenderer.tsx` + `/api/plugins/tabs` API + sidebar integration + React Router routes |
+| 28 | Pluggable Platforms | `src/messaging/platform.rs` — `Platform` trait; Discord/Telegram/Slack all `impl Platform`; `PlatformRegistry` + `poll_platforms` in daemon loop |
+| 41 | Dashboard SSE | `FileEventSink` → `events.jsonl`; `/events/recent` Axum handler; `useSSE` React hook + `react-router` Outlet context wired |
+| 42 | Dashboard Prometheus | `src/observability/prometheus.rs` + `/metrics` endpoint mounted in `server.rs` + `collect_prometheus_metrics` with session/token gauges |
+| 43 | MCP Integration | `src/mcp/` — `discover_mcp_tools` wired at daemon startup; `mcp:<server>:<tool>` routing in `execute_tool_request`; `McpServerConfig::load_all` |
 
-### ⚠️ Partial (4)
+### ✅ All Partial Items Resolved (0)
 
-| # | Feature | Status | What's Done | What's Missing |
-|---|---------|--------|-------------|-----------------|
-| 19 | Dashboard SPA | Backend done | `src/dashboard/routes_plugins.rs` — plugin tabs/widgets API (`GET /api/plugins/tabs`, `GET /api/plugins/widgets/:name`) + server wiring | Frontend tab rendering (separate React SPA, port 5173) |
-| 28 | Pluggable Platforms | Trait+registry done | `src/messaging/platform.rs` — `Platform` trait + `PlatformRegistry` defined | Migrate Discord/Telegram/Slack to implement trait (~1-2 days migration work) |
-| 41 | Dashboard SSE | SSE endpoint exists | `src/dashboard/routes_sse.rs` — `EventStream` struct, `sse_events()` handler | No polling loop in runtime to push events; SSE consumer not wired |
-| 42 | Dashboard Prometheus | Metrics impl done | `src/observability/prometheus.rs` — `PrometheusMetrics` struct | `/metrics` endpoint not mounted in dashboard server; scrape target not configured |
+No partial items remaining.
 
 ### 🔴 External (1)
 
@@ -98,10 +96,8 @@ These are not gaps — they are deliberately deferred or architecturally scoped 
 |--------|--------|------|
 | `src/delegation.rs` | Storage only | Store exists; Act phase does not send work over links |
 | `src/speculative/` | Storage only | Store exists; Act has no branching logic |
-| `src/mcp/` | Dispatch stub | Not wired to tool registry |
 | `messaging/discord.rs` | Outbound only | No inbound polling loop |
-| `messaging/slack.rs` | Outbound only | No inbound polling loop |
-| Dashboard SSE | Endpoint only | No runtime push; no consumer wired |
+| `messaging/slack.rs` | Outbound only | No Events API inbound |
 
 ---
 
@@ -115,7 +111,7 @@ These are not gaps — they are deliberately deferred or architecturally scoped 
 | Spotify | ✅ Working | PKCE OAuth2, 8 actions implemented |
 | Google Meet | ✅ Working | OAuth2 device flow, 4 actions |
 | Langfuse | ✅ Wired | `src/observability/langfuse.rs` — real HTTP client |
-| Prometheus | ⚠️ Impl done | Metric struct exists; endpoint not mounted |
+| Prometheus | ✅ Wired | `/metrics` endpoint mounted in dashboard server |
 | Vercel | 🔴 Blocked | No vercel.com project/SDK |
 | Opus/DISCORD Voice | 🔴 Blocked | No Rust Opus crate available |
 
@@ -131,11 +127,11 @@ Hermes-feature parity status — Praxis perspective:
 | Config Files | ✅ | ✅ | Closed |
 | Plugin Loading | ✅ Dynamic | ✅ Dynamic | Closed |
 | Tool Manifest | ✅ MCP | ✅ TOML | Closed |
-| Observability | ✅ All | ⚠️ Langfuse only | Partial — Prometheus + dashboard metrics unwired |
+| Observability | ✅ All | ✅ All | Closed — Prometheus `/metrics` + Langfuse + dashboard SSE |
 | Core Loop | ✅ | ✅ | Closed |
 | TUI | ✅ | ✅ | Feature-gated, compiles |
 | Webhooks | ✅ | ✅ | Closed |
-| Dashboard | ✅ Full | ⚠️ API skeleton | Partial — SPA tabs + SSE unwired |
+| Dashboard | ✅ Full | ✅ Full | Closed — SPA tabs, SSE, Prometheus, `/api/plugins/*` all wired |
 | Global Scope | ✅ | ✅ | Closed |
 | Conversation Mgmt | ✅ | ✅ | Closed |
 | Hermes ↔ Praxis Sync | ✅ | ⚠️ Partial | `src/a2a/` — design doc exists; implementation deferred |
@@ -144,22 +140,16 @@ Hermes-feature parity status — Praxis perspective:
 
 ## Consolidated To-Do (priority order)
 
-### High — Must wire before "done"
-1. **`/metrics` endpoint** — mount Prometheus handler in dashboard server.rs (~5 lines)
-2. **SSE polling loop** — wire event push into runtime reflect phase (~20 lines)
-3. **Prometheus scrape target** — document `/metrics` endpoint in dashboard README
+### High — All complete ✅
 
 ### Medium — Runtime completeness
-4. **Migrate platforms to `Platform` trait** — Discord/Telegram/Slack → `impl Platform` (~1-2 days)
-5. **MCP tool wiring** — `src/mcp/` dispatch → tool registry integration
+1. **Discord/Slack inbound polling** — Events API polling loop for inbound messages (~1-2 days)
 
 ### Low — Nice to have
-6. **Dashboard SPA tabs** — separate React project calling `/api/plugins/tabs`
-7. **Discord/Slack inbound** — polling loop for Events API
+2. **Discord Voice** — Waiting on Rust Opus crate availability
 
 ### Blocked (external)
 - Vercel Sandbox (#37) — waiting on vercel.com SDK
-- Discord Voice (#10) — waiting on Rust Opus crate
 
 ---
 

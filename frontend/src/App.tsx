@@ -20,6 +20,7 @@ import { Agents } from './pages/Agents'
 import { Vault } from './pages/Vault'
 import { Argus } from './pages/Argus'
 import { Tokens } from './pages/Tokens'
+import { Plugins } from './pages/Plugins'
 
 export default function App(): React.ReactElement {
   return (
@@ -46,6 +47,8 @@ export default function App(): React.ReactElement {
         <Route path="vault" element={<Vault />} />
         <Route path="argus" element={<Argus />} />
         <Route path="tokens" element={<Tokens />} />
+        <Route path="plugins" element={<Plugins />} />
+        <Route path="plugins/:tabId" element={<Plugins />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Route>
     </Routes>

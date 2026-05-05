@@ -458,3 +458,16 @@ export interface PraxisEvent {
 }
 
 export const fetchRecentEvents = (): Promise<PraxisEvent[]> => request('/events/recent')
+
+// ── Plugins ──────────────────────────────────────────────────────────────────
+
+export interface PluginTab {
+  id: string
+  label: string
+  icon?: string
+  content_url: string
+  order: number
+}
+
+export const fetchPluginTabs = (): Promise<{ tabs: PluginTab[] }> =>
+  request('/api/plugins/tabs')

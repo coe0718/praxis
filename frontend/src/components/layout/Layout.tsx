@@ -5,7 +5,7 @@ import { Sidebar } from './Sidebar'
 import { Header } from './Header'
 import { useSSE } from '../../hooks/useSSE'
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts'
-import { fetchApprovals } from '../../lib/api'
+import { fetchApprovals, fetchPluginTabs } from '../../lib/api'
 import { cn } from '../../lib/utils'
 
 export function Layout() {
@@ -19,7 +19,14 @@ export function Layout() {
     refetchInterval: 30_000,
   })
 
+  const { data: pluginTabsData } = useQuery({
+    queryKey: ['plugin-tabs'],
+    queryFn: fetchPluginTabs,
+    staleTime: 60_000,
+  })
+
   const pendingCount = approvals?.filter((a) => a.status === 'pending').length ?? 0
+  const pluginTabs = pluginTabsData?.tabs ?? []
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -27,6 +34,7 @@ export function Layout() {
         pendingApprovals={pendingCount}
         collapsed={collapsed}
         onCollapse={() => setCollapsed((c) => !c)}
+        pluginTabs={pluginTabs}
       />
       <Header connected={connected} sidebarCollapsed={collapsed} />
       <main
@@ -36,7 +44,7 @@ export function Layout() {
         )}
       >
         <div className="p-6 max-w-7xl mx-auto animate-fade-in">
-          <Outlet />
+          <Outlet context={{ pendingApprovals: pendingCount, pluginTabs }} />
         </div>
       </main>
     </div>

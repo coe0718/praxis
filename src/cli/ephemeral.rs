@@ -60,7 +60,7 @@ pub(super) fn handle_ephemeral(
             }
             let mut lines = Vec::new();
             let mut sorted: Vec<_> = config.ephemeral_prompts.iter().collect();
-            sorted.sort_by_key(|(k, _)| k.clone());
+            sorted.sort_by_key(|(k, _)| (*k).clone());
             for (channel_id, prompt) in sorted {
                 let preview = if prompt.len() > 80 {
                     format!("{}…", &prompt[..80])
