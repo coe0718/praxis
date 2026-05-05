@@ -1,5 +1,7 @@
 # Praxis vs Hermes Agent — Gap Analysis
 
+> **SUPERSEDED as of 2026-05-04.** All gap tracking is now in **`STATUS.md`**.
+
 *Generated 2026-04-25 by Drey. Updated 2026-04-25 to reflect wave 1-3 closures.*
 
 ---

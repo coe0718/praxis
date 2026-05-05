@@ -1,5 +1,7 @@
 # Praxis Ecosystem Review — ClawCharts + Shelldex Cross-Reference
 
+> **SUPERSEDED as of 2026-05-04.** All gap tracking is now in **`STATUS.md`**.
+
 **Date:** 2026-04-20 | **Updated:** 2026-04-25 (stale entries fixed)
 **Reviewed:** 10 ClawCharts repos, 36 Shelldex projects, cross-referenced against Praxis codebase
 **Note:** Open action items folded into STATUS.md. This doc is historical benchmarking.

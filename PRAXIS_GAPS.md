@@ -1,5 +1,7 @@
 # Praxis Gaps — What Praxis Is Missing
 
+> **SUPERSEDED as of 2026-05-04.** All gap tracking is now in **`STATUS.md`**.
+
 **Generated:** 2026-05-02 by Scout  
 **Sources:** Praxis codebase (all docs), Hermes Agent v0.7–v0.12 release notes (full RELEASE_v0.12.0.md + GitHub tags), OpenClaw docs, ecosystem benchmarking  
 **Hermes baseline:** v0.12.0 "Curator" (2026-04-30) — 1,096 commits, 550 PRs since v0.11  
