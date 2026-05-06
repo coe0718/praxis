@@ -1,6 +1,6 @@
-//! Plugin System — dynamic plugin loading and lifecycle management.
+//! Plugin System — dynamic plugin loading, lifecycle management, and marketplace.
 //!
-//! #3 Plugin System + #5 Plugin Surface
+//! #3 Plugin System + #5 Plugin Surface + #10 Plugin Marketplace
 //!
 //! Plugins are TOML manifests + optional Rust `.so` dynamic libraries.
 //! They can:
@@ -36,6 +36,8 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
+
+pub mod marketplace;
 
 use crate::paths::PraxisPaths;
 

@@ -11,9 +11,9 @@
 //! - `task_comments` — durable threaded comments
 //! - `task_runs` — worker run history (attempt records)
 
-pub mod db;
-pub mod tools;
-pub mod dispatcher;
 pub mod cli;
+pub mod db;
+pub mod dispatcher;
+pub mod tools;
 
 pub use db::KanbanStore;

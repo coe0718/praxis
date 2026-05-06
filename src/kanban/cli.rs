@@ -3,7 +3,7 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 
-use crate::kanban::db::{KanbanStore, TaskPriority, TaskStatus};
+use crate::kanban::db::{TaskPriority, TaskStatus};
 use crate::kanban::dispatcher;
 use crate::paths::PraxisPaths;
 
@@ -35,9 +35,7 @@ pub enum KanbanCommand {
         limit: usize,
     },
     /// Show a task's full state
-    Show {
-        task_id: String,
-    },
+    Show { task_id: String },
     /// Complete a task
     Complete {
         task_id: String,
@@ -73,20 +71,35 @@ pub enum KanbanCommand {
 impl KanbanCli {
     pub fn run(&self) -> Result<()> {
         let data_dir = crate::paths::default_data_dir().ok();
-        let data_dir = data_dir.or_else(|| {
-            Some(crate::paths::default_data_dir().unwrap_or_else(|_| {
-                std::path::PathBuf::from("/tmp/praxis")
-            }))
-        }).unwrap();
+        let data_dir = data_dir
+            .or_else(|| {
+                Some(
+                    crate::paths::default_data_dir()
+                        .unwrap_or_else(|_| std::path::PathBuf::from("/tmp/praxis")),
+                )
+            })
+            .unwrap();
         let paths = PraxisPaths::for_data_dir(data_dir);
         dispatcher::init_store(&paths)?;
         let store = dispatcher::get_store()?;
 
         match &self.command {
-            KanbanCommand::Create { title, body, priority, assignee } => {
+            KanbanCommand::Create {
+                title,
+                body,
+                priority,
+                assignee,
+            } => {
                 let p = TaskPriority::from_str(priority)
                     .context("invalid priority — use low|medium|high")?;
-                let task = store.create_task(title, body.as_deref(), p, assignee.as_deref(), vec![], vec![])?;
+                let task = store.create_task(
+                    title,
+                    body.as_deref(),
+                    p,
+                    assignee.as_deref(),
+                    vec![],
+                    vec![],
+                )?;
                 println!("Created task {}: {}", task.id, task.title);
             }
             KanbanCommand::List { status, assignee, limit } => {
@@ -98,7 +111,8 @@ impl KanbanCli {
                     return Ok(());
                 }
                 for task in tasks {
-                    println!("[{:>10}] {:12} {:12} | {} | {}",
+                    println!(
+                        "[{:>10}] {:12} {:12} | {} | {}",
                         task.id,
                         task.status.as_str(),
                         task.priority.as_str(),

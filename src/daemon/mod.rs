@@ -650,8 +650,8 @@ fn poll_platforms(paths: &PraxisPaths) {
     // ── Telegram ──────────────────────────────────────────────────────
     if crate::messaging::TelegramBot::validate_environment().is_ok() {
         if let Ok(bot) = crate::messaging::TelegramBot::from_env() {
-            let activation = crate::messaging::ActivationStore::load(&paths.activation_file)
-                .unwrap_or_default();
+            let activation =
+                crate::messaging::ActivationStore::load(&paths.activation_file).unwrap_or_default();
             let gating = crate::messaging::MessageGating::default();
             let ephemeral = std::collections::HashMap::new();
             match bot.poll_once(

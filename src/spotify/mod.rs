@@ -332,6 +332,7 @@ struct TokenResponse {
     access_token: String,
     #[serde(default)]
     refresh_token: Option<String>,
+    #[allow(dead_code)]
     #[serde(default)]
     expires_in: u64,
 }

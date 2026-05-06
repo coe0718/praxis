@@ -1,12 +1,12 @@
 //! Kanban dispatcher — polls for ready tasks and spawns worker sessions.
 
-use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
 
-use crate::paths::PraxisPaths;
 use super::db::KanbanStore;
+use crate::paths::PraxisPaths;
 
 /// Global kanban store — initialized once at startup.
 static KANBAN_STORE: Mutex<Option<Arc<KanbanStore>>> = Mutex::new(None);
@@ -75,8 +75,7 @@ impl Dispatcher {
     /// Spawn a praxis worker session for the given task.
     /// Sets PRAXIS_KANBAN_TASK=<task_id> in the child environment.
     fn spawn_worker(&self, paths: &PraxisPaths, task_id: &str) -> Result<u32> {
-        let executable = std::env::current_exe()
-            .context("failed to resolve current executable")?;
+        let executable = std::env::current_exe().context("failed to resolve current executable")?;
         let log_dir = paths.data_dir.join("kanban_logs");
         std::fs::create_dir_all(&log_dir)?;
         let log_file = log_dir.join(format!("{task_id}.log"));
@@ -86,20 +85,14 @@ impl Dispatcher {
             .args(["run", "--task", task_id])
             .env("PRAXIS_KANBAN_TASK", task_id)
             .env("PRAXIS_DATA_DIR", paths.data_dir.to_string_lossy().as_ref())
-            .stdout(std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(&log_file)?)
-            .stderr(std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(&log_file)?);
+            .stdout(std::fs::OpenOptions::new().create(true).append(true).open(&log_file)?)
+            .stderr(std::fs::OpenOptions::new().create(true).append(true).open(&log_file)?);
 
         #[cfg(unix)]
-        {
-        }
+        {}
 
-        let child = child.spawn()
+        let child = child
+            .spawn()
             .with_context(|| format!("failed to spawn kanban worker for task {task_id}"))?;
         Ok(child.id())
     }
@@ -130,4 +123,3 @@ impl Dispatcher {
 impl super::db::TaskStatus {
     // Alias for use in dispatcher
 }
-

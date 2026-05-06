@@ -9,6 +9,7 @@ mod ollama;
 mod openai;
 mod prompts;
 mod provider_routes;
+pub mod retry;
 pub mod streaming;
 pub mod transport;
 

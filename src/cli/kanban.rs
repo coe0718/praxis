@@ -32,7 +32,9 @@ pub enum KanbanCommand {
         #[arg(short, long, default_value = "50")]
         limit: usize,
     },
-    Show { task_id: String },
+    Show {
+        task_id: String,
+    },
     Complete {
         task_id: String,
         #[arg(short, long)]
@@ -43,7 +45,9 @@ pub enum KanbanCommand {
         #[arg(short, long)]
         reason: String,
     },
-    Unblock { task_id: String },
+    Unblock {
+        task_id: String,
+    },
     Take {
         task_id: String,
         #[arg(short, long)]
@@ -58,21 +62,26 @@ pub enum KanbanCommand {
     Serve,
 }
 
-pub fn handle_kanban(
-    data_dir: Option<std::path::PathBuf>,
-    args: KanbanArgs,
-) -> Result<String> {
-    let data_dir = data_dir.or_else(|| {
-        Some(crate::paths::default_data_dir().unwrap_or_else(|_| {
-            std::path::PathBuf::from("/tmp/praxis")
-        }))
-    }).unwrap();
+pub fn handle_kanban(data_dir: Option<std::path::PathBuf>, args: KanbanArgs) -> Result<String> {
+    let data_dir = data_dir
+        .or_else(|| {
+            Some(
+                crate::paths::default_data_dir()
+                    .unwrap_or_else(|_| std::path::PathBuf::from("/tmp/praxis")),
+            )
+        })
+        .unwrap();
     let paths = PraxisPaths::for_data_dir(data_dir);
     dispatcher::init_store(&paths).context("failed to init kanban store")?;
     let store = dispatcher::get_store().context("failed to get kanban store")?;
 
     match args.command {
-        KanbanCommand::Create { title, body, priority, assignee } => {
+        KanbanCommand::Create {
+            title,
+            body,
+            priority,
+            assignee,
+        } => {
             let p = TaskPriority::from_str(&priority)
                 .context("invalid priority — use low|medium|high")?;
             let task = store.create_task(

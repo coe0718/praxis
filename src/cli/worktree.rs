@@ -20,6 +20,7 @@ pub struct Worktree {
     /// Branch name used in this worktree.
     pub branch: String,
     /// The original repo path.
+    #[allow(dead_code)]
     pub repo_root: PathBuf,
 }
 

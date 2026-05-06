@@ -24,6 +24,7 @@ const CAL_API: &str = "https://www.googleapis.com/calendar/v3";
 const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
 
 /// Google OAuth authorize URL.
+#[allow(dead_code)]
 const GOOGLE_AUTH_URL: &str = "https://accounts.google.com/o/oauth2/v2/auth";
 
 /// Config for Google Meet client.

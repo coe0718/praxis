@@ -1,3 +1,4 @@
+pub mod lance;
 mod loader;
 mod ops;
 mod query;
@@ -13,6 +14,7 @@ pub(crate) use query::{build_lookup_query, to_fts_query};
 pub mod conflicts;
 pub mod user;
 
+pub use lance::{LanceMemoryConfig, LanceMemoryRecord, LanceMemoryStore, SemanticSearchResult};
 pub use types::{
     ConsolidationSummary, MemoryLink, MemoryLinkStore, MemoryLinkType, MemoryStore, MemoryTier,
     MemoryType, NewColdMemory, NewHotMemory, StoredMemory,

@@ -1,7 +1,9 @@
 pub mod activation;
+pub mod auto_reply;
 pub mod context_group;
 #[cfg(feature = "discord")]
 pub mod discord;
+pub mod inbound;
 pub mod pairing;
 pub mod platform;
 mod router;
@@ -11,10 +13,12 @@ mod telegram;
 pub mod typing;
 
 pub use activation::{ActivationMode, ActivationStore};
+pub use auto_reply::{AutoReplyConfig, AutoReplyEngine};
 #[cfg(feature = "discord")]
 pub use discord::{
     DiscordClient, DiscordPollMessage, parse_allowed_user_ids as discord_allowed_user_ids,
 };
+pub use inbound::{InboundPollConfig, poll_discord_messages, poll_slack_messages};
 pub use platform::{Platform, PlatformRegistry};
 pub use router::{
     handle_discord_command, handle_slack_command, handle_telegram_command, parse_telegram_command,

@@ -7,6 +7,7 @@ use std::process::Command;
 
 /// Detected container runtime.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)]
 pub enum ContainerRuntime {
     /// Docker.
     Docker,
@@ -19,6 +20,7 @@ pub enum ContainerRuntime {
 impl ContainerRuntime {
     /// Detect available container runtime.
     /// Prefers Podman over Docker (rootless by default, no daemon required).
+    #[allow(dead_code)]
     pub fn detect() -> Self {
         // Check for podman first (rootless, no daemon)
         if Self::check_podman() {
@@ -48,6 +50,7 @@ impl ContainerRuntime {
     }
 
     /// Get the command name for this runtime.
+    #[allow(dead_code)]
     pub fn command(&self) -> &'static str {
         match self {
             Self::Docker => "docker",
@@ -57,6 +60,7 @@ impl ContainerRuntime {
     }
 
     /// Check if this runtime is available.
+    #[allow(dead_code)]
     pub fn is_available(&self) -> bool {
         *self != Self::None
     }
@@ -64,6 +68,7 @@ impl ContainerRuntime {
 
 /// Detect Nix environment.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)]
 pub struct NixEnv {
     /// Running inside nix-shell.
     pub in_nix_shell: bool,
@@ -73,6 +78,7 @@ pub struct NixEnv {
 
 impl NixEnv {
     /// Detect Nix environment.
+    #[allow(dead_code)]
     pub fn detect() -> Self {
         let in_nix_shell = std::env::var("IN_NIX_SHELL").is_ok()
             || std::env::var("NIX_SHELL_STARTED_ONCE").is_ok();
@@ -81,6 +87,7 @@ impl NixEnv {
     }
 
     /// Check if running in a Nix environment.
+    #[allow(dead_code)]
     pub fn is_active(&self) -> bool {
         self.in_nix_shell || self.has_nix_store
     }

@@ -4,10 +4,8 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use anyhow::{Context, Result};
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
-
-use crate::paths::PraxisPaths;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -203,8 +201,10 @@ impl KanbanStore {
             id: row.get("id")?,
             title: row.get("title")?,
             body: row.get("body")?,
-            status: TaskStatus::from_str(&row.get::<_, String>("status")?).unwrap_or(TaskStatus::Backlog),
-            priority: TaskPriority::from_str(&row.get::<_, String>("priority")?).unwrap_or(TaskPriority::Medium),
+            status: TaskStatus::from_str(&row.get::<_, String>("status")?)
+                .unwrap_or(TaskStatus::Backlog),
+            priority: TaskPriority::from_str(&row.get::<_, String>("priority")?)
+                .unwrap_or(TaskPriority::Medium),
             assignee: row.get("assignee")?,
             parent_ids: serde_json::from_str(&parent_ids_raw).unwrap_or_default(),
             labels: serde_json::from_str(&labels_raw).unwrap_or_default(),
@@ -247,12 +247,9 @@ impl KanbanStore {
 
     pub fn get_task(&self, id: &str) -> Result<Task> {
         let conn = self.conn.lock().unwrap();
-        let task = conn.query_row(
-            "SELECT * FROM tasks WHERE id = ?1",
-            params![id],
-            Self::parse_row_task,
-        )
-        .context("task not found")?;
+        let task = conn
+            .query_row("SELECT * FROM tasks WHERE id = ?1", params![id], Self::parse_row_task)
+            .context("task not found")?;
         Ok(task)
     }
 
@@ -277,7 +274,8 @@ impl KanbanStore {
         sql.push_str(&format!(" LIMIT {}", limit));
 
         let mut stmt = conn.prepare(&sql)?;
-        let params_refs: Vec<&dyn rusqlite::ToSql> = params_vec.iter().map(|b| b.as_ref()).collect();
+        let params_refs: Vec<&dyn rusqlite::ToSql> =
+            params_vec.iter().map(|b| b.as_ref()).collect();
         let tasks = stmt
             .query_map(params_refs.as_slice(), Self::parse_row_task)?
             .collect::<rusqlite::Result<Vec<_>>>()?;
@@ -352,7 +350,8 @@ impl KanbanStore {
         params_vec.push(Box::new(id.to_string()));
 
         let sql = format!("UPDATE tasks SET {} ", updates);
-        let params_refs: Vec<&dyn rusqlite::ToSql> = params_vec.iter().map(|b| b.as_ref()).collect();
+        let params_refs: Vec<&dyn rusqlite::ToSql> =
+            params_vec.iter().map(|b| b.as_ref()).collect();
         conn.execute(&sql, params_refs.as_slice())?;
         drop(conn);
         self.add_event(id, "heartbeat", serde_json::json!({"progress": progress}), "system")
@@ -360,9 +359,8 @@ impl KanbanStore {
 
     pub fn get_children(&self, parent_id: &str) -> Result<Vec<Task>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare(
-            "SELECT * FROM tasks WHERE parent_ids LIKE ?1 ORDER BY created_at DESC"
-        )?;
+        let mut stmt =
+            conn.prepare("SELECT * FROM tasks WHERE parent_ids LIKE ?1 ORDER BY created_at DESC")?;
         let pattern = format!("%\"{}\"%", parent_id);
         let tasks = stmt
             .query_map(params![pattern], Self::parse_row_task)?
@@ -376,7 +374,7 @@ impl KanbanStore {
             "SELECT id FROM tasks
              WHERE status = 'in_progress'
                AND heartbeat_at IS NOT NULL
-               AND heartbeat_at < datetime('now', ?1)"
+               AND heartbeat_at < datetime('now', ?1)",
         )?;
         let offset = format!("-{} seconds", max_age_secs);
         let ids = stmt
@@ -387,7 +385,13 @@ impl KanbanStore {
 
     // ── Events ─────────────────────────────────────────────────────────────────
 
-    pub fn add_event(&self, task_id: &str, event_type: &str, payload: serde_json::Value, actor: &str) -> Result<()> {
+    pub fn add_event(
+        &self,
+        task_id: &str,
+        event_type: &str,
+        payload: serde_json::Value,
+        actor: &str,
+    ) -> Result<()> {
         let now = Self::now();
         let payload_str = serde_json::to_string(&payload)?;
         let conn = self.conn.lock().unwrap();
@@ -401,7 +405,7 @@ impl KanbanStore {
     pub fn get_events(&self, task_id: &str, limit: usize) -> Result<Vec<TaskEvent>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT * FROM task_events WHERE task_id = ?1 ORDER BY created_at DESC LIMIT ?2"
+            "SELECT * FROM task_events WHERE task_id = ?1 ORDER BY created_at DESC LIMIT ?2",
         )?;
         let events = stmt
             .query_map(params![task_id, limit], |row| {
@@ -442,9 +446,8 @@ impl KanbanStore {
 
     pub fn get_comments(&self, task_id: &str) -> Result<Vec<TaskComment>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare(
-            "SELECT * FROM task_comments WHERE task_id = ?1 ORDER BY created_at ASC"
-        )?;
+        let mut stmt =
+            conn.prepare("SELECT * FROM task_comments WHERE task_id = ?1 ORDER BY created_at ASC")?;
         let comments = stmt
             .query_map(params![task_id], |row| {
                 Ok(TaskComment {
@@ -471,7 +474,13 @@ impl KanbanStore {
         Ok(conn.last_insert_rowid())
     }
 
-    pub fn complete_run(&self, run_id: i64, status: &str, summary: Option<&str>, metadata: Option<serde_json::Value>) -> Result<()> {
+    pub fn complete_run(
+        &self,
+        run_id: i64,
+        status: &str,
+        summary: Option<&str>,
+        metadata: Option<serde_json::Value>,
+    ) -> Result<()> {
         let now = Self::now();
         let metadata_str = metadata.as_ref().map(|m| serde_json::to_string(m).unwrap_or_default());
         let conn = self.conn.lock().unwrap();
@@ -484,9 +493,8 @@ impl KanbanStore {
 
     pub fn get_runs(&self, task_id: &str) -> Result<Vec<TaskRun>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare(
-            "SELECT * FROM task_runs WHERE task_id = ?1 ORDER BY started_at DESC"
-        )?;
+        let mut stmt =
+            conn.prepare("SELECT * FROM task_runs WHERE task_id = ?1 ORDER BY started_at DESC")?;
         let runs = stmt
             .query_map(params![task_id], |row| {
                 let metadata_raw: Option<String> = row.get("metadata")?;
@@ -526,17 +534,16 @@ impl KanbanStore {
 
 fn uuid_v4() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
     let random: u64 = ((now * 0x517cc1b727220a95).wrapping_mul(0x853c49e6748fea9b)) as u64;
-    format!("{:016x}-{:04x}-4{:03x}-{:04x}-{:012x}",
+    format!(
+        "{:016x}-{:04x}-4{:03x}-{:04x}-{:012x}",
         (now & 0xffffffffffffffc0) as u64,
         (random >> 48) as u16,
         (random >> 44) as u16 & 0x0fff,
         (random >> 40) as u16 & 0x3fff | 0x8000,
-        (now & 0xffffffffffff) as u64)
+        (now & 0xffffffffffff) as u64
+    )
 }
 
 fn chrono_now() -> String {

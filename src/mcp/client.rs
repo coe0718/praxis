@@ -43,17 +43,14 @@ impl McpServerConfig {
     /// Load all MCP server configs from `[mcp_servers]` in praxis.toml.
     /// Returns empty map if section is missing.
     pub fn load_all() -> anyhow::Result<std::collections::HashMap<String, Self>> {
-        let config_path = std::env::var("PRAXIS_CONFIG")
-            .unwrap_or_else(|_| "praxis.toml".to_string());
+        let config_path =
+            std::env::var("PRAXIS_CONFIG").unwrap_or_else(|_| "praxis.toml".to_string());
         let raw = std::fs::read_to_string(&config_path)
             .with_context(|| format!("failed to read {config_path}"))?;
-        let doc: toml::Value = toml::from_str(&raw)
-            .with_context(|| format!("invalid TOML in {config_path}"))?;
-        let section = doc
-            .get("mcp_servers")
-            .and_then(|v| v.as_table())
-            .cloned()
-            .unwrap_or_default();
+        let doc: toml::Value =
+            toml::from_str(&raw).with_context(|| format!("invalid TOML in {config_path}"))?;
+        let section =
+            doc.get("mcp_servers").and_then(|v| v.as_table()).cloned().unwrap_or_default();
         let mut configs = std::collections::HashMap::new();
         for (name, value) in section {
             let config: McpServerConfig = value

@@ -340,16 +340,14 @@ impl crate::messaging::Platform for TelegramBot {
     }
 
     fn send_message(&self, target: &str, text: &str) -> Result<()> {
-        let chat_id: i64 = target
-            .parse()
-            .context("Telegram Platform: target must be a numeric chat_id")?;
+        let chat_id: i64 =
+            target.parse().context("Telegram Platform: target must be a numeric chat_id")?;
         self.send_message(chat_id, text)
     }
 
     fn send_file(&self, target: &str, file_path: &str, caption: Option<&str>) -> Result<()> {
-        let chat_id: i64 = target
-            .parse()
-            .context("Telegram Platform: target must be a numeric chat_id")?;
+        let chat_id: i64 =
+            target.parse().context("Telegram Platform: target must be a numeric chat_id")?;
         // Use sendPhoto for images, sendDocument for everything else.
         let ext = std::path::Path::new(file_path)
             .extension()
@@ -381,9 +379,8 @@ impl crate::messaging::Platform for TelegramBot {
     }
 
     fn send_typing(&self, target: &str) -> Result<()> {
-        let chat_id: i64 = target
-            .parse()
-            .context("Telegram Platform: target must be a numeric chat_id")?;
+        let chat_id: i64 =
+            target.parse().context("Telegram Platform: target must be a numeric chat_id")?;
         self.send_typing(chat_id)
     }
 }

@@ -97,6 +97,7 @@ pub(super) struct ChatCompletionsRequest {
     pub messages: Vec<ApiChatMessage>,
     #[serde(default = "default_max_tokens")]
     pub max_completion_tokens: Option<u32>,
+    #[allow(dead_code)]
     #[serde(default)]
     pub stream: Option<bool>,
 }

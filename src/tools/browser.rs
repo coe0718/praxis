@@ -77,7 +77,7 @@ impl CdpClient {
         });
 
         self.socket.send(Message::Text(cmd.to_string().into()))?;
-        let resp = self.socket.read_message()?;
+        let resp = self.socket.read()?;
         let text = resp.into_text()?;
 
         // Chrome sends event messages too — skip until we get our id
@@ -89,7 +89,7 @@ impl CdpClient {
                 }
             }
             // Wait for next message
-            let resp = self.socket.read_message()?;
+            let resp = self.socket.read()?;
             let _text = resp.into_text()?;
         }
     }
@@ -209,6 +209,7 @@ impl CdpClient {
     }
 
     /// Check if Chrome is available.
+    #[allow(dead_code)]
     pub fn is_available() -> bool {
         std::net::TcpStream::connect("localhost:9222").is_ok()
     }
@@ -227,7 +228,7 @@ impl BrowserTool {
         }
         Self { client }
     }
-
+    #[allow(dead_code)]
     pub fn is_available(&self) -> bool {
         self.client.is_some()
     }

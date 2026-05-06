@@ -1,9 +1,6 @@
 //! Kanban tool implementations — dispatched from execute_request.
 
-use std::env;
-
-use anyhow::{bail, Context, Result};
-use serde_json::Value;
+use anyhow::{Context, Result, bail};
 
 use crate::paths::PraxisPaths;
 use crate::storage::StoredApprovalRequest;
@@ -19,7 +16,7 @@ fn current_task_id() -> Option<String> {
 
 /// Enforces worker ownership — rejects mutations on tasks the worker doesn't own.
 /// This is the hallucination gate from Hermes commit #20232.
-fn enforce_worker_ownership(store: &KanbanStore, task_id: &str) -> Result<()> {
+fn enforce_worker_ownership(_store: &KanbanStore, task_id: &str) -> Result<()> {
     if let Some(current) = current_task_id() {
         if current != task_id {
             bail!(
@@ -38,11 +35,13 @@ pub fn handle_kanban_create(
     let payload = parse_payload(request.payload_json.as_deref())?;
     let params = payload.params;
 
-    let title = params.get("title")
+    let title = params
+        .get("title")
         .map(|v| v.as_str().to_string())
         .context("title is required")?;
     let body = params.get("body").map(|v| v.as_str().to_string());
-    let priority_str = params.get("priority")
+    let priority_str = params
+        .get("priority")
         .map(|v| v.as_str().to_string())
         .unwrap_or_else(|| "medium".to_string());
     let assignee = params.get("assignee").map(|v| v.as_str().to_string());
@@ -50,28 +49,40 @@ pub fn handle_kanban_create(
     let parent_ids: Vec<String> = if parent_ids_str.is_empty() {
         vec![]
     } else {
-        parent_ids_str.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect()
+        parent_ids_str
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect()
     };
     let labels_str = params.get("labels").map(|s| s.as_str()).unwrap_or("");
     let labels: Vec<String> = if labels_str.is_empty() {
         vec![]
     } else {
-        labels_str.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect()
+        labels_str
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect()
     };
 
-    let priority = TaskPriority::from_str(&priority_str)
-        .context("invalid priority, use low|medium|high")?;
+    let priority =
+        TaskPriority::from_str(&priority_str).context("invalid priority, use low|medium|high")?;
 
     let store = dispatcher::get_store()?;
-    let task = store.create_task(&title, body.as_ref().map(|s| s.as_str()), priority, assignee.as_ref().map(|s| s.as_str()), parent_ids, labels)?;
+    let task = store.create_task(
+        &title,
+        body.as_ref().map(|s| s.as_str()),
+        priority,
+        assignee.as_ref().map(|s| s.as_str()),
+        parent_ids,
+        labels,
+    )?;
 
     Ok(serde_json::json!({ "ok": true, "task": task }).to_string())
 }
 
-pub fn handle_kanban_show(
-    _paths: &PraxisPaths,
-    request: &StoredApprovalRequest,
-) -> Result<String> {
+pub fn handle_kanban_show(_paths: &PraxisPaths, request: &StoredApprovalRequest) -> Result<String> {
     let payload = parse_payload(request.payload_json.as_deref())?;
     let params = payload.params;
 
@@ -132,10 +143,10 @@ pub fn handle_kanban_complete(
     let store = dispatcher::get_store()?;
     enforce_worker_ownership(&store, &task_id)?;
 
-    let summary = params.get("summary")
-        .map(|v| v.as_str())
-        .unwrap_or("Task completed.");
-    let metadata = params.get("metadata").map(|s| serde_json::Value::String(s.as_str().to_string()));
+    let summary = params.get("summary").map(|v| v.as_str()).unwrap_or("Task completed.");
+    let metadata = params
+        .get("metadata")
+        .map(|s| serde_json::Value::String(s.as_str().to_string()));
 
     store.complete_task(&task_id, summary)?;
     if let Some(run) = store.get_runs(&task_id)?.first() {
@@ -176,10 +187,7 @@ pub fn handle_kanban_unblock(
     let payload = parse_payload(request.payload_json.as_deref())?;
     let params = payload.params;
 
-    let task_id = params
-        .get("task_id")
-        .map(|v| v.as_str())
-        .context("task_id is required")?;
+    let task_id = params.get("task_id").map(|v| v.as_str()).context("task_id is required")?;
 
     let store = dispatcher::get_store()?;
     store.unblock_task(task_id)?;
@@ -187,17 +195,11 @@ pub fn handle_kanban_unblock(
     Ok(serde_json::json!({ "ok": true, "task_id": task_id }).to_string())
 }
 
-pub fn handle_kanban_take(
-    _paths: &PraxisPaths,
-    request: &StoredApprovalRequest,
-) -> Result<String> {
+pub fn handle_kanban_take(_paths: &PraxisPaths, request: &StoredApprovalRequest) -> Result<String> {
     let payload = parse_payload(request.payload_json.as_deref())?;
     let params = payload.params;
 
-    let task_id = params
-        .get("task_id")
-        .map(|v| v.as_str())
-        .context("task_id is required")?;
+    let task_id = params.get("task_id").map(|v| v.as_str()).context("task_id is required")?;
     let assignee = params.get("assignee").map(|v| v.as_str()).unwrap_or("agent");
     let pid = std::process::id() as i64;
 
@@ -247,9 +249,7 @@ pub fn handle_kanban_comment(
         .map(|v| v.as_str().to_string())
         .or_else(current_task_id)
         .context("task_id is required")?;
-    let body = params.get("body")
-        .map(|v| v.as_str())
-        .context("body is required")?;
+    let body = params.get("body").map(|v| v.as_str()).context("body is required")?;
     let author = params.get("author").map(|v| v.as_str()).unwrap_or("agent");
 
     let store = dispatcher::get_store()?;
@@ -258,21 +258,12 @@ pub fn handle_kanban_comment(
     Ok(serde_json::json!({ "ok": true, "comment": comment }).to_string())
 }
 
-pub fn handle_kanban_link(
-    _paths: &PraxisPaths,
-    request: &StoredApprovalRequest,
-) -> Result<String> {
+pub fn handle_kanban_link(_paths: &PraxisPaths, request: &StoredApprovalRequest) -> Result<String> {
     let payload = parse_payload(request.payload_json.as_deref())?;
     let params = payload.params;
 
-    let task_id = params
-        .get("task_id")
-        .map(|v| v.as_str())
-        .context("task_id is required")?;
-    let parent_id = params
-        .get("parent_id")
-        .map(|v| v.as_str())
-        .context("parent_id is required")?;
+    let task_id = params.get("task_id").map(|v| v.as_str()).context("task_id is required")?;
+    let parent_id = params.get("parent_id").map(|v| v.as_str()).context("parent_id is required")?;
 
     let store = dispatcher::get_store()?;
     store.link_task(task_id, parent_id)?;
