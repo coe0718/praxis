@@ -92,6 +92,7 @@ impl KanbanCli {
             KanbanCommand::List { status, assignee, limit } => {
                 let s = status.as_ref().and_then(|v| TaskStatus::from_str(v));
                 let tasks = store.list_tasks(s, assignee.as_deref(), *limit)?;
+                let count = tasks.len();
                 if tasks.is_empty() {
                     println!("No tasks found.");
                     return Ok(());
@@ -105,7 +106,7 @@ impl KanbanCli {
                         task.title,
                     );
                 }
-                println!("\n{} task(s)", tasks.len());
+                println!("\n{} task(s)", count);
             }
             KanbanCommand::Show { task_id } => {
                 let task = store.get_task(task_id)?;
