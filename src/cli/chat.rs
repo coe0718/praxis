@@ -414,13 +414,13 @@ mod tests {
 
     #[test]
     fn test_help_lists_all_commands() {
-        let ctx = ReplContext {
+        let mut ctx = ReplContext {
             paths: PraxisPaths::for_data_dir(PathBuf::from("/tmp/test-praxis-chat")),
             verbose: false,
             model: None,
             history: Vec::new(),
         };
-        let result = cmd_help(&ctx, &[]).unwrap();
+        let result = cmd_help(&mut ctx, &[]).unwrap();
         assert!(result.contains("/help"));
         assert!(result.contains("/quit"));
         assert!(result.contains("/model"));

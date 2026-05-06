@@ -332,6 +332,8 @@ mod tests {
                 next_fire_at: past, // Due now.
                 recurring: true,
                 fire_count: 0,
+                workdir: None,
+                context_from: None,
             }],
         };
 
@@ -359,6 +361,8 @@ mod tests {
                 next_fire_at: past,
                 recurring: false,
                 fire_count: 0,
+                workdir: None,
+                context_from: None,
             }],
         };
 

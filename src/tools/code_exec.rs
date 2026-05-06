@@ -272,6 +272,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore = "requires python3 in sandbox"]
     fn test_execute_python() {
         let config = CodeExecConfig::default();
         let result = execute_code("print('hello from praxis')", "python", &config).unwrap();

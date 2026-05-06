@@ -159,7 +159,9 @@ mod tests {
             id: "test".to_string(),
             name: "test".to_string(),
             schedule: "daily".to_string(),
-            kind: crate::tools::cron::ScheduleKind::Daily { hour: 9, minute: 0 },
+            kind: crate::tools::cron::ScheduleKind::Preset {
+                preset: crate::tools::cron::SchedulePreset::Daily,
+            },
             task: "test".to_string(),
             created_at: chrono::Utc::now(),
             last_fired_at: None,
