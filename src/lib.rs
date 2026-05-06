@@ -25,6 +25,7 @@ pub mod forensics;
 pub mod hands;
 pub mod heartbeat;
 pub mod hooks;
+pub mod kanban;
 pub mod identity;
 pub mod learning;
 pub mod lite;

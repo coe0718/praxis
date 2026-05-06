@@ -6,6 +6,7 @@ mod argus;
 mod boundaries;
 mod brief;
 pub(crate) mod canary;
+pub(crate) mod kanban;
 mod chat;
 mod checkpoint;
 pub(crate) mod core;
@@ -125,6 +126,7 @@ pub enum Commands {
     Plan(PlanArgs),
     Profile(ProfileArgs),
     Models(models::ModelsArgs),
+    Kanban(kanban::KanbanArgs),
 }
 
 #[derive(Debug, Args)]
@@ -518,6 +520,7 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::Plan(args) => dryrun::handle_plan(cli.data_dir, args),
         Commands::Profile(args) => profile::handle_profile(cli.data_dir, args),
         Commands::Models(args) => models::handle_models(cli.data_dir, args),
+        Commands::Kanban(args) => kanban::handle_kanban(cli.data_dir, args),
     }
 }
 

@@ -126,6 +126,8 @@ pub struct PraxisPaths {
     pub cron_outputs_dir: PathBuf,
     /// Dynamic webhook subscriptions (`webhooks.json`).
     pub webhooks_file: PathBuf,
+    /// Kanban task board database (`kanban.db`).
+    pub kanban_db_file: PathBuf,
 }
 
 pub fn detect_platform() -> Platform {
@@ -256,6 +258,7 @@ impl PraxisPaths {
             cron_outputs_dir: data_dir.join("cron_outputs"),
             webhooks_file: data_dir.join("webhooks.json"),
             benchmarks_dir,
+            kanban_db_file: data_dir.join("kanban.db"),
             data_dir,
         }
     }

@@ -102,6 +102,97 @@ pub fn execute_request(
                 }),
             }
         }
+        // Kanban tools — all routed to the kanban module
+        "kanban_create" => {
+            use crate::kanban::tools::handle_kanban_create;
+            match handle_kanban_create(paths, request) {
+                Ok(output) => Ok(ToolExecutionResult { summary: output }),
+                Err(e) => Ok(ToolExecutionResult {
+                    summary: format!("kanban_create error: {e}"),
+                }),
+            }
+        }
+        "kanban_show" => {
+            use crate::kanban::tools::handle_kanban_show;
+            match handle_kanban_show(paths, request) {
+                Ok(output) => Ok(ToolExecutionResult { summary: output }),
+                Err(e) => Ok(ToolExecutionResult {
+                    summary: format!("kanban_show error: {e}"),
+                }),
+            }
+        }
+        "kanban_complete" => {
+            use crate::kanban::tools::handle_kanban_complete;
+            match handle_kanban_complete(paths, request) {
+                Ok(output) => Ok(ToolExecutionResult { summary: output }),
+                Err(e) => Ok(ToolExecutionResult {
+                    summary: format!("kanban_complete error: {e}"),
+                }),
+            }
+        }
+        "kanban_block" => {
+            use crate::kanban::tools::handle_kanban_block;
+            match handle_kanban_block(paths, request) {
+                Ok(output) => Ok(ToolExecutionResult { summary: output }),
+                Err(e) => Ok(ToolExecutionResult {
+                    summary: format!("kanban_block error: {e}"),
+                }),
+            }
+        }
+        "kanban_unblock" => {
+            use crate::kanban::tools::handle_kanban_unblock;
+            match handle_kanban_unblock(paths, request) {
+                Ok(output) => Ok(ToolExecutionResult { summary: output }),
+                Err(e) => Ok(ToolExecutionResult {
+                    summary: format!("kanban_unblock error: {e}"),
+                }),
+            }
+        }
+        "kanban_take" => {
+            use crate::kanban::tools::handle_kanban_take;
+            match handle_kanban_take(paths, request) {
+                Ok(output) => Ok(ToolExecutionResult { summary: output }),
+                Err(e) => Ok(ToolExecutionResult {
+                    summary: format!("kanban_take error: {e}"),
+                }),
+            }
+        }
+        "kanban_heartbeat" => {
+            use crate::kanban::tools::handle_kanban_heartbeat;
+            match handle_kanban_heartbeat(paths, request) {
+                Ok(output) => Ok(ToolExecutionResult { summary: output }),
+                Err(e) => Ok(ToolExecutionResult {
+                    summary: format!("kanban_heartbeat error: {e}"),
+                }),
+            }
+        }
+        "kanban_comment" => {
+            use crate::kanban::tools::handle_kanban_comment;
+            match handle_kanban_comment(paths, request) {
+                Ok(output) => Ok(ToolExecutionResult { summary: output }),
+                Err(e) => Ok(ToolExecutionResult {
+                    summary: format!("kanban_comment error: {e}"),
+                }),
+            }
+        }
+        "kanban_link" => {
+            use crate::kanban::tools::handle_kanban_link;
+            match handle_kanban_link(paths, request) {
+                Ok(output) => Ok(ToolExecutionResult { summary: output }),
+                Err(e) => Ok(ToolExecutionResult {
+                    summary: format!("kanban_link error: {e}"),
+                }),
+            }
+        }
+        "kanban_tasks" => {
+            use crate::kanban::tools::handle_kanban_tasks;
+            match handle_kanban_tasks(paths, request) {
+                Ok(output) => Ok(ToolExecutionResult { summary: output }),
+                Err(e) => Ok(ToolExecutionResult {
+                    summary: format!("kanban_tasks error: {e}"),
+                }),
+            }
+        }
         _ if manifest.name.starts_with("mcp:") => {
             // MCP tool — route through MCP client.
             let payload = parse_payload(request.payload_json.as_deref())?;

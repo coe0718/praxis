@@ -21,6 +21,7 @@ default = ["tui", "discord", "slack"]
 tui     = ["dep:crossterm", "dep:ratatui"]
 discord = []
 slack   = []
+kanban  = []
 
 [dependencies]
 aes-gcm = "0.10"
