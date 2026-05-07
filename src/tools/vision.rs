@@ -104,7 +104,8 @@ mod tests {
     #[test]
     fn test_vision_tool_url() {
         let tool = VisionTool::new();
-        let paths = PraxisPaths::for_data_dir(tempdir().unwrap().into_path());
+        let temp_dir = tempdir().unwrap();
+        let paths = PraxisPaths::for_data_dir(temp_dir.path().to_path_buf());
         let params = VisionParameters {
             image_url: Some("https://example.com/image.jpg".to_string()),
             image_path: None,

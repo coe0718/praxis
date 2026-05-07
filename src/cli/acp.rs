@@ -305,7 +305,7 @@ mod tests {
 
     #[test]
     fn test_initialize() {
-        let paths = test_paths();
+        let _paths = test_paths();
         let req = JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
             id: Some(Value::Number(1.into())),

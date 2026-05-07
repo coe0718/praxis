@@ -239,7 +239,6 @@ pub fn handle_checkpoints_list(data_dir: Option<PathBuf>) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
 
     fn test_paths() -> (PraxisPaths, tempfile::TempDir) {
         let tmp = tempfile::tempdir().unwrap();

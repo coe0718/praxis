@@ -277,7 +277,6 @@ impl LanceMemoryStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
 
     #[test]
     fn store_and_retrieve() {
