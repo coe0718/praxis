@@ -8,7 +8,6 @@
 //! - Corrector: error recovery
 
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use tokio::sync::mpsc;
 
 /// Process message types.
@@ -147,7 +146,7 @@ impl ProcessManager {
         // Spawn channel process
         tokio::spawn(async move {
             while let Some(msg) = channel_rx.recv().await {
-                if let ProcessMessage::Channel { channel, payload, .. } = msg {
+                if let ProcessMessage::Channel { channel, payload: _, .. } = msg {
                     // Route to appropriate channel
                     log::info!("Channel process: routing to {}", channel);
                 }
