@@ -49,7 +49,7 @@ fn runtime_blocks_repeated_tool_invocations() {
     LoopGuard.record(&mut state, invocation, 3);
     state.save(&paths.state_file).unwrap();
 
-    let summary = run_once(&paths, &config, &identity, &store, started_at);
+    let summary = futures::executor::block_on(run_once(&paths, &config, &identity, &store, started_at));
 
     assert_eq!(summary.outcome, "blocked_loop_guard");
     assert_eq!(
@@ -100,7 +100,7 @@ fn runtime_blocks_repeated_two_step_tool_patterns() {
     }
     state.save(&paths.state_file).unwrap();
 
-    let summary = run_once(&paths, &config, &identity, &store, started_at);
+    let summary = futures::executor::block_on(run_once(&paths, &config, &identity, &store, started_at));
 
     assert_eq!(summary.outcome, "blocked_loop_guard");
     assert!(summary.action_summary.contains("repeating 2-step tool pattern"));
@@ -130,7 +130,7 @@ fn tool_state(started_at: chrono::DateTime<chrono::Utc>, request_id: i64) -> Ses
     }
 }
 
-fn run_once(
+async fn run_once(
     paths: &PraxisPaths,
     config: &AppConfig,
     identity: &LocalIdentityPolicy,
@@ -159,5 +159,6 @@ fn run_once(
         force: false,
         task: None,
     })
+    .await
     .unwrap()
 }

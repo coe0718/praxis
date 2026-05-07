@@ -67,7 +67,7 @@ where
         + DecisionReceiptStore,
     T: ToolRegistry,
 {
-    pub fn run_once(&self, options: RunOptions) -> Result<RunSummary> {
+    pub async fn run_once(&self, options: RunOptions) -> Result<RunSummary> {
         let now = self.clock.now_utc();
         self.validate_options(&options)?;
 
@@ -124,7 +124,7 @@ where
             if let Some(inactive_summary) = self.check_inactivity_timeout(&state)? {
                 return Ok(inactive_summary);
             }
-            self.run_phase(&mut state)?;
+            self.run_phase(&mut state).await?;
             // (#51) Update last activity timestamp after each phase completes.
             self.last_tool_activity.set(Some(self.clock.now_utc()));
         }
@@ -140,7 +140,7 @@ where
         })
     }
 
-    fn run_phase(&self, state: &mut SessionState) -> Result<()> {
+    async fn run_phase(&self, state: &mut SessionState) -> Result<()> {
         match state.current_phase {
             SessionPhase::Orient => self.execute_phase(
                 state,
@@ -148,34 +148,30 @@ where
                 "Loading identity, goals, tools, and local context.",
                 Self::orient,
                 SessionPhase::Decide,
-            ),
+            ).await,
             SessionPhase::Decide => self.execute_phase(
                 state,
                 "agent:decide_start",
                 "Selecting the next unit of work.",
                 Self::decide,
                 SessionPhase::Act,
-            ),
+            ).await,
             SessionPhase::Act => self.execute_phase(
                 state,
                 "agent:act_start",
                 "Executing safe internal maintenance or approved tool work.",
                 Self::act,
                 SessionPhase::Reflect,
-            ),
-            SessionPhase::Reflect => self.execute_reflect(state),
+            ).await,
+            SessionPhase::Reflect => self.execute_reflect(state).await,
             SessionPhase::Sleep => Ok(()),
         }
     }
 
-    fn execute_phase(
-        &self,
-        state: &mut SessionState,
-        event_kind: &str,
-        detail: &str,
-        handler: fn(&Self, &mut SessionState) -> Result<()>,
-        next_phase: SessionPhase,
-    ) -> Result<()> {
+    async fn execute_phase<F>(&self, state: &mut SessionState, event_kind: &str, detail: &str, handler: F, next_phase: SessionPhase) -> Result<()>
+    where
+        F: FnOnce(&Self, &mut SessionState) -> Result<()>,
+    {
         let phase_name = state.current_phase.to_string();
         let hooks = HookRunner::from_paths(self.paths);
         let ctx =
@@ -209,7 +205,7 @@ where
         Ok(())
     }
 
-    fn execute_reflect(&self, state: &mut SessionState) -> Result<()> {
+    async fn execute_reflect(&self, state: &mut SessionState) -> Result<()> {
         let hooks = HookRunner::from_paths(self.paths);
         let ctx = HookContext::new("session.start_reflect", self.paths.data_dir.clone())
             .with_phase("reflect");

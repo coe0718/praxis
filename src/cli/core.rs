@@ -158,7 +158,9 @@ pub(crate) fn handle_run(data_dir_override: Option<PathBuf>, args: RunArgs) -> R
         (args.once, args.force)
     };
 
-    let summary = runtime.run_once(RunOptions { once, force, task: args.task })?;
+    let summary = tokio::runtime::Runtime::new()
+        .context("failed to create tokio runtime")?
+        .block_on(runtime.run_once(RunOptions { once, force, task: args.task }))?;
     let snapshot = if config.runtime.daily_backup_snapshots {
         maybe_create_daily_snapshot(&config, &paths, clock.now_utc())?
     } else {
@@ -266,11 +268,13 @@ pub(crate) fn handle_ask(data_dir_override: Option<PathBuf>, args: AskArgs) -> R
             process_manager: &process_manager,
         };
 
-        let summary = runtime.run_once(RunOptions {
-            once: true,
-            force: true,
-            task: Some(prompt.clone()),
-        })?;
+        let summary = tokio::runtime::Runtime::new()
+            .context("failed to create tokio runtime")?
+            .block_on(runtime.run_once(RunOptions {
+                once: true,
+                force: true,
+                task: Some(prompt.clone()),
+            }))?;
 
         let mut rendered = String::new();
         writeln!(rendered, "mode: ask --tools")?;

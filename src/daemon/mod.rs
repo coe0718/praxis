@@ -373,10 +373,10 @@ async fn async_daemon_loop(
 
             log::info!("daemon: starting session (trigger={label})");
 
-            // Run the blocking session on the current thread (blocking_in_place
-            // keeps the executor responsive for signal handling).
-            let data_dir2 = data_dir.clone();
-            let result = tokio::task::block_in_place(|| run_session_blocking(&data_dir2, task));
+            // Run the session directly - we're already in an async context.
+            // Use block_in_place to allow the async runtime to progress through
+            // the synchronous session execution.
+            let result = run_session_async(&data_dir, task.clone()).await;
 
             match result {
                 Ok(summary) => {
@@ -436,7 +436,7 @@ async fn async_daemon_loop(
 ///
 /// Config is re-read every call so self-evolution changes (e.g., the agent
 /// updated `praxis.toml` as part of the Act phase) take effect next session.
-fn run_session_blocking(data_dir: &Path, task: Option<String>) -> Result<RunSummary> {
+async fn run_session_async(data_dir: &Path, task: Option<String>) -> Result<RunSummary> {
     use crate::config::AppConfig;
 
     let base = PraxisPaths::for_data_dir(data_dir.to_path_buf());
@@ -495,14 +495,15 @@ fn run_session_blocking(data_dir: &Path, task: Option<String>) -> Result<RunSumm
         process_manager: &process_manager,
     };
 
-    runtime.run_once(RunOptions {
+    let summary = runtime.run_once(RunOptions {
         once: true, // Always single-pass from the daemon; the daemon manages the outer loop.
         force: task.is_some(),
         task,
     })
-}
+    .await?;
 
-// ── Maintenance ───────────────────────────────────────────────────────────────
+    Ok(summary)
+}
 
 /// Lightweight work that runs between sessions: re-index stale anatomy entries.
 fn run_maintenance_blocking(data_dir: &Path) -> Result<usize> {

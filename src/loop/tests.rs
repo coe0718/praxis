@@ -17,8 +17,8 @@ use crate::{
     tools::{FileToolRegistry, ToolRegistry},
 };
 
-#[test]
-fn runtime_runs_single_session() {
+#[tokio::test]
+async fn runtime_runs_single_session() {
     let temp = tempdir().unwrap();
     let paths = PraxisPaths::for_data_dir(temp.path().join("praxis"));
     let config = AppConfig::default_for_data_dir(paths.data_dir.clone());
@@ -60,6 +60,7 @@ fn runtime_runs_single_session() {
             force: false,
             task: None,
         })
+        .await
         .unwrap();
 
     assert_eq!(summary.phase, SessionPhase::Sleep);
@@ -70,8 +71,8 @@ fn runtime_runs_single_session() {
     assert!(state.orientation_summary.unwrap_or_default().contains("Context used"));
 }
 
-#[test]
-fn runtime_reaches_stop_condition_when_all_goals_are_done() {
+#[tokio::test]
+async fn runtime_reaches_stop_condition_when_all_goals_are_done() {
     let temp = tempdir().unwrap();
     let paths = PraxisPaths::for_data_dir(temp.path().join("praxis"));
     let config = AppConfig::default_for_data_dir(paths.data_dir.clone());
@@ -108,6 +109,7 @@ fn runtime_reaches_stop_condition_when_all_goals_are_done() {
             force: false,
             task: None,
         })
+        .await
         .unwrap();
 
     assert_eq!(summary.outcome, "stop_condition_met");
