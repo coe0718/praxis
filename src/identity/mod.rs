@@ -6,9 +6,11 @@ use chrono::{DateTime, Utc};
 use crate::{config::AppConfig, paths::PraxisPaths, storage::StoredSession};
 
 mod files;
+mod git;
 mod goals;
 
 pub use files::LocalIdentityPolicy;
+pub use git::{AgentManifest, GitIdentity, PersonalityTraits};
 pub use goals::{MarkdownGoalParser, ensure_goal};
 
 #[derive(Debug, Clone, PartialEq, Eq)]

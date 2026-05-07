@@ -9,7 +9,9 @@ use crate::providers::ProviderRoute;
 use super::{InputContent, ProviderRequest, ProviderResponse, successful_attempt};
 use crate::backend::retry::{RetryPolicy, retry_with_backoff};
 
-const OPENAI_CHAT_URL: &str = "https://api.openai.com/v1/chat/completions";
+/// OpenAI Chat Completions endpoint URL.
+/// Public for streaming backend.
+pub const OPENAI_CHAT_URL: &str = "https://api.openai.com/v1/chat/completions";
 
 /// Execute a request against any OpenAI-compatible Chat Completions endpoint.
 /// Works with OpenAI, Together, Groq, Mistral, local llama.cpp, and any other
@@ -87,6 +89,12 @@ pub(super) fn execute(
         let status = response.status();
         let body = response.text().unwrap_or_default();
         let safe_body = body.chars().take(200).collect::<String>();
+        
+        // If 429, mark the key as rate-limited for credential pooling
+        if status == 429 {
+            super::mark_key_rate_limited(&route.provider, &api_key);
+        }
+        
         bail!("provider {} request failed with {status}: {safe_body}", route.provider);
     }
 

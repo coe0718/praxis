@@ -20,6 +20,10 @@
 //!   → Output passes through leak detector
 //!   → Result returned to LLM
 //! ```
+//!
+//! Signed plugins are also supported via the signing submodule.
+//!
+pub mod signing;
 
 use std::path::PathBuf;
 

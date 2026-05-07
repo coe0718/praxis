@@ -213,7 +213,7 @@ impl AppConfig {
                 redact_secrets: false,
                 require_mention: false,
                 allowed_users: Vec::new(),
-                hardline_blocklist: Vec::new(),
+                hardline_blocklist: crate::tools::default_hardline_blocklist(),
             },
             agent: AgentConfig {
                 backend: "stub".to_string(),

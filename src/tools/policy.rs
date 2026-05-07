@@ -180,7 +180,6 @@ fn check_hardline_blocklist(config: &AppConfig, request: &StoredApprovalRequest)
 /// (#48) Return a curated set of default hardline blocklist patterns.
 /// These cover the most destructive shell commands that should never be
 /// executed regardless of approval level.
-#[allow(dead_code)]
 pub fn default_hardline_blocklist() -> Vec<String> {
     vec![
         "rm -rf /".to_string(),

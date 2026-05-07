@@ -13,9 +13,6 @@ use serde::{Deserialize, Serialize};
 use crate::providers::ProviderRoute;
 
 use super::{InputContent, ProviderRequest};
-#[allow(dead_code)]
-const OPENAI_CHAT_URL: &str = "https://api.openai.com/v1/chat/completions";
-
 use super::openai::{resolve_api_key, resolve_endpoint};
 
 /// A single streamed token (or the final usage block).

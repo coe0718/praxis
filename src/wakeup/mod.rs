@@ -14,8 +14,12 @@
 //!
 //! The intent is consumed (deleted) once the session runs so it only triggers
 //! one wake.
+//!
+//! Proactive Scheduling:
+//! Agent can schedule wake-ups based on conditions without external triggers.
 
 pub mod schedule;
+pub mod proactive;
 
 use std::{fs, path::Path};
 

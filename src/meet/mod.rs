@@ -23,10 +23,6 @@ const CAL_API: &str = "https://www.googleapis.com/calendar/v3";
 /// Google OAuth token endpoint.
 const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
 
-/// Google OAuth authorize URL.
-#[allow(dead_code)]
-const GOOGLE_AUTH_URL: &str = "https://accounts.google.com/o/oauth2/v2/auth";
-
 /// Config for Google Meet client.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MeetConfig {

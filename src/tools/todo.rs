@@ -61,7 +61,6 @@ impl TodoList {
         fs::write(path, raw).with_context(|| format!("failed to write {}", path.display()))
     }
 
-    #[allow(dead_code)]
     pub fn get(&self, id: &str) -> Option<&TodoItem> {
         self.items.iter().find(|i| i.id == id)
     }

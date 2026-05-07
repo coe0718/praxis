@@ -209,7 +209,7 @@ impl CdpClient {
     }
 
     /// Check if Chrome is available.
-    #[allow(dead_code)]
+    /// Used by BrowserTool::is_available check.
     pub fn is_available() -> bool {
         std::net::TcpStream::connect("localhost:9222").is_ok()
     }
@@ -228,7 +228,6 @@ impl BrowserTool {
         }
         Self { client }
     }
-    #[allow(dead_code)]
     pub fn is_available(&self) -> bool {
         self.client.is_some()
     }
