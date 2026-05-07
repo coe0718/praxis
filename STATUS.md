@@ -154,6 +154,43 @@ All 10 items from the OpenClaw gap analysis are now closed:
 
 ---
 
+## Competitive Analysis: Praxis vs Claw Ecosystem
+
+### Praxis Advantages (Unique Features)
+- ✅ Structured agent loop: Orient → Decide → Act → Reflect → Sleep
+- ✅ Self-evolution with approval lifecycle
+- ✅ Scoring system (4-dimension composite)
+- ✅ Kanban board with dispatcher
+- ✅ Curator integration
+- ✅ A2A sync for inter-agent communication
+- ✅ LanceDB vector memory
+- ✅ Plugin marketplace + Skills hub
+- ✅ i18n (9 languages)
+- ✅ Synthetic examples + anomaly detection
+- ✅ Argus reviewer with quality gates
+- ✅ Model canary for regression detection
+
+### Moltis Gaps (Add for Competition)
+| Feature | Why It Wins | Est. Effort |
+|---------|-------------|-------------|
+| Full Web UI | Live settings, tools inventory | 3-4 weeks |
+| Voice I/O (TTS+STT) | Complete voice pipeline | 2 weeks |
+| Browser automation | Safe web tasks via Docker | 2 weeks |
+| Signal/Matrix/MS Teams | Enterprise messaging | 1 week each |
+| Embedding cache | 50% LLM cost reduction | 1 day |
+| Self-update (`praxis update`) | Zero-downtime upgrades | 3 days |
+
+### IronClaw Gaps (Add for Competition)
+| Feature | Why It Wins | Est. Effort |
+|---------|-------------|-------------|
+| **WASM sandbox** | Killer security differentiator | 1-2 months |
+| Prompt injection detection | Safety guarantee | 1 week |
+| Credential leak detection | Data exfiltration prevention | 1 week |
+| OpenAI-compatible API | Expose Praxis as service | 1 week |
+| Routines engine | Event-driven self-healing | 2 weeks |
+
+---
+
 ## File Inventory
 
 ```
