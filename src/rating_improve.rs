@@ -80,10 +80,10 @@ impl RatingProcessor {
             if !seen.insert(&r.context.task_type) {
                 continue;
             }
-            if let Some(avg) = self.avg_for_task(&r.context.task_type) {
-                if avg < threshold {
-                    result.push(r.context.task_type.clone());
-                }
+            if let Some(avg) = self.avg_for_task(&r.context.task_type)
+                && avg < threshold
+            {
+                result.push(r.context.task_type.clone());
             }
         }
         result

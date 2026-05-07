@@ -128,13 +128,11 @@ impl AudioRouter {
         let mut removed = 0;
         for entry in fs::read_dir(&self.audio_dir)? {
             let entry = entry?;
-            if let Ok(modified) = entry.metadata().and_then(|m| m.modified()) {
-                if modified < cutoff {
-                    if fs::remove_file(entry.path()).is_ok() {
+            if let Ok(modified) = entry.metadata().and_then(|m| m.modified())
+                && modified < cutoff
+                    && fs::remove_file(entry.path()).is_ok() {
                         removed += 1;
                     }
-                }
-            }
         }
         Ok(removed)
     }

@@ -45,6 +45,12 @@ pub struct RoutinesEngine {
     routines: HashMap<String, Routine>,
 }
 
+impl Default for RoutinesEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RoutinesEngine {
     pub fn new() -> Self {
         Self {

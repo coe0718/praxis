@@ -51,16 +51,12 @@ pub struct Rule {
 
 /// Rule set configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct RuleSet {
     /// Rules in this set.
     pub rules: Vec<Rule>,
 }
 
-impl Default for RuleSet {
-    fn default() -> Self {
-        Self { rules: Vec::new() }
-    }
-}
 
 /// Rule engine for pattern matching.
 pub struct RuleEngine {
@@ -83,12 +79,7 @@ impl RuleEngine {
         let mut sorted = self.ruleset.rules.iter().collect::<Vec<_>>();
         sorted.sort_by(|a, b| b.priority.cmp(&a.priority));
 
-        for rule in sorted {
-            if self.evaluate_conditions(&rule.when, context) {
-                return Some(rule);
-            }
-        }
-        None
+        sorted.into_iter().find(|&rule| self.evaluate_conditions(&rule.when, context)).map(|v| v as _)
     }
 
     fn evaluate_conditions(&self, conditions: &[Condition], context: &serde_json::Value) -> bool {
@@ -98,15 +89,15 @@ impl RuleEngine {
     fn evaluate_condition(&self, condition: &Condition, context: &serde_json::Value) -> bool {
         match condition {
             Condition::Equals { field, value } => {
-                context.get(field).map_or(false, |v| v == value)
+                context.get(field) == Some(value)
             }
             Condition::Contains { field, value } => {
-                context.get(field).and_then(|v| v.as_str()).map_or(false, |s| s.contains(value))
+                context.get(field).and_then(|v| v.as_str()).is_some_and(|s| s.contains(value))
             }
             Condition::Regex { field, pattern } => {
                 let re = regex::Regex::new(pattern);
-                context.get(field).and_then(|v| v.as_str()).map_or(false, |s| {
-                    re.map_or(false, |re| re.is_match(s))
+                context.get(field).and_then(|v| v.as_str()).is_some_and(|s| {
+                    re.is_ok_and(|re| re.is_match(s))
                 })
             }
             Condition::Always => true,

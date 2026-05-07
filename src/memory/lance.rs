@@ -156,12 +156,11 @@ impl LanceMemoryStore {
         self.local_cache.insert(record.id.clone(), record.clone());
         self.persist_local_cache()?;
 
-        if self.available {
-            if let Err(e) = self.store_remote(&record) {
+        if self.available
+            && let Err(e) = self.store_remote(&record) {
                 log::warn!("lance_memory: remote store failed, kept in local cache: {:#}", e);
                 self.available = false;
             }
-        }
 
         Ok(())
     }
@@ -170,11 +169,10 @@ impl LanceMemoryStore {
     pub fn search(&self, query: &str, limit: Option<usize>) -> Result<Vec<SemanticSearchResult>> {
         let limit = limit.unwrap_or(self.config.top_k);
 
-        if self.available {
-            if let Ok(results) = self.search_remote(query, limit) {
+        if self.available
+            && let Ok(results) = self.search_remote(query, limit) {
                 return Ok(results);
             }
-        }
 
         // Fallback: keyword search in local cache
         let query_lower = query.to_lowercase();

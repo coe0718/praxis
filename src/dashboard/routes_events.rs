@@ -404,7 +404,7 @@ pub(super) async fn webhook_dynamic(
         let event_type =
             headers.get("X-Webhook-Event").and_then(|v| v.to_str().ok()).unwrap_or("push");
         let allowed: Vec<&str> = wh.events.split(',').map(|s| s.trim()).collect();
-        if !allowed.iter().any(|e| *e == event_type) && !allowed.iter().any(|e| *e == "*") {
+        if !allowed.contains(&event_type) && !allowed.contains(&"*") {
             log::info!("webhook '{name}': event '{event_type}' not in allowed list");
             return (StatusCode::OK, Json(json!({ "ok": true, "skipped": true }))).into_response();
         }
@@ -423,7 +423,7 @@ pub(super) async fn webhook_dynamic(
         // Forward directly to the messaging bus — no agent processing.
         let bus = FileBus::new(state.data_dir.join("bus.jsonl"));
         let event =
-            BusEvent::new("webhook", "webhook", &format!("webhook:{name}"), "system", &payload);
+            BusEvent::new("webhook", "webhook", format!("webhook:{name}"), "system", &payload);
         if let Err(e) = bus.publish(&event) {
             log::warn!("webhook '{name}': direct delivery publish failed: {e}");
             return StatusCode::INTERNAL_SERVER_ERROR.into_response();

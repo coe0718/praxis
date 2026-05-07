@@ -13,6 +13,7 @@ use crate::{
 /// Telegram message filtering.  Keeps the messaging layer decoupled from
 /// the full config module.
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct MessageGating {
     /// When `true`, skip group messages that don't @mention the bot.
     pub require_mention: bool,
@@ -21,14 +22,6 @@ pub struct MessageGating {
     pub allowed_users: Vec<String>,
 }
 
-impl Default for MessageGating {
-    fn default() -> Self {
-        Self {
-            require_mention: false,
-            allowed_users: Vec::new(),
-        }
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct TelegramBot {
@@ -154,8 +147,8 @@ impl TelegramBot {
         // Handle callback queries (inline button presses).
         let mut callbacks = Vec::new();
         for update in &updates {
-            if let Some(cq) = &update.callback_query {
-                if let (Some(data), Some(from)) = (&cq.data, &cq.from) {
+            if let Some(cq) = &update.callback_query
+                && let (Some(data), Some(from)) = (&cq.data, &cq.from) {
                     let sender_id = from.id;
                     if self.allowed_chat_ids.contains(&sender_id) {
                         callbacks.push(CallbackQuery {
@@ -168,7 +161,6 @@ impl TelegramBot {
                         log::warn!("answer_callback failed: {e}");
                     }
                 }
-            }
         }
 
         let messages = filter_messages(

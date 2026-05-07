@@ -163,19 +163,17 @@ impl ExecutionPlan {
             }
 
             // Check for common dangerous patterns
-            if let Some(obj) = step.params.as_object() {
-                if let Some(cmd) = obj.get("command").and_then(|v| v.as_str()) {
-                    if cmd.contains("rm -rf")
+            if let Some(obj) = step.params.as_object()
+                && let Some(cmd) = obj.get("command").and_then(|v| v.as_str())
+                    && (cmd.contains("rm -rf")
                         || cmd.contains("drop table")
-                        || cmd.contains("format")
+                        || cmd.contains("format"))
                     {
                         result.warnings.push(format!(
                             "step {}: potentially destructive command in '{}'",
                             step.seq, step.tool
                         ));
                     }
-                }
-            }
         }
 
         result
@@ -238,11 +236,10 @@ pub fn list_plans(dir: &Path) -> Result<Vec<String>> {
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
-        if path.extension().map(|e| e == "json").unwrap_or(false) {
-            if let Some(stem) = path.file_stem() {
+        if path.extension().map(|e| e == "json").unwrap_or(false)
+            && let Some(stem) = path.file_stem() {
                 plans.push(stem.to_string_lossy().to_string());
             }
-        }
     }
     plans.sort();
     Ok(plans)

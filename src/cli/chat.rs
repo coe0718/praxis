@@ -315,11 +315,10 @@ fn cmd_skills(ctx: &mut ReplContext, _args: &[&str]) -> Result<String> {
     let mut skills: Vec<String> = Vec::new();
     for entry in std::fs::read_dir(skills_dir)? {
         let entry = entry?;
-        if let Some(name) = entry.file_name().to_str() {
-            if name.ends_with(".md") {
+        if let Some(name) = entry.file_name().to_str()
+            && name.ends_with(".md") {
                 skills.push(name.trim_end_matches(".md").to_string());
             }
-        }
     }
 
     if skills.is_empty() {
@@ -342,11 +341,10 @@ fn cmd_tools(ctx: &mut ReplContext, _args: &[&str]) -> Result<String> {
     let mut tools: Vec<String> = Vec::new();
     for entry in std::fs::read_dir(tools_dir)? {
         let entry = entry?;
-        if let Some(name) = entry.file_name().to_str() {
-            if name.ends_with(".toml") {
+        if let Some(name) = entry.file_name().to_str()
+            && name.ends_with(".toml") {
                 tools.push(name.trim_end_matches(".toml").to_string());
             }
-        }
     }
 
     if tools.is_empty() {
@@ -380,7 +378,7 @@ fn cmd_status(ctx: &mut ReplContext, _args: &[&str]) -> Result<String> {
 fn cmd_save(ctx: &mut ReplContext, args: &[&str]) -> Result<String> {
     let path = args
         .first()
-        .map(|p| PathBuf::from(p))
+        .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("praxis-session.txt"));
 
     let content = ctx.history.join("\n\n");

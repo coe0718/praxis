@@ -116,8 +116,8 @@ pub fn process_due_jobs(
 
     for job in &store.jobs {
         let ext = extensions_fn(job);
-        if ext.no_agent {
-            if let Some(script) = script_fn(job) {
+        if ext.no_agent
+            && let Some(script) = script_fn(job) {
                 match run_script_job(job, &script, &ext) {
                     Ok(result) => {
                         log::info!(
@@ -138,7 +138,6 @@ pub fn process_due_jobs(
                     }
                 }
             }
-        }
         // Regular jobs are handled by the existing daemon WakeIntent flow
     }
 

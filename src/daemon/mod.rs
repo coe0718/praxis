@@ -654,7 +654,7 @@ fn check_scheduled_jobs(paths: &PraxisPaths, now: DateTime<Utc>) -> Option<Strin
                 wake_gate: job.wake_gate,
             };
             // Run script directly without triggering agent session
-            if let Ok(result) = run_script_job(&job, &job.task, &extensions) {
+            if let Ok(result) = run_script_job(job, &job.task, &extensions) {
                 if result.should_wake_agent {
                     // For no_agent with wake_gate=false, output to a file instead
                     let output_path = paths.cron_outputs_dir.join(format!("{}.txt", job.id));
@@ -679,8 +679,8 @@ fn check_scheduled_jobs(paths: &PraxisPaths, now: DateTime<Utc>) -> Option<Strin
         }
 
         // Inject context from upstream jobs.
-        if let Some(ref upstream_ids) = job.context_from {
-            if !upstream_ids.is_empty() {
+        if let Some(ref upstream_ids) = job.context_from
+            && !upstream_ids.is_empty() {
                 let outputs =
                     ScheduledJobs::read_upstream_outputs(&paths.cron_outputs_dir, upstream_ids);
                 if !outputs.is_empty() {
@@ -700,7 +700,6 @@ fn check_scheduled_jobs(paths: &PraxisPaths, now: DateTime<Utc>) -> Option<Strin
                     }
                 }
             }
-        }
 
         parts.push(job.task.clone());
         tasks.push(parts.join("\n"));
@@ -726,8 +725,8 @@ fn poll_platforms(paths: &PraxisPaths) {
     let bus = FileBus::new(&paths.bus_file);
 
     // ── Telegram ──────────────────────────────────────────────────────
-    if crate::messaging::TelegramBot::validate_environment().is_ok() {
-        if let Ok(bot) = crate::messaging::TelegramBot::from_env() {
+    if crate::messaging::TelegramBot::validate_environment().is_ok()
+        && let Ok(bot) = crate::messaging::TelegramBot::from_env() {
             let activation =
                 crate::messaging::ActivationStore::load(&paths.activation_file).unwrap_or_default();
             let gating = crate::messaging::MessageGating::default();
@@ -748,13 +747,12 @@ fn poll_platforms(paths: &PraxisPaths) {
                 Err(e) => log::debug!("daemon: telegram poll skipped: {e}"),
             }
         }
-    }
 
     // ── Discord ───────────────────────────────────────────────────────
     #[cfg(feature = "discord")]
     {
-        if crate::messaging::DiscordClient::validate_environment().is_ok() {
-            if let Ok(client) = crate::messaging::DiscordClient::from_env() {
+        if crate::messaging::DiscordClient::validate_environment().is_ok()
+            && let Ok(client) = crate::messaging::DiscordClient::from_env() {
                 let allowed = crate::messaging::discord_allowed_user_ids();
                 match client.poll_once(&paths.discord_state_file, &allowed) {
                     Ok(msgs) => {
@@ -777,14 +775,13 @@ fn poll_platforms(paths: &PraxisPaths) {
                     Err(e) => log::debug!("daemon: discord poll skipped: {e}"),
                 }
             }
-        }
     }
 
     // ── Slack ─────────────────────────────────────────────────────────
     #[cfg(feature = "slack")]
     {
-        if crate::messaging::SlackClient::validate_environment().is_ok() {
-            if let Ok(client) = crate::messaging::SlackClient::from_env() {
+        if crate::messaging::SlackClient::validate_environment().is_ok()
+            && let Ok(client) = crate::messaging::SlackClient::from_env() {
                 let allowed = crate::messaging::slack_allowed_user_ids();
                 match client.poll_once(&paths.slack_state_file, &allowed) {
                     Ok(msgs) => {
@@ -807,7 +804,6 @@ fn poll_platforms(paths: &PraxisPaths) {
                     Err(e) => log::debug!("daemon: slack poll skipped: {e}"),
                 }
             }
-        }
     }
 }
 

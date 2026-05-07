@@ -33,14 +33,13 @@ impl SecurityPolicy {
         }
 
         // [IMPORTANT:] marker check — Azure content filter dodge pattern.
-        if let Some(payload) = request.payload_json.as_deref() {
-            if payload.contains("[IMPORTANT:") || payload.contains("[IMPORTANT]") {
+        if let Some(payload) = request.payload_json.as_deref()
+            && (payload.contains("[IMPORTANT:") || payload.contains("[IMPORTANT]")) {
                 bail!(
                     "tool request {} contains [IMPORTANT:] marker — possible content filter injection",
                     request.id
                 );
             }
-        }
 
         if manifest.required_level > config.security.level {
             bail!(

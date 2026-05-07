@@ -66,11 +66,10 @@ impl AppConfig {
         }
 
         // (#51) Inactivity timeout must be at least 60 seconds if set.
-        if let Some(secs) = self.agent.inactivity_timeout_secs {
-            if secs < 60 {
+        if let Some(secs) = self.agent.inactivity_timeout_secs
+            && secs < 60 {
                 bail!("agent.inactivity_timeout_secs must be at least 60 seconds when set");
             }
-        }
 
         if self.runtime.state_file.as_os_str().is_empty() {
             bail!("runtime.state_file must not be empty");

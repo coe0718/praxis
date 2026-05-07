@@ -45,15 +45,12 @@ pub struct SessionSpawnRequest {
     pub priority: SpawnPriority,
 }
 
-impl Default for SpawnPriority {
-    fn default() -> Self {
-        SpawnPriority::Normal
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum SpawnPriority {
+    #[default]
     Normal,
     Urgent,
 }

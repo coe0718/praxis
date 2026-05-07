@@ -91,6 +91,7 @@ impl TryFrom<PluginManifest> for Plugin {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Default)]
 pub struct PluginHooks {
     #[serde(default)]
     pub pre_prompt: Option<PathBuf>,
@@ -106,17 +107,6 @@ pub struct PluginHooks {
     pub tool_rewrite: Vec<String>,
 }
 
-impl Default for PluginHooks {
-    fn default() -> Self {
-        Self {
-            pre_prompt: None,
-            post_response: None,
-            on_error: None,
-            tool_block: vec![],
-            tool_rewrite: vec![],
-        }
-    }
-}
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ToolRegistration {

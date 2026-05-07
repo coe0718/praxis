@@ -52,6 +52,12 @@ fn command_exists_alt(name: &str) -> bool {
         .unwrap_or(false)
 }
 
+impl Default for VoiceTool {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl VoiceTool {
     pub fn new() -> Self {
         Self {
@@ -214,7 +220,7 @@ impl VoiceTool {
         output_path: &Path,
     ) -> Result<String> {
         // Default voice based on language
-        let voice = voice.unwrap_or_else(|| match language {
+        let voice = voice.unwrap_or(match language {
             "en-US" => "en-US-AriaNeural",
             "en-GB" => "en-GB-SoniaNeural",
             "fr-FR" => "fr-FR-DeniseNeural",

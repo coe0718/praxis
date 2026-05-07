@@ -702,8 +702,8 @@ pub(crate) fn notify_approval_request(approval_id: i64, tool_name: &str, summary
     #[cfg(feature = "discord")]
     {
         use crate::messaging::DiscordClient;
-        if let Ok(discord) = DiscordClient::from_env() {
-            if let Ok(channel_ids) = std::env::var("PRAXIS_DISCORD_CHANNEL_IDS") {
+        if let Ok(discord) = DiscordClient::from_env()
+            && let Ok(channel_ids) = std::env::var("PRAXIS_DISCORD_CHANNEL_IDS") {
                 // Send to the first configured Discord channel.
                 if let Some(channel_id) =
                     channel_ids.split(',').next().map(|s| s.trim().to_string())
@@ -721,14 +721,13 @@ pub(crate) fn notify_approval_request(approval_id: i64, tool_name: &str, summary
                     }
                 }
             }
-        }
     }
 }
 
 pub(crate) fn handle_approval_callback(store: &dyn ApprovalStore, data: &str) -> Result<bool> {
     if let Some(id_str) = data.strip_prefix("approve:") {
-        if let Ok(id) = id_str.parse::<i64>() {
-            if let Some(req) = store.get_approval(id)? {
+        if let Ok(id) = id_str.parse::<i64>()
+            && let Some(req) = store.get_approval(id)? {
                 use crate::storage::ApprovalStatus;
                 if req.status == ApprovalStatus::Pending {
                     store.set_approval_status(
@@ -740,10 +739,9 @@ pub(crate) fn handle_approval_callback(store: &dyn ApprovalStore, data: &str) ->
                     return Ok(true);
                 }
             }
-        }
-    } else if let Some(id_str) = data.strip_prefix("deny:") {
-        if let Ok(id) = id_str.parse::<i64>() {
-            if let Some(req) = store.get_approval(id)? {
+    } else if let Some(id_str) = data.strip_prefix("deny:")
+        && let Ok(id) = id_str.parse::<i64>()
+            && let Some(req) = store.get_approval(id)? {
                 use crate::storage::ApprovalStatus;
                 if req.status == ApprovalStatus::Pending {
                     store.set_approval_status(
@@ -755,7 +753,5 @@ pub(crate) fn handle_approval_callback(store: &dyn ApprovalStore, data: &str) ->
                     return Ok(true);
                 }
             }
-        }
-    }
     Ok(false)
 }

@@ -135,11 +135,10 @@ impl GitIdentity {
         let mut skills = vec![];
         for entry in std::fs::read_dir(skills_dir)? {
             let entry = entry?;
-            if entry.path().extension().map_or(false, |e| e == "rs" || e == "toml") {
-                if let Some(name) = entry.file_name().to_str() {
+            if entry.path().extension().is_some_and(|e| e == "rs" || e == "toml")
+                && let Some(name) = entry.file_name().to_str() {
                     skills.push(name.to_string());
                 }
-            }
         }
         Ok(skills)
     }

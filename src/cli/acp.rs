@@ -142,21 +142,19 @@ fn handle_tools_list(paths: &PraxisPaths, req: &JsonRpcRequest) -> JsonRpcRespon
     let mut tools = Vec::new();
 
     // Scan tools directory for manifest files
-    if paths.tools_dir.exists() {
-        if let Ok(entries) = std::fs::read_dir(&paths.tools_dir) {
+    if paths.tools_dir.exists()
+        && let Ok(entries) = std::fs::read_dir(&paths.tools_dir) {
             for entry in entries.flatten() {
-                if let Some(name) = entry.file_name().to_str() {
-                    if name.ends_with(".toml") {
+                if let Some(name) = entry.file_name().to_str()
+                    && name.ends_with(".toml") {
                         let tool_name = name.trim_end_matches(".toml");
                         tools.push(json!({
                             "name": tool_name,
                             "description": format!("Tool: {tool_name}"),
                         }));
                     }
-                }
             }
         }
-    }
 
     // Add built-in tools
     for builtin in &["clarify", "todo", "memory", "cron", "image", "vision", "voice"] {
@@ -237,8 +235,8 @@ fn handle_context_get(paths: &PraxisPaths, req: &JsonRpcRequest) -> JsonRpcRespo
     ];
 
     for (name, path) in &identity_files {
-        if path.exists() {
-            if let Ok(content) = std::fs::read_to_string(path) {
+        if path.exists()
+            && let Ok(content) = std::fs::read_to_string(path) {
                 context_files.push(json!({
                     "name": name,
                     "path": path.display().to_string(),
@@ -246,7 +244,6 @@ fn handle_context_get(paths: &PraxisPaths, req: &JsonRpcRequest) -> JsonRpcRespo
                     "size": content.len(),
                 }));
             }
-        }
     }
 
     ok_response(req.id.clone(), json!({ "files": context_files }))

@@ -389,7 +389,7 @@ fn backup_data_dir(data_dir: &std::path::Path, archive_path: &std::path::Path) -
             continue;
         }
         let name = path.file_name().context("entry has no file name")?;
-        let archived_path = std::path::Path::new(dir_name).join(&name);
+        let archived_path = std::path::Path::new(dir_name).join(name);
         if path.is_dir() {
             tar.append_dir_all(&archived_path, &path)
                 .with_context(|| format!("failed to archive directory {}", path.display()))?;

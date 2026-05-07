@@ -93,15 +93,15 @@ impl EventRouter {
     fn check_condition(&self, condition: &TriggerCondition, payload: &serde_json::Value) -> bool {
         match condition {
             TriggerCondition::Equals { field, value } => {
-                payload.get(field).map_or(false, |v| v == value)
+                payload.get(field) == Some(value)
             }
             TriggerCondition::Contains { field, value } => {
-                payload.get(field).and_then(|v| v.as_str()).map_or(false, |s| s.contains(value))
+                payload.get(field).and_then(|v| v.as_str()).is_some_and(|s| s.contains(value))
             }
             TriggerCondition::Regex { field, pattern } => {
                 let re = regex::Regex::new(pattern);
-                payload.get(field).and_then(|v| v.as_str()).map_or(false, |s| {
-                    re.map_or(false, |re| re.is_match(s))
+                payload.get(field).and_then(|v| v.as_str()).is_some_and(|s| {
+                    re.is_ok_and(|re| re.is_match(s))
                 })
             }
         }

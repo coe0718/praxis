@@ -29,18 +29,18 @@ impl Condition {
     pub fn eval(&self, ctx: &serde_json::Value) -> bool {
         match self {
             Condition::Equals { field, value } => {
-                ctx.get(field).map_or(false, |v| v == value)
+                ctx.get(field) == Some(value)
             }
             Condition::Contains { field, value } => {
-                ctx.get(field).and_then(|v| v.as_str()).map_or(false, |s| s.contains(value))
+                ctx.get(field).and_then(|v| v.as_str()).is_some_and(|s| s.contains(value))
             }
             Condition::GreaterThan { field, value } => {
-                ctx.get(field).and_then(|v| v.as_f64()).map_or(false, |n| n > *value)
+                ctx.get(field).and_then(|v| v.as_f64()).is_some_and(|n| n > *value)
             }
             Condition::Regex { field, pattern } => {
                 let re = regex::Regex::new(pattern);
-                ctx.get(field).and_then(|v| v.as_str()).map_or(false, |s| {
-                    re.map_or(false, |re| re.is_match(s))
+                ctx.get(field).and_then(|v| v.as_str()).is_some_and(|s| {
+                    re.is_ok_and(|re| re.is_match(s))
                 })
             }
             Condition::Always => true,
@@ -113,13 +113,12 @@ impl RuleEngine {
 
     /// Update context with new values.
     pub fn update_context(&mut self, updates: serde_json::Value) {
-        if let serde_json::Value::Object(map) = updates {
-            if let serde_json::Value::Object(ctx) = &mut self.context {
+        if let serde_json::Value::Object(map) = updates
+            && let serde_json::Value::Object(ctx) = &mut self.context {
                 for (k, v) in map {
                     ctx.insert(k, v);
                 }
             }
-        }
     }
 }
 

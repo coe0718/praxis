@@ -107,6 +107,12 @@ pub struct CuratorReport {
     pub consolidate_candidates: Vec<(String, String)>,
 }
 
+impl Default for CuratorReport {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CuratorReport {
     pub fn new() -> Self {
         Self {

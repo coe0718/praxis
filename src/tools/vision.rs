@@ -25,6 +25,12 @@ pub struct VisionParameters {
     pub detail: Option<String>,
 }
 
+impl Default for VisionTool {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl VisionTool {
     pub fn new() -> Self {
         Self {
