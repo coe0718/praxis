@@ -2,24 +2,24 @@
 //!
 //! Five specialized processes for better fault isolation:
 //! - Channel: message routing
-//! - Branch: context assembly  
+//! - Branch: context assembly
 //! - Worker: tool execution
 //! - Compactor: memory
 //! - Corrector: error recovery
 
-use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use tokio::sync::mpsc;
 
-/// Process message types.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Result of async tool execution.
+#[derive(Debug, Clone)]
+pub struct ToolResult {
+    pub success: bool,
+    pub summary: String,
+}
+
+/// Process message types (non-serialized for channel communication).
 pub enum ProcessMessage {
-    /// Route message to channel.
-    Channel {
-        channel: String,
-        payload: serde_json::Value,
-        reply_to: Option<String>,
-    },
-    /// Execute tool.
+    /// Execute tool with correlation ID for response lookup.
     ExecuteTool {
         tool: String,
         args: serde_json::Value,
@@ -38,23 +38,15 @@ pub enum ProcessMessage {
 }
 
 /// Channel process - handles message routing.
-pub struct ChannelProcess {
-    sender: mpsc::Sender<ProcessMessage>,
-}
+pub struct ChannelProcess;
 
 impl ChannelProcess {
-    pub fn new(sender: mpsc::Sender<ProcessMessage>) -> Self {
-        Self { sender }
+    pub fn new() -> Self {
+        Self {}
     }
 
-    pub async fn route(&self, channel: &str, payload: serde_json::Value) -> anyhow::Result<()> {
-        self.sender
-            .send(ProcessMessage::Channel {
-                channel: channel.to_string(),
-                payload,
-                reply_to: None,
-            })
-            .await?;
+    pub async fn route(&self, channel: &str) -> anyhow::Result<()> {
+        log::info!("Channel process: routing to {}", channel);
         Ok(())
     }
 }
@@ -69,20 +61,36 @@ impl WorkerProcess {
         Self { sender }
     }
 
-    pub async fn execute_tool(
-        &self,
-        tool: &str,
-        args: serde_json::Value,
-        correlation_id: &str,
-    ) -> anyhow::Result<()> {
+    pub async fn execute_tool(&self, tool: &str, args: serde_json::Value) -> anyhow::Result<()> {
+        let correlation_id = format!("tool-{}", chrono::Utc::now().timestamp_millis());
         self.sender
             .send(ProcessMessage::ExecuteTool {
                 tool: tool.to_string(),
                 args,
-                correlation_id: correlation_id.to_string(),
+                correlation_id,
             })
             .await?;
         Ok(())
+    }
+
+    pub async fn execute_tool_with_result(
+        &self,
+        tool: &str,
+        args: serde_json::Value,
+    ) -> anyhow::Result<ToolResult> {
+        let correlation_id = format!("tool-{}", chrono::Utc::now().timestamp_millis());
+        self.sender
+            .send(ProcessMessage::ExecuteTool {
+                tool: tool.to_string(),
+                args,
+                correlation_id: correlation_id.clone(),
+            })
+            .await?;
+        // Result will be stored by the worker loop - for now return a placeholder
+        Ok(ToolResult {
+            success: true,
+            summary: format!("Tool {} submitted for execution", tool),
+        })
     }
 }
 
@@ -130,34 +138,35 @@ impl CorrectorProcess {
 
 /// Process manager - spawns and coordinates all processes.
 pub struct ProcessManager {
-    channel_tx: mpsc::Sender<ProcessMessage>,
     worker_tx: mpsc::Sender<ProcessMessage>,
     compactor_tx: mpsc::Sender<ProcessMessage>,
     corrector_tx: mpsc::Sender<ProcessMessage>,
 }
 
 impl ProcessManager {
-    pub fn new() -> Self {
-        let (channel_tx, mut channel_rx) = mpsc::channel::<ProcessMessage>(100);
+    /// Create a new ProcessManager with the given tool execution callback.
+    pub fn with_tool_executor<F>(execute_tool_fn: F) -> Self
+    where
+        F: Fn(String, serde_json::Value) -> ToolResult + Send + Sync + 'static,
+    {
         let (worker_tx, mut worker_rx) = mpsc::channel::<ProcessMessage>(100);
         let (compactor_tx, mut compactor_rx) = mpsc::channel::<ProcessMessage>(100);
         let (corrector_tx, mut corrector_rx) = mpsc::channel::<ProcessMessage>(100);
 
-        // Spawn channel process
-        tokio::spawn(async move {
-            while let Some(msg) = channel_rx.recv().await {
-                if let ProcessMessage::Channel { channel, payload: _, .. } = msg {
-                    // Route to appropriate channel
-                    log::info!("Channel process: routing to {}", channel);
-                }
-            }
-        });
+        // Shared callback wrapped in Arc for the async loop
+        let tool_fn = Arc::new(execute_tool_fn);
 
-        // Spawn worker process
+        // Spawn worker process - actual tool execution
         tokio::spawn(async move {
             while let Some(msg) = worker_rx.recv().await {
-                if let ProcessMessage::ExecuteTool { tool, .. } = msg {
+                if let ProcessMessage::ExecuteTool { tool, args, .. } = msg {
                     log::info!("Worker process: executing tool {}", tool);
+                    let result = tool_fn(tool.clone(), args);
+                    log::info!(
+                        "Worker process: tool {} completed (success: {})",
+                        tool,
+                        result.success
+                    );
                 }
             }
         });
@@ -181,19 +190,26 @@ impl ProcessManager {
         });
 
         Self {
-            channel_tx,
             worker_tx,
             compactor_tx,
             corrector_tx,
         }
     }
 
-    pub fn channel(&self) -> ChannelProcess {
-        ChannelProcess::new(self.channel_tx.clone())
+    /// Create a new ProcessManager with a no-op tool executor.
+    pub fn new() -> Self {
+        Self::with_tool_executor(|_tool, _args| ToolResult {
+            success: true,
+            summary: "No-op tool execution".to_string(),
+        })
     }
 
     pub fn worker(&self) -> WorkerProcess {
         WorkerProcess::new(self.worker_tx.clone())
+    }
+
+    pub fn channel(&self) -> ChannelProcess {
+        ChannelProcess::new()
     }
 
     pub fn compactor(&self) -> CompactorProcess {
@@ -202,5 +218,17 @@ impl ProcessManager {
 
     pub fn corrector(&self) -> CorrectorProcess {
         CorrectorProcess::new(self.corrector_tx.clone())
+    }
+}
+
+impl Default for ProcessManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for ChannelProcess {
+    fn default() -> Self {
+        Self::new()
     }
 }
