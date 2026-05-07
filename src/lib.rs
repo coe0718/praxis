@@ -83,5 +83,6 @@ pub mod voice;
 pub mod wakeup;
 pub mod proactive;
 pub mod federation;
+pub mod gitclaw;
 pub mod webhook;
 pub mod webhooks;
