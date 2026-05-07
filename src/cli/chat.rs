@@ -154,7 +154,8 @@ pub fn run_interactive(data_dir_override: Option<PathBuf>, model: Option<String>
         }
 
         if input.starts_with('/') {
-            let parts: Vec<&str> = input[1..].splitn(2, ' ').collect();
+            let rest = input.strip_prefix('/').unwrap();
+            let parts: Vec<&str> = rest.splitn(2, ' ').collect();
             let cmd_name = parts[0];
             let args: Vec<&str> =
                 parts.get(1).map(|s| s.split_whitespace().collect()).unwrap_or_default();
@@ -316,9 +317,10 @@ fn cmd_skills(ctx: &mut ReplContext, _args: &[&str]) -> Result<String> {
     for entry in std::fs::read_dir(skills_dir)? {
         let entry = entry?;
         if let Some(name) = entry.file_name().to_str()
-            && name.ends_with(".md") {
-                skills.push(name.trim_end_matches(".md").to_string());
-            }
+            && name.ends_with(".md")
+        {
+            skills.push(name.trim_end_matches(".md").to_string());
+        }
     }
 
     if skills.is_empty() {
@@ -342,9 +344,10 @@ fn cmd_tools(ctx: &mut ReplContext, _args: &[&str]) -> Result<String> {
     for entry in std::fs::read_dir(tools_dir)? {
         let entry = entry?;
         if let Some(name) = entry.file_name().to_str()
-            && name.ends_with(".toml") {
-                tools.push(name.trim_end_matches(".toml").to_string());
-            }
+            && name.ends_with(".toml")
+        {
+            tools.push(name.trim_end_matches(".toml").to_string());
+        }
     }
 
     if tools.is_empty() {

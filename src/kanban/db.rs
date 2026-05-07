@@ -28,7 +28,7 @@ impl TaskStatus {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse_from_str(s: &str) -> Option<Self> {
         match s {
             "backlog" => Some(Self::Backlog),
             "ready" => Some(Self::Ready),
@@ -57,7 +57,7 @@ impl TaskPriority {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse_from_str(s: &str) -> Option<Self> {
         match s {
             "low" => Some(Self::Low),
             "medium" => Some(Self::Medium),
@@ -201,9 +201,9 @@ impl KanbanStore {
             id: row.get("id")?,
             title: row.get("title")?,
             body: row.get("body")?,
-            status: TaskStatus::from_str(&row.get::<_, String>("status")?)
+            status: TaskStatus::parse_from_str(&row.get::<_, String>("status")?)
                 .unwrap_or(TaskStatus::Backlog),
-            priority: TaskPriority::from_str(&row.get::<_, String>("priority")?)
+            priority: TaskPriority::parse_from_str(&row.get::<_, String>("priority")?)
                 .unwrap_or(TaskPriority::Medium),
             assignee: row.get("assignee")?,
             parent_ids: serde_json::from_str(&parent_ids_raw).unwrap_or_default(),

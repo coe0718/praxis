@@ -485,6 +485,7 @@ fn has_mention_entity(entities: &Option<Vec<TelegramMessageEntity>>) -> bool {
 ///
 /// Unknown chat IDs go through the sender pairing flow instead of being
 /// dropped silently.
+#[allow(clippy::too_many_arguments)]
 fn filter_messages(
     bot: &TelegramBot,
     allowed_chat_ids: &[i64],

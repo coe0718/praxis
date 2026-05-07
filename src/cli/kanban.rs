@@ -82,7 +82,7 @@ pub fn handle_kanban(data_dir: Option<std::path::PathBuf>, args: KanbanArgs) -> 
             priority,
             assignee,
         } => {
-            let p = TaskPriority::from_str(&priority)
+            let p = TaskPriority::parse_from_str(&priority)
                 .context("invalid priority — use low|medium|high")?;
             let task = store.create_task(
                 &title,
@@ -95,7 +95,7 @@ pub fn handle_kanban(data_dir: Option<std::path::PathBuf>, args: KanbanArgs) -> 
             Ok(format!("Created task {}: {}", task.id, task.title))
         }
         KanbanCommand::List { status, assignee, limit } => {
-            let s = status.as_ref().and_then(|v| TaskStatus::from_str(v));
+            let s = status.as_ref().and_then(|v| TaskStatus::parse_from_str(v));
             let tasks = store.list_tasks(s, assignee.as_deref(), limit)?;
             if tasks.is_empty() {
                 return Ok("No tasks found.".to_string());

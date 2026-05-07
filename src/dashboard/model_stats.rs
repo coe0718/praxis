@@ -89,7 +89,7 @@ impl ModelStats {
     pub fn snapshot(&self) -> Vec<ModelStatsEntry> {
         let map = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         let mut entries: Vec<_> = map.values().cloned().collect();
-        entries.sort_by(|a, b| b.total_requests.cmp(&a.total_requests));
+        entries.sort_by_key(|e| std::cmp::Reverse(e.total_requests));
         entries
     }
 }

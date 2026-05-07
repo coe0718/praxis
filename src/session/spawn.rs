@@ -161,7 +161,7 @@ impl SessionSpawner {
             }
         }
 
-        records.sort_by(|a, b| b.spawned_at.cmp(&a.spawned_at));
+        records.sort_by_key(|b| std::cmp::Reverse(b.spawned_at));
         Ok(records)
     }
 

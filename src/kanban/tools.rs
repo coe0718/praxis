@@ -66,7 +66,7 @@ pub fn handle_kanban_create(
     };
 
     let priority =
-        TaskPriority::from_str(&priority_str).context("invalid priority, use low|medium|high")?;
+        TaskPriority::parse_from_str(&priority_str).context("invalid priority, use low|medium|high")?;
 
     let store = dispatcher::get_store()?;
     let task = store.create_task(
@@ -278,7 +278,7 @@ pub fn handle_kanban_tasks(
     let params = payload.params;
 
     let status_str = params.get("status").map(|v| v.as_str());
-    let status = status_str.and_then(TaskStatus::from_str);
+    let status = status_str.and_then(TaskStatus::parse_from_str);
     let assignee = params.get("assignee").map(|v| v.as_str());
     let limit = params.get("limit").map(|s| s.as_str().parse::<usize>().unwrap_or(50));
 

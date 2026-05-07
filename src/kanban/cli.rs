@@ -90,7 +90,7 @@ impl KanbanCli {
                 priority,
                 assignee,
             } => {
-                let p = TaskPriority::from_str(priority)
+                let p = TaskPriority::parse_from_str(priority)
                     .context("invalid priority — use low|medium|high")?;
                 let task = store.create_task(
                     title,
@@ -103,7 +103,7 @@ impl KanbanCli {
                 println!("Created task {}: {}", task.id, task.title);
             }
             KanbanCommand::List { status, assignee, limit } => {
-                let s = status.as_ref().and_then(|v| TaskStatus::from_str(v));
+                let s = status.as_ref().and_then(|v| TaskStatus::parse_from_str(v));
                 let tasks = store.list_tasks(s, assignee.as_deref(), *limit)?;
                 let count = tasks.len();
                 if tasks.is_empty() {

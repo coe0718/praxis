@@ -56,7 +56,7 @@ impl SkillPack {
     }
 
     /// Install the pack to the skills directory.
-    pub fn install(&self, target_dir: &PathBuf) -> Result<(), anyhow::Error> {
+    pub fn install(&self, target_dir: &std::path::Path) -> Result<(), anyhow::Error> {
         let dest = target_dir.join(&self.manifest.id);
         std::fs::create_dir_all(&dest)?;
 
@@ -89,7 +89,7 @@ pub struct SkillPackRegistry {
 
 impl SkillPackRegistry {
     /// Load registry from disk.
-    pub fn load(path: &PathBuf) -> Result<Self, anyhow::Error> {
+    pub fn load(path: &std::path::Path) -> Result<Self, anyhow::Error> {
         if !path.exists() {
             return Ok(Self::default());
         }
@@ -98,7 +98,7 @@ impl SkillPackRegistry {
     }
 
     /// Save registry to disk.
-    pub fn save(&self, path: &PathBuf) -> Result<(), anyhow::Error> {
+    pub fn save(&self, path: &std::path::Path) -> Result<(), anyhow::Error> {
         let content = toml::to_string_pretty(self)?;
         std::fs::write(path, content)?;
         Ok(())

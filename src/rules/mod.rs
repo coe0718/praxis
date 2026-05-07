@@ -77,7 +77,7 @@ impl RuleEngine {
     /// Find first matching rule.
     pub fn match_rule(&self, context: &serde_json::Value) -> Option<&Rule> {
         let mut sorted = self.ruleset.rules.iter().collect::<Vec<_>>();
-        sorted.sort_by(|a, b| b.priority.cmp(&a.priority));
+        sorted.sort_by_key(|a| std::cmp::Reverse(a.priority));
 
         sorted.into_iter().find(|&rule| self.evaluate_conditions(&rule.when, context)).map(|v| v as _)
     }

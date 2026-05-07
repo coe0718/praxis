@@ -196,7 +196,7 @@ impl MeetClient {
                     return String::from("  (no upcoming events)");
                 }
                 arr.iter()
-                    .filter_map(|item| {
+                    .map(|item| {
                         let summary =
                             item.get("summary").and_then(|s| s.as_str()).unwrap_or("(no title)");
                         let start = item
@@ -218,7 +218,7 @@ impl MeetClient {
                         } else {
                             String::new()
                         };
-                        Some(format!("  • {} — {}{}  ({})", summary, start, location, link))
+                        format!("  • {} — {}{}  ({})", summary, start, location, link)
                     })
                     .collect::<Vec<_>>()
                     .join("\n")

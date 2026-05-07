@@ -216,10 +216,10 @@ impl SpotifyClient {
             .map(|arr| {
                 arr.iter()
                     .take(5)
-                    .filter_map(|item| {
+                    .map(|item| {
                         let name = item.get("name").and_then(|n| n.as_str()).unwrap_or("?");
                         let id = item.get("id").and_then(|i| i.as_str()).unwrap_or("");
-                        Some(format!("  - {} [{}]", name, id))
+                        format!("  - {} [{}]", name, id)
                     })
                     .collect::<Vec<_>>()
                     .join("\n")
@@ -312,12 +312,12 @@ impl SpotifyClient {
             .and_then(|d| d.as_array())
             .map(|arr| {
                 arr.iter()
-                    .filter_map(|d| {
+                    .map(|d| {
                         let name = d.get("name").and_then(|n| n.as_str()).unwrap_or("?");
                         let is_active =
                             d.get("is_active").and_then(|a| a.as_bool()).unwrap_or(false);
                         let t = if is_active { " [ACTIVE]" } else { "" };
-                        Some(format!("  - {}{}", name, t))
+                        format!("  - {}{}", name, t)
                     })
                     .collect::<Vec<_>>()
                     .join("\n")
