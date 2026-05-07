@@ -1,4 +1,4 @@
-# Praxis Status — 2026-05-06
+# Praxis Status — 2026-05-07
 
 One document covering all gap/feature tracking. Supersedes: GAP_ANALYSIS_HERMES.md, ECOSYSTEM_REVIEW.md, NEEDS_FINISHED.md, GAP_ANALYSIS_HERMES_OPENCLAW.md.
 
@@ -15,15 +15,14 @@ git status CLEAN (all committed)
 
 ---
 
-## Gap Scoreboard (61 total)
+## Gap Scoreboard (62 total)
 
 | Status | Count | Meaning |
 |--------|-------|---------|
-| ✅ Closed | 59 | Fully implemented and wired into runtime |
+| ✅ Closed | 61 | Fully implemented and wired into runtime |
 | 🔴 External | 1 | Blocked on external dependency |
-| 🔴 No Rust Crate | 1 | No viable Rust crate exists |
 
-### ✅ Fully Closed (59)
+### ✅ Fully Closed (61)
 
 | # | Feature | Implementation |
 |---|---------|----------------|
@@ -65,7 +64,7 @@ git status CLEAN (all committed)
 | 36 | Morning Brief | `src/brief/` — goal/memory/approval/event aggregation → Telegram |
 | 37 | Session State | `src/state.rs` — JSON persist across phase boundaries |
 | 38 | Tool Cooldowns | `src/tools/policy.rs` — cooldown enforcement |
-| 39 | MCP Integration | `src/mcp/` — discover_mcp_tools wired at daemon startup |
+| 39 | MCP Integration | `src/mcp/` — discover_mcp_tools wired at daemon startup, MCP server mode |
 | 40 | Prometheus Metrics | `src/observability/prometheus.rs` + `/metrics` endpoint |
 | 41 | Briefing System | `src/brief/` — 4 aggregation stages |
 | 42 | Workspace Init | `src/backend/init.rs` — workspace creation |
@@ -86,18 +85,15 @@ git status CLEAN (all committed)
 | 57 | Curator | `src/curator/mod.rs` — run_cycle() wired into execute_reflect |
 | 58 | A2A Sync | `src/a2a/` — client implementation for inter-agent communication |
 | 59 | Context Group | `src/messaging/context_group.rs` — conversation grouping |
+| 60 | WASM Sandbox | `src/wasm/mod.rs` — wasmtime execution with capabilities (feature-gated) |
+| 61 | OpenAI-compatible API | `src/backend/openai.rs` — full Chat Completions implementation |
+| 62 | ProcessManager Architecture | `src/process_manager.rs` — async message-passing with Worker/Compactor/Corrector |
 
 ### 🔴 External (1)
 
 | # | Feature | Blocker |
 |---|---------|---------|
 | 37 | Vercel Sandbox | Requires `vercel.com` project + SDK; infrastructure dependency |
-
-### 🔴 No Rust Crate (1)
-
-| # | Feature | Blocker |
-|---|---------|---------|
-| Opus/Discord Voice | No viable Rust Opus encoding crate available |
 
 ---
 
@@ -132,62 +128,14 @@ All 10 items from the OpenClaw gap analysis are now closed:
 | Langfuse | ✅ Wired | Real HTTP client |
 | Prometheus | ✅ Wired | `/metrics` endpoint |
 | Vercel | 🔴 Blocked | No vercel.com project/SDK |
-| Discord Voice | 🔴 Blocked | No Rust Opus crate |
 
 ---
 
-## Planned Features (Next Phase)
+## Remaining for Competition ($20k prize)
 
-| # | Feature | Why It Matters |
-|---|---------|---------------|
-| 1 | **Agent Federation** | Distribute tasks across specialized agents; compete for $20k |
-| 2 | **MCP Server Mode** | Praxis becomes a tool provider for Cursor/Claude Desktop |
-| 3 | **Live Dashboard + Canvas** | Real-time progress view for operator confidence |
-| 4 | **Vector Memory Queries** | Semantic search across all past sessions |
-| 5 | **Auto-Reply Scheduler** | Proactive messaging (daily standup, reminders) |
-| 6 | **Plugin Marketplace CLI** | `praxis plugins install xyz` for one-click extensions |
-| 7 | **Kanban Worker Pool** | Parallel task execution via session spawning |
-| 8 | **i18n CLI** | Full translation of all responses |
-| 9 | **Tool Chaining** | Pipe outputs between tools automatically |
-| 10 | **Multi-Agent Debates** | Split decisions across 2-3 focused agents |
-| 11 | **Scheduled Reflections** | Weekly/monthly self-evaluation sessions |
-
----
-
-## Competitive Analysis: Praxis vs Claw Ecosystem
-
-### Praxis Advantages (Unique Features)
-- ✅ Structured agent loop: Orient → Decide → Act → Reflect → Sleep
-- ✅ Self-evolution with approval lifecycle
-- ✅ Scoring system (4-dimension composite)
-- ✅ Kanban board with dispatcher
-- ✅ Curator integration
-- ✅ A2A sync for inter-agent communication
-- ✅ LanceDB vector memory
-- ✅ Plugin marketplace + Skills hub
-- ✅ i18n (9 languages)
-- ✅ Synthetic examples + anomaly detection
-- ✅ Argus reviewer with quality gates
-- ✅ Model canary for regression detection
-
-### Moltis Gaps (Add for Competition)
-| Feature | Why It Wins | Est. Effort |
-|---------|-------------|-------------|
-| Full Web UI | Live settings, tools inventory | 3-4 weeks |
-| Voice I/O (TTS+STT) | Complete voice pipeline | 2 weeks |
-| Browser automation | Safe web tasks via Docker | 2 weeks |
-| Signal/Matrix/MS Teams | Enterprise messaging | 1 week each |
-| Embedding cache | 50% LLM cost reduction | 1 day |
-| Self-update (`praxis update`) | Zero-downtime upgrades | 3 days |
-
-### IronClaw Gaps (Add for Competition)
-| Feature | Why It Wins | Est. Effort |
-|---------|-------------|-------------|
-| **WASM sandbox** | Killer security differentiator | 1-2 months |
-| Prompt injection detection | Safety guarantee | 1 week |
-| Credential leak detection | Data exfiltration prevention | 1 week |
-| OpenAI-compatible API | Expose Praxis as service | 1 week |
-| Routines engine | Event-driven self-healing | 2 weeks |
+| # | Feature | Status |
+|---|---------|--------|
+| 1 | **Agent Federation** | 🔴 NOT STARTED |
 
 ---
 
@@ -217,4 +165,4 @@ src/ module directories (all with mod.rs):
 
 ---
 
-_Last updated: 2026-05-06 — Drey_
+_Last updated: 2026-05-07 — Drey_

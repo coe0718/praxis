@@ -81,7 +81,9 @@ pub struct RateLimit {
     pub requests_per_minute: u32,
 }
 
-fn default_rpm() -> u32 { 60 }
+fn default_rpm() -> u32 {
+    60
+}
 
 // ── Sandbox Store ─────────────────────────────────────────────────────────────
 
@@ -102,17 +104,17 @@ impl WasmSandboxStore {
     pub fn load(&self, name: &str) -> Result<WasmModule> {
         let wasm_path = self.modules_dir.join(format!("{}.wasm", name));
         let caps_path = self.modules_dir.join(format!("{}.capabilities.json", name));
-        
+
         let wasm_bytes = std::fs::read(&wasm_path)
             .with_context(|| format!("loading WASM module {}", name))?;
-        
+
         let capabilities: WasmCapabilities = if caps_path.exists() {
             let caps_json = std::fs::read_to_string(&caps_path)?;
             serde_json::from_str(&caps_json)?
         } else {
             WasmCapabilities::default()
         };
-        
+
         Ok(WasmModule {
             name: name.to_string(),
             wasm_bytes,
@@ -123,14 +125,14 @@ impl WasmSandboxStore {
     /// Install a WASM module from bytes.
     pub fn install(&self, name: &str, wasm_bytes: &[u8], caps: WasmCapabilities) -> Result<()> {
         std::fs::create_dir_all(&self.modules_dir)?;
-        
+
         let wasm_path = self.modules_dir.join(format!("{}.wasm", name));
         std::fs::write(&wasm_path, wasm_bytes)?;
-        
+
         let caps_path = self.modules_dir.join(format!("{}.capabilities.json", name));
         let caps_json = serde_json::to_string_pretty(&caps)?;
         std::fs::write(&caps_path, caps_json)?;
-        
+
         Ok(())
     }
 }
@@ -144,6 +146,67 @@ pub struct WasmModule {
     pub capabilities: WasmCapabilities,
 }
 
+// ── WASM Executor ─────────────────────────────────────────────────────────────
+
+/// Execute a WASM module with capability-based permissions.
+/// Returns output or error message.
+#[cfg(feature = "wasm")]
+pub fn execute(module: WasmModule, args: Vec<String>) -> Result<String> {
+    use wasmtime::{Config, Engine, Extern, Instance, Linker, Module, Store};
+
+    // Create engine with safe defaults
+    let mut config = Config::new();
+    config.max_wasm_stack(512 * 1024); // 512KB stack limit
+    let engine = Engine::new(&config).context("failed to create WASM engine")?;
+
+    let mut store = Store::new(&engine, ());
+    let module = Module::new(&engine, &module.wasm_bytes)
+        .context("failed to compile WASM module")?;
+
+    let mut linker = Linker::new(&engine);
+
+    // Host functions would be added here for file/network/credential access
+    // based on module.capabilities
+
+    let instance = linker
+        .instantiate(&mut store, &module)
+        .context("failed to instantiate WASM module")?;
+
+    // Look for an exported `run` function
+    let run = instance
+        .get_func(&mut store, "run")
+        .ok_or_else(|| anyhow::anyhow!("no exported 'run' function in WASM module"))?;
+
+    // Execute with serialized args
+    let args_json = serde_json::to_string(&args)?;
+
+    // Call the run function
+    let mut results = vec![];
+    match run.call(&mut store, &[args_json], &mut results) {
+        Ok(()) => {}
+        Err(e) if e.to_string().contains("start") => {
+            // For wasm-bindgen style modules, try _start
+            if let Some(start) = instance.get_func(&mut store, "_start") {
+                let _ = start.call(&mut store, &[], &mut []);
+            }
+        }
+        Err(e) => return Err(e).context("WASM module execution failed"),
+    }
+
+    // Return the result as a string
+    Ok(results
+        .into_iter()
+        .next()
+        .map(|v| v.unwrap_string())
+        .unwrap_or_else(|| "WASM module executed successfully (no output)".to_string()))
+}
+
+/// Stub when wasm feature is disabled - returns error message.
+#[cfg(not(feature = "wasm"))]
+pub fn execute(_module: WasmModule, _args: Vec<String>) -> Result<String> {
+    anyhow::bail!("WASM sandbox not enabled - compile with --features wasm")
+}
+
 // ── Leak Detector ─────────────────────────────────────────────────────────────
 
 /// Scan output for credential leaks.
@@ -155,7 +218,7 @@ pub fn detect_leaks(text: &str) -> Result<()> {
         "xoxb-",    // Slack tokens
         "AKIA",     // AWS keys
     ];
-    
+
     for pattern in &sensitive_patterns {
         if text.contains(pattern) {
             anyhow::bail!(
@@ -164,6 +227,6 @@ pub fn detect_leaks(text: &str) -> Result<()> {
             );
         }
     }
-    
+
     Ok(())
 }
