@@ -94,3 +94,4 @@ pub mod rating_improve;
 pub mod onchain_reputation;
 pub mod webhook;
 pub mod webhooks;
+pub mod tool_schema;

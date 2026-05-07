@@ -23,6 +23,7 @@
 - Mobile App Framework ✅ EXISTS (src/mobile.rs)
 
 ### Tier 3 (Long-term - 11+ features)
+- Zod-typed Tool Outputs ✅ DONE — JSON schema generator with OpenAPI compatibility
 - Local STT/TTS (whisper.cpp)
 - Local Embedding Caching
 - Embedding Provider System
