@@ -136,6 +136,24 @@ All 10 items from the OpenClaw gap analysis are now closed:
 
 ---
 
+## Planned Features (Next Phase)
+
+| # | Feature | Why It Matters |
+|---|---------|---------------|
+| 1 | **Agent Federation** | Distribute tasks across specialized agents; compete for $20k |
+| 2 | **MCP Server Mode** | Praxis becomes a tool provider for Cursor/Claude Desktop |
+| 3 | **Live Dashboard + Canvas** | Real-time progress view for operator confidence |
+| 4 | **Vector Memory Queries** | Semantic search across all past sessions |
+| 5 | **Auto-Reply Scheduler** | Proactive messaging (daily standup, reminders) |
+| 6 | **Plugin Marketplace CLI** | `praxis plugins install xyz` for one-click extensions |
+| 7 | **Kanban Worker Pool** | Parallel task execution via session spawning |
+| 8 | **i18n CLI** | Full translation of all responses |
+| 9 | **Tool Chaining** | Pipe outputs between tools automatically |
+| 10 | **Multi-Agent Debates** | Split decisions across 2-3 focused agents |
+| 11 | **Scheduled Reflections** | Weekly/monthly self-evaluation sessions |
+
+---
+
 ## File Inventory
 
 ```
