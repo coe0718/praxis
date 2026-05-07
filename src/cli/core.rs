@@ -134,6 +134,7 @@ pub(crate) fn handle_run(data_dir_override: Option<PathBuf>, args: RunArgs) -> R
     if args.fast || LiteMode::is_fast_active(&paths.data_dir) {
         lite = LiteMode::fast_all();
     }
+    let process_manager = crate::process_manager::ProcessManager::new();
     let runtime = PraxisRuntime {
         config: &config,
         paths: &paths,
@@ -147,6 +148,7 @@ pub(crate) fn handle_run(data_dir_override: Option<PathBuf>, args: RunArgs) -> R
         lite: &lite,
         last_tool_activity: std::cell::Cell::new(None),
         plugins: std::cell::RefCell::new(PluginRegistry::new(&paths)),
+        process_manager: &process_manager,
     };
 
     // #7 — one-shot: force a single pass with no loop continuation.
@@ -247,6 +249,7 @@ pub(crate) fn handle_ask(data_dir_override: Option<PathBuf>, args: AskArgs) -> R
 
         let clock = SystemClock::from_env()?;
         let lite = LiteMode::from_file(&paths.config_file).unwrap_or_default();
+        let process_manager = crate::process_manager::ProcessManager::new();
         let runtime = PraxisRuntime {
             config: &config,
             paths: &paths,
@@ -260,6 +263,7 @@ pub(crate) fn handle_ask(data_dir_override: Option<PathBuf>, args: AskArgs) -> R
             lite: &lite,
             last_tool_activity: std::cell::Cell::new(None),
             plugins: std::cell::RefCell::new(PluginRegistry::new(&paths)),
+            process_manager: &process_manager,
         };
 
         let summary = runtime.run_once(RunOptions {

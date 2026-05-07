@@ -474,6 +474,11 @@ fn run_session_blocking(data_dir: &Path, task: Option<String>) -> Result<RunSumm
 
     let lite = LiteMode::from_file(&paths.config_file).unwrap_or_default();
     let clock = SystemClock::from_env()?;
+
+    // Set up ProcessManager for message-passing architecture.
+    // Tool execution flows through execute_request in phases.rs.
+    let process_manager = crate::process_manager::ProcessManager::new();
+
     let runtime = PraxisRuntime {
         config: &config,
         paths: &paths,
@@ -487,6 +492,7 @@ fn run_session_blocking(data_dir: &Path, task: Option<String>) -> Result<RunSumm
         lite: &lite,
         last_tool_activity: std::cell::Cell::new(None),
         plugins: std::cell::RefCell::new(PluginRegistry::new(&paths)),
+        process_manager: &process_manager,
     };
 
     runtime.run_once(RunOptions {

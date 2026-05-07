@@ -12,6 +12,7 @@ use crate::{
     memory::{MemoryLinkStore, MemoryStore},
     paths::PraxisPaths,
     plugins::PluginRegistry,
+    process_manager::ProcessManager,
     state::{SessionPhase, SessionState},
     storage::{
         AnatomyStore, ApprovalStore, DecisionReceiptStore, OperationalMemoryStore,
@@ -44,6 +45,8 @@ pub struct PraxisRuntime<'a, B, C, E, G, I, S, T> {
     pub last_tool_activity: std::cell::Cell<Option<chrono::DateTime<chrono::Utc>>>,
     /// (#3) Loaded plugin registry — loaded once at session start.
     pub plugins: std::cell::RefCell<PluginRegistry>,
+    /// Process manager for message-passing architecture.
+    pub process_manager: &'a ProcessManager,
 }
 
 impl<'a, B, C, E, G, I, S, T> PraxisRuntime<'a, B, C, E, G, I, S, T>

@@ -9,6 +9,7 @@ use crate::{
     lite::LiteMode,
     paths::PraxisPaths,
     plugins::PluginRegistry,
+    process_manager::ProcessManager,
     state::{SessionPhase, SessionState},
     storage::{
         ApprovalStatus, ApprovalStore, NewApprovalRequest, SessionStore, SqliteSessionStore,
@@ -151,6 +152,7 @@ fn run_once(
         lite: &LiteMode::default(),
         last_tool_activity: std::cell::Cell::new(None),
         plugins: std::cell::RefCell::new(PluginRegistry::new(paths)),
+        process_manager: &ProcessManager::new(),
     }
     .run_once(RunOptions {
         once: true,

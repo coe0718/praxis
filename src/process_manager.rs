@@ -197,11 +197,18 @@ impl ProcessManager {
     }
 
     /// Create a new ProcessManager with a no-op tool executor.
+    /// Does not spawn tokio tasks - use with_tool_executor for full async behavior.
     pub fn new() -> Self {
-        Self::with_tool_executor(|_tool, _args| ToolResult {
-            success: true,
-            summary: "No-op tool execution".to_string(),
-        })
+        // Create channels but don't spawn tasks - for use where tokio runtime is not available
+        let (worker_tx, _worker_rx) = mpsc::channel::<ProcessMessage>(100);
+        let (compactor_tx, _compactor_rx) = mpsc::channel::<ProcessMessage>(100);
+        let (corrector_tx, _corrector_rx) = mpsc::channel::<ProcessMessage>(100);
+
+        Self {
+            worker_tx,
+            compactor_tx,
+            corrector_tx,
+        }
     }
 
     pub fn worker(&self) -> WorkerProcess {
