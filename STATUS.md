@@ -24,9 +24,9 @@
 
 ### Tier 3 (Long-term - 11+ features)
 - Local STT/TTS (whisper.cpp)
-- Self-Improvement from Ratings
-- Onchain Reputation System
-- Skill Creation at Runtime
+- Local Embedding Caching
+- Embedding Provider System
+- Scheduled Event Triggers (enhanced)
 - And 7 more...
 
 ---
@@ -89,11 +89,11 @@ src/ module directories (all with mod.rs):
  federation/ forensics/ hands/ heartbeat/ hooks/ i18n/ identity/
  kanban/ learning/ lib/ lite/ loop/ main/ mcp/
  meet/ memory/ merkle/ messaging/ oauth/ observability/
- paths/ plugins/ profiles/ providers/ quality/
- report/ sandbox/ score/ session/ skills/ speculative/
+ onchain_reputation/ openmolt/ paths/ personality/ plugins/ profiles/ providers/ quality/
+ rating_improve/ report/ runtime_skill/ rules/ sandbox/ score/ session/ skills/ speculative/
  spotify/ state/ storage/ time/ tools/ tui/
  usage/ vault/ wakeup/ wave/ webhook/ webhooks/
- rules/ proactive/
+ zeptoclaw/ zh_channels/
 ```
 
 ---
