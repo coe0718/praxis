@@ -36,6 +36,7 @@ pub mod mcp;
 pub mod meet;
 pub mod memory;
 pub mod merkle;
+pub mod embedding_cache;
 pub mod messaging;
 pub mod oauth;
 pub mod observability;
