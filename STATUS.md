@@ -11,13 +11,16 @@
 
 ### Tier 2 (Medium Priority - 11 features)
 - Proactive Agent Mode ✅ EXISTS (src/proactive.rs, src/wakeup/proactive.rs)
-- Code-First Integration API (OpenMolt) — 30+ type-safe integrations
+- Code-First Integration API (OpenMolt) ✅ DONE — 30+ type-safe integrations
 - Signed WASM Plugins (Carapace) ✅ DONE — cryptographic verification for skills
 - Scheduled Event Triggers ✅ EXISTS (src/tools/cron_ext.rs)
-- 32 Built-in Tools (ZeptoClaw) — expanding from current 4 tools
-- Chinese Platform Channels (QQ, Feishu, DingTalk, WeChat, WeCom)
-- Chinese LLM Providers (DeepSeek, Doubao, Qwen, Kimi, Zhipu)
-- And 3 more...
+- 32 Built-in Tools (ZeptoClaw) ✅ DONE — 32 tools across 6 categories
+- Chinese Platform Channels ✅ DONE (QQ, Feishu, DingTalk, WeChat, WeCom)
+- Chinese LLM Providers ✅ N/A — integrated via provider system
+- Runtime Skill Creation ✅ DONE — dynamically generated skills
+- Self-Improvement from Ratings ✅ DONE — rating-based behavior adjustment
+- Onchain Reputation System ✅ DONE — verifiable reputation from work
+- Mobile App Framework ✅ EXISTS (src/mobile.rs)
 
 ### Tier 3 (Long-term - 11+ features)
 - Local STT/TTS (whisper.cpp)
