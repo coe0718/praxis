@@ -1,118 +1,18 @@
-# Praxis Status — 2026-05-08
-
-One document covering all gap/feature tracking. Supersedes: GAP_ANALYSIS_HERMES.md, ECOSYSTEM_REVIEW.md, NEEDS_FINISHED.md, GAP_ANALYSIS_HERMES_OPENCLAW.md, SHELLDEX_FEATURE_HARVEST.md.
-
----
-
-## Build Status
-
-```
-cargo check ✅ ZERO ERRORS, ZERO WARNINGS
-cargo fmt ✅
-cargo test ✅ ALL PASS
-git status CLEAN (all committed)
-```
-
----
-
-## Gap Scoreboard (62 + Shelldex features)
-
-|| State | Count | Meaning |
-||--------|-------|---------|
-|| ✅ Closed | 63 | Fully implemented and wired into runtime |
-|| 🔴 External | 1 | Blocked on external dependency |
-
-### ✅ Fully Closed (63)
-
-|| # | Feature | Implementation |
-||---|---------|----------------|| 1 | Core Agent Loop | `src/loop/runtime.rs` + `src/loop/phases.rs` — Orient/Decide/Act/Reflect |
-|| 2 | Sessions Spawn | `src/session/spawn.rs` — programmatic session creation for kanban workers |
-|| 3 | Plugin System | `src/plugins/mod.rs` — dynamic libloading, `should_block` + `rewrite_tool_output` hooks |
-|| 4 | Skills Hub | `src/skills/mod.rs` — load_catalog, fetch_remote_catalog, install_skill_from_url + CLI |
-|| 5 | Tool Approval Queue | `src/tools/` — file-read, git-query, shell-exec, web-fetch with required_level |
-|| 6 | Observability | `src/observability/langfuse.rs` — real Langfuse HTTP client |
-|| 7 | One-Shot Mode | `src/cli/mod.rs` — tools enabled by default; `-z/--no-tools` for true one-shot |
-|| 8 | Fallback Chain | `src/cli/fallback.rs` — list/add/remove/reorder/test commands |
-|| 9 | Webhook System | `src/webhooks.rs` + `src/webhook/` — real signing + delivery |
-|| 10 | 429 Retry Fallback | `src/backend/retry.rs` — exponential backoff with jitter, configurable policy |
-|| 11 | Cron Extensions | `src/tools/cron_ext.rs` — no_agent script mode, wake_gate, per-job workdir |
-|| 12 | Live Canvas | `src/canvas/mod.rs` — streaming HTML workspace surface for dashboard |
-|| 13 | LanceDB Memory | `src/memory/lance.rs` — vector-backed long-term memory with semantic recall |
-|| 14 | Auto-Reply | `src/messaging/auto_reply.rs` — rate-limited proactive messaging |
-|| 15 | i18n | `src/i18n/mod.rs` — 9 languages, builtin + custom translations, `display.language` config |
-|| 16 | Plugin Marketplace | `src/plugins/marketplace.rs` — remote discovery + install |
-|| 17 | Inbound Polling | `src/messaging/inbound.rs` — Discord + Slack REST API polling |
-|| 18 | Vault/Secrets | `src/vault.rs` — AES-GCM encryption, key derivation |
-|| 19 | Self-Evolution | `src/evolution.rs` — append-only JSONL, proposal lifecycle, approval |
-|| 20 | Scoring | `src/score.rs` — 4-dimension composite |
-|| 21 | Memory System | `src/memory/` — hot/cold/link stores + LanceDB vector backend |
-|| 22 | SQLite Storage | `src/storage/sqlite/` — SessionStore, MemoryStore, ApprovalStore, etc. |
-|| 23 | Hooks | `src/hooks.rs` — HookRunner with interceptor + observer patterns |
-|| 24 | Sandbox Isolation | `src/sandbox.rs` — per-channel filesystem isolation policy |
-|| 25 | Synthetic Evals | `src/examples.rs` — training triples → evals/examples.jsonl |
-|| 26 | Anatomy | `src/anatomy.rs` — auto-generated CAPABILITIES.md index |
-|| 27 | Learning | `src/learning.rs` — mines argus report for opportunities |
-|| 28 | Anomaly Detection | `src/anomaly.rs` — SystemSnapshot → system_anomalies.jsonl |
-|| 29 | Spotify Integration | `src/spotify/mod.rs` — PKCE OAuth2, 8 actions |
-|| 30 | Google Meet | `src/meet/mod.rs` — OAuth2 device flow, 4 actions |
-|| 31 | Provider Registry | `src/providers/mod.rs` — 9+ providers |
-|| 32 | Dashboard API | `src/dashboard/server.rs` — Axum server with metrics, hooks, SSE |
-|| 33 | Telegram Brief | `src/messaging/telegram.rs` — morning brief, daily gate |
-|| 34 | File/Shell/Git/Web Tools | `src/tools/` — all with approval levels |
-|| 35 | Context Compaction | `src/context/compaction.rs` — context pressure detection + handoff |
-|| 36 | Morning Brief | `src/brief/` — goal/memory/approval/event aggregation → Telegram |
-|| 37 | Session State | `src/state.rs` — JSON persist across phase boundaries |
-|| 38 | Tool Cooldowns | `src/tools/policy.rs` — cooldown enforcement |
-|| 39 | MCP Integration | `src/mcp/` — discover_mcp_tools wired at daemon startup, MCP server mode |
-|| 40 | Prometheus Metrics | `src/observability/prometheus.rs` + `/metrics` endpoint |
-|| 41 | Briefing System | `src/brief/` — 4 aggregation stages |
-|| 42 | Workspace Init | `src/backend/init.rs` — workspace creation |
-|| 43 | Identity Files | `src/identity/` — SOUL.md/IDENTITY.md loading |
-|| 44 | Config Files | `src/config/` — praxis.toml AppConfig parsing |
-|| 45 | Goals Management | `src/goals.rs` + `src/goals/` — GOALS.md parsing |
-|| 46 | Argus (Reviewer) | `src/argus/` — per-session reviewer with quality gate |
-|| 47 | Forensics | `src/forensics/` — event chain replay |
-|| 48 | CLI Subcommands | `src/cli/` — ask, run, skills, fallback, tui, daemon |
-|| 49 | DAEMON Mode | `src/daemon.rs` + `src/loop/runtime.rs` — cron-wake loop |
-|| 50 | TUI Dashboard | `src/tui/` — ratatui full-screen dashboard (feature-gated) |
-|| 51 | Crypto Utils | `src/crypto/` — HMAC, SHA-256, Ed25519, hex utils |
-|| 52 | Dashboard SPA Tabs | `frontend/src/pages/Plugins.tsx` + sidebar integration |
-|| 53 | Pluggable Platforms | `src/messaging/platform.rs` — Platform trait + PlatformRegistry |
-|| 54 | Dashboard SSE | FileEventSink → events.jsonl; `/events/recent` handler |
-|| 55 | Dashboard Prometheus | `/metrics` endpoint mounted in server.rs |
-|| 56 | Kanban Board | `src/kanban/` — SQLite store, CLI, dispatcher, worker pattern, tools |
-|| 57 | Curator | `src/curator/mod.rs` — run_cycle() wired into execute_reflect |
-|| 58 | A2A Sync | `src/a2a/` — client implementation for inter-agent communication |
-|| 59 | Context Group | `src/messaging/context_group.rs` — conversation grouping |
-|| 60 | WASM Sandbox | `src/wasm/mod.rs` — wasmtime execution with capabilities (feature-gated) |
-|| 61 | OpenAI-compatible API | `src/backend/openai.rs` — full Chat Completions implementation |
-|| 62 | ProcessManager Architecture | `src/process_manager.rs` — async message-passing with Worker/Compactor/Corrector |
-|| 63 | Agent Federation | `src/federation/mod.rs` — task decomposition, role assignment, session spawning, result synthesis |
-|| 64 | Zero-LLM Rule Engine | `src/rules/mod.rs` — deterministic rule-based agent behavior without LLM calls |
-
-### 🔴 External (1)
-
-|| # | Feature | Blocker |
-||---|---------|---------|
-|| 37 | Vercel Sandbox | Requires `vercel.com` project + SDK; infrastructure dependency |
-
----
-
 ## Shelldex Features (28+ features in implementation pipeline)
 
 ### Tier 1 (High Priority - 7 features)
 1. Agent-as-Worker Marketplace (CashClaw) — connecting to Moltlaunch marketplace
-2. Git-Native Agent Lifecycle (Gitclaw) — identity/rules/memory as version-controlled files
+2. Git-Native Agent Lifecycle (Gitclaw) — identity/rules/memory as version-controlled files  
 3. Zero-LLM Rule-Based Mode ✅ DONE
 4. Browser-Only PWA Mode (OpenBrowserClaw) — agent runs entirely in browser
-5. Heartware Personality/Relationship System (TinyClaw, Clawra) — explicit personality model
+5. Heartware Personality/Relationship System (TinyClaw, Clawra) ✅ EXISTS in `src/personality.rs`
 6. Docker Isolation Mode (IronClaw) — per-tool container isolation
 7. Multi-Process Architecture ✅ ALREADY EXISTS via ProcessManager
 
 ### Tier 2 (Medium Priority - 11 features)
 - Proactive Agent Mode ✅ EXISTS (src/proactive.rs, src/wakeup/proactive.rs)
 - Code-First Integration API (OpenMolt) — 30+ type-safe integrations
-- Signed WASM Plugins (Carapace) — cryptographic verification for skills
+- Signed WASM Plugins (Carapace) ✅ DONE — cryptographic verification for skills
 - Scheduled Event Triggers ✅ EXISTS (src/tools/cron_ext.rs)
 - 32 Built-in Tools (ZeptoClaw) — expanding from current 4 tools
 - Chinese Platform Channels (QQ, Feishu, DingTalk, WeChat, WeCom)
@@ -128,7 +28,7 @@ git status CLEAN (all committed)
 
 ---
 
-## Hermes ↔ Praxis Gap Analysis (from GAP_ANALISIS_HERMES.md)
+## Hermes ↔ Praxis Gap Analysis (from GAP_ANALYSIS_HERMES.md)
 
 All 10 items from the OpenClaw gap analysis are now closed:
 
@@ -181,7 +81,7 @@ Root docs:
 src/ module directories (all with mod.rs):
  a2a/ anatomy/ anomaly/ archive/ argus/ attachments/
  backend/ bench/ boundaries/ brief/ bus/ canary/
- canvas/ cli/ config/ context/ crypto/ curator/
+ carapace/ canvas/ cli/ config/ context/ crypto/ curator/
  daemon/ dashboard/ delegation/ events/ evolution/ examples/
  federation/ forensics/ hands/ heartbeat/ hooks/ i18n/ identity/
  kanban/ learning/ lib/ lite/ loop/ main/ mcp/
@@ -190,6 +90,7 @@ src/ module directories (all with mod.rs):
  report/ sandbox/ score/ session/ skills/ speculative/
  spotify/ state/ storage/ time/ tools/ tui/
  usage/ vault/ wakeup/ wave/ webhook/ webhooks/
+ rules/ proactive/
 ```
 
 ---
