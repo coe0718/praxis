@@ -1,12 +1,12 @@
 ## Shelldex Features (28+ features in implementation pipeline)
 
 ### Tier 1 (High Priority - 7 features)
-1. Agent-as-Worker Marketplace (CashClaw) — connecting to Moltlaunch marketplace
-2. Git-Native Agent Lifecycle (Gitclaw) — identity/rules/memory as version-controlled files  
+1. Agent-as-Worker Marketplace (CashClaw) ✅ EXISTS in `src/marketplace/`
+2. Git-Native Agent Lifecycle (Gitclaw) ✅ DONE — version-controlled identity/rules/memory
 3. Zero-LLM Rule-Based Mode ✅ DONE
-4. Browser-Only PWA Mode (OpenBrowserClaw) — agent runs entirely in browser
+4. Browser-Only PWA Mode (OpenBrowserClaw) ✅ DONE — WASM agent execution
 5. Heartware Personality/Relationship System (TinyClaw, Clawra) ✅ EXISTS in `src/personality.rs`
-6. Docker Isolation Mode (IronClaw) — per-tool container isolation
+6. Docker Isolation Mode (IronClaw) ✅ DONE — per-tool container isolation
 7. Multi-Process Architecture ✅ ALREADY EXISTS via ProcessManager
 
 ### Tier 2 (Medium Priority - 11 features)
