@@ -35,6 +35,7 @@ pub mod identity;
 pub mod injection;
 pub mod kanban;
 pub mod learning;
+pub mod leaks;
 pub mod lite;
 pub mod r#loop;
 pub mod mcp;
@@ -66,6 +67,7 @@ pub mod time;
 pub mod tools;
 #[cfg(feature = "tui")]
 pub mod tui;
+pub mod tracing;
 pub mod usage;
 pub mod vault;
 pub mod voice;
