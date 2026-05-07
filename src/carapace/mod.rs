@@ -157,7 +157,7 @@ mod tests {
 
     #[test]
     fn test_plugin_hash() {
-        let mut plugin = SignedPlugin {
+        let plugin = SignedPlugin {
             manifest: PluginManifest {
                 id: "test".into(),
                 version: "1.0".into(),
