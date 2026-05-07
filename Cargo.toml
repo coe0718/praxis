@@ -61,7 +61,7 @@ toml = "0.8"
 tower-http = { version = "0.6", features = ["fs", "cors"] }
 tokio-cron-scheduler = "0.13"
 tracing = "0.1"
-tracing-subscriber = "0.3"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 thiserror = "1"
 base64 = "0.22"
 zeroize = { version = "1", features = ["zeroize_derive"] }
