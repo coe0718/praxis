@@ -11,6 +11,7 @@ use crate::{
     lite::LiteMode,
     memory::{MemoryLinkStore, MemoryStore},
     paths::PraxisPaths,
+    personality::HeartwarePersonality,
     plugins::PluginRegistry,
     process_manager::ProcessManager,
     state::{SessionPhase, SessionState},
@@ -47,6 +48,8 @@ pub struct PraxisRuntime<'a, B, C, E, G, I, S, T> {
     pub plugins: std::cell::RefCell<PluginRegistry>,
     /// Process manager for message-passing architecture.
     pub process_manager: &'a ProcessManager,
+    /// (#20) Heartware personality system — mood and relationship tracking.
+    pub personality: std::cell::RefCell<HeartwarePersonality>,
 }
 
 impl<'a, B, C, E, G, I, S, T> PraxisRuntime<'a, B, C, E, G, I, S, T>

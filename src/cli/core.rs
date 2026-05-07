@@ -149,6 +149,7 @@ pub(crate) fn handle_run(data_dir_override: Option<PathBuf>, args: RunArgs) -> R
         last_tool_activity: std::cell::Cell::new(None),
         plugins: std::cell::RefCell::new(PluginRegistry::new(&paths)),
         process_manager: &process_manager,
+        personality: std::cell::RefCell::new(crate::personality::HeartwarePersonality::new()),
     };
 
     // #7 — one-shot: force a single pass with no loop continuation.
@@ -266,6 +267,7 @@ pub(crate) fn handle_ask(data_dir_override: Option<PathBuf>, args: AskArgs) -> R
             last_tool_activity: std::cell::Cell::new(None),
             plugins: std::cell::RefCell::new(PluginRegistry::new(&paths)),
             process_manager: &process_manager,
+            personality: std::cell::RefCell::new(crate::personality::HeartwarePersonality::new()),
         };
 
         let summary = tokio::runtime::Runtime::new()

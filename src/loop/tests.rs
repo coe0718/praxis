@@ -52,6 +52,7 @@ async fn runtime_runs_single_session() {
         last_tool_activity: std::cell::Cell::new(None),
         plugins: std::cell::RefCell::new(PluginRegistry::new(&paths)),
         process_manager: &ProcessManager::new(),
+        personality: std::cell::RefCell::new(crate::personality::HeartwarePersonality::new()),
     };
 
     let summary = runtime
@@ -101,6 +102,7 @@ async fn runtime_reaches_stop_condition_when_all_goals_are_done() {
         last_tool_activity: std::cell::Cell::new(None),
         plugins: std::cell::RefCell::new(PluginRegistry::new(&paths)),
         process_manager: &ProcessManager::new(),
+        personality: std::cell::RefCell::new(crate::personality::HeartwarePersonality::new()),
     };
 
     let summary = runtime

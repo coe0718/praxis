@@ -263,6 +263,24 @@ where
             }
         }
 
+        // ── Marketplace integration ───────────────────────────────────────────────
+        // Check for available paid work when no local goals match
+        if state.selected_goal_id.is_none() && state.last_outcome.as_deref() == Some("waiting_on_dependencies") {
+            let client = crate::marketplace::MarketplaceClient::new("praxis");
+            let work_items = client.query_work(None);
+            if !work_items.is_empty() {
+                // Create a temporary goal from marketplace work
+                let work = &work_items[0];
+                state.last_outcome = Some("marketplace_work_found".to_string());
+                state.selected_goal_id = Some(format!("market-{}", work.id));
+                state.selected_goal_title = Some(format!("[Marketplace] {}", work.title));
+                state.action_summary = Some(format!(
+                    "Found marketplace work: {} (max_price: {} wei)",
+                    work.title, work.max_price
+                ));
+            }
+        }
+
         state.updated_at = self.clock.now_utc();
         self.write_decision_receipt(state)?;
         Ok(())

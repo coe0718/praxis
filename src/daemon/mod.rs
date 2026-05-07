@@ -344,12 +344,35 @@ async fn async_daemon_loop(
         // messages, similar to how the webhook system works.
         poll_platforms(&paths);
 
+        // ── Proactive triggers ───────────────────────────────────────────────────
+        // Check for proactive wake-ups based on conditions (time, file changes, etc.)
+        let proactive_task = {
+            let proactive_path = paths.data_dir.join("proactive_state.json");
+            if proactive_path.exists() {
+                let mut agent: crate::proactive::ProactiveAgent = 
+                    match serde_json::from_slice(&std::fs::read(&proactive_path).unwrap_or_default()) {
+                        Ok(a) => a,
+                        Err(_) => crate::proactive::ProactiveAgent::new(),
+                    };
+                let wake_ids = agent.check();
+                if !wake_ids.is_empty() {
+                    log::info!("daemon: proactive wake-ups triggered: {:?}", wake_ids);
+                }
+                // For now, proactive wake-ups just trigger a session
+                if !wake_ids.is_empty() { Some("proactive check".to_string()) } else { None }
+            } else {
+                None
+            }
+        };
+
         let trigger = if let Some(intent) = crate::wakeup::consume_intent(&paths.data_dir)? {
             log::info!("daemon: wake intent from '{}': {}", intent.source, intent.reason);
             Some(SessionTrigger::WakeIntent { task: intent.task })
         } else if bus_watcher.has_new_events() {
             log::info!("daemon: new bus event(s) — triggering reactive session");
             Some(SessionTrigger::BusEvent)
+        } else if proactive_task.is_some() {
+            Some(SessionTrigger::WakeIntent { task: proactive_task })
         } else {
             check_scheduled_jobs(&paths, now)
                 .map(|task| SessionTrigger::WakeIntent { task: Some(task) })
@@ -499,6 +522,7 @@ async fn run_session_async(data_dir: &Path, task: Option<String>) -> Result<RunS
         last_tool_activity: std::cell::Cell::new(None),
         plugins: std::cell::RefCell::new(PluginRegistry::new(&paths)),
         process_manager: &process_manager,
+        personality: std::cell::RefCell::new(crate::personality::HeartwarePersonality::new()),
     };
 
     let summary = runtime.run_once(RunOptions {

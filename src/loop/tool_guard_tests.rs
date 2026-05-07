@@ -153,6 +153,7 @@ async fn run_once(
         last_tool_activity: std::cell::Cell::new(None),
         plugins: std::cell::RefCell::new(PluginRegistry::new(paths)),
         process_manager: &ProcessManager::new(),
+        personality: std::cell::RefCell::new(crate::personality::HeartwarePersonality::new()),
     }
     .run_once(RunOptions {
         once: true,
