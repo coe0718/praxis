@@ -17,12 +17,12 @@ git status CLEAN (all committed)
 
 ## Gap Scoreboard (62 total)
 
-| Status | Count | Meaning |
+| State | Count | Meaning |
 |--------|-------|---------|
-| ✅ Closed | 61 | Fully implemented and wired into runtime |
+| ✅ Closed | 62 | Fully implemented and wired into runtime |
 | 🔴 External | 1 | Blocked on external dependency |
 
-### ✅ Fully Closed (61)
+### ✅ Fully Closed (62)
 
 | # | Feature | Implementation |
 |---|---------|----------------|
@@ -85,9 +85,10 @@ git status CLEAN (all committed)
 | 57 | Curator | `src/curator/mod.rs` — run_cycle() wired into execute_reflect |
 | 58 | A2A Sync | `src/a2a/` — client implementation for inter-agent communication |
 | 59 | Context Group | `src/messaging/context_group.rs` — conversation grouping |
-| 60 | WASM Sandbox | `src/wasm/mod.rs` — wasmtime execution with capabilities (feature-gated) |
-| 61 | OpenAI-compatible API | `src/backend/openai.rs` — full Chat Completions implementation |
-| 62 | ProcessManager Architecture | `src/process_manager.rs` — async message-passing with Worker/Compactor/Corrector |
+|| 60 | WASM Sandbox | `src/wasm/mod.rs` — wasmtime execution with capabilities (feature-gated) |
+|| 61 | OpenAI-compatible API | `src/backend/openai.rs` — full Chat Completions implementation |
+|| 62 | ProcessManager Architecture | `src/process_manager.rs` — async message-passing with Worker/Compactor/Corrector |
+|| 63 | Agent Federation | `src/federation/mod.rs` — task decomposition, role assignment, session spawning, result synthesis |
 
 ### 🔴 External (1)
 
@@ -135,7 +136,7 @@ All 10 items from the OpenClaw gap analysis are now closed:
 
 | # | Feature | Status |
 |---|---------|--------|
-| 1 | **Agent Federation** | 🔴 NOT STARTED |
+| 1 | **Agent Federation** | ✅ DONE |
 
 ---
 

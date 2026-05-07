@@ -80,6 +80,6 @@ pub mod vault;
 pub mod voice;
 pub mod wakeup;
 pub mod wave;
-pub mod wasm;
+pub mod federation;
 pub mod webhook;
 pub mod webhooks;
