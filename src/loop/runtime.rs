@@ -211,6 +211,14 @@ where
             .with_phase("reflect");
         hooks.fire_interceptor("phase.reflect.start", &ctx, "*")?;
 
+        // ── CompactorProcess: trigger context compaction ───────────────────────
+        // Wire CompactorProcess into reflect phase for memory consolidation.
+        self.process_manager
+            .compactor()
+            .compact(&state.selected_goal_id.clone().unwrap_or_else(|| "default".to_string()), 4096)
+            .await
+            .ok();
+
         self.emit("agent:reflect_start", "Recording the session outcome.")?;
         write_heartbeat(
             &self.paths.heartbeat_file,

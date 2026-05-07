@@ -477,7 +477,13 @@ async fn run_session_async(data_dir: &Path, task: Option<String>) -> Result<RunS
 
     // Set up ProcessManager for message-passing architecture.
     // Tool execution flows through execute_request in phases.rs.
-    let process_manager = crate::process_manager::ProcessManager::new();
+    // with_tool_executor spawns async worker/compactor/corrector processes.
+    let process_manager = crate::process_manager::ProcessManager::with_tool_executor(
+        |tool_name, _args| crate::process_manager::ToolResult {
+            success: true,
+            summary: format!("tool {} would execute", tool_name),
+        },
+    );
 
     let runtime = PraxisRuntime {
         config: &config,
