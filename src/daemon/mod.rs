@@ -410,6 +410,18 @@ async fn async_daemon_loop(
                     );
                     last_session_at = Some(Utc::now());
                     record_operator_activity(&paths, Utc::now());
+
+                    // ── Mobile notifications ─────────────────────────────────
+                    let mobile_agent = crate::mobile::MobileAgent::from_file(
+                        &paths.data_dir.join("mobile_config.json"),
+                    );
+                    if mobile_agent.enabled {
+                        let outcome_str = &summary.outcome;
+                        let goal_title = summary.selected_goal_title.as_deref().unwrap_or("none");
+                        if let Err(e) = mobile_agent.session_summary(outcome_str, goal_title) {
+                            log::warn!("mobile: failed to send notification: {e}");
+                        }
+                    }
                 }
                 Err(e) => {
                     log::error!("daemon: session failed (trigger={label}): {e:#}");

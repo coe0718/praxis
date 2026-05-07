@@ -47,6 +47,7 @@ pub mod meet;
 pub mod marketplace;
 pub mod memory;
 pub mod merkle;
+pub mod mobile;
 pub mod messaging;
 pub mod oauth;
 pub mod observability;

@@ -20,7 +20,7 @@
 - Runtime Skill Creation ✅ DONE — dynamically generated skills
 - Self-Improvement from Ratings ✅ DONE — rating-based behavior adjustment
 - Onchain Reputation System ✅ DONE — verifiable reputation from work
-- Mobile App Framework ❌ MISSING — listed as exists but src/mobile.rs not found
+- Mobile App Framework ✅ DONE — push notifications and session summaries
 
 ### Tier 3 (Long-term - 11+ features)
 - Zod-typed Tool Outputs ✅ DONE — JSON schema generator with OpenAPI compatibility
