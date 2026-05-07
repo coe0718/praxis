@@ -21,7 +21,6 @@ impl CheckpointManager {
 
     /// Create a checkpoint before editing a file.
     pub fn checkpoint(&self, path: &PathBuf) -> Result<Checkpoint> {
-        let path_str = path.to_string_lossy();
         let checksum = self.compute_checksum(path)?;
         
         let checkpoint = Checkpoint {

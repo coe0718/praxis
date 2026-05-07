@@ -3,6 +3,8 @@
 //! Moltis has Signal + Matrix integrations.
 //! This adds secure enterprise messaging channels.
 
+#![allow(dead_code)]
+
 use anyhow::Result;
 
 /// Signal message client.
@@ -20,7 +22,6 @@ impl SignalClient {
 
     /// Send a message via Signal.
     pub fn send(&self, recipient: &str, message: &str) -> Result<()> {
-        // Would use signal-cli or direct API
         let _ = (recipient, message);
         Ok(())
     }

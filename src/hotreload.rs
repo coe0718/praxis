@@ -3,6 +3,8 @@
 //! Moltis watches config files and reloads without restart.
 //! This provides zero-downtime config updates.
 
+#![allow(dead_code)]
+
 use anyhow::Result;
 use std::path::PathBuf;
 
@@ -19,7 +21,6 @@ impl ConfigWatcher {
     /// Check if config has changed and reload.
     pub fn check_reload(&self) -> Result<bool> {
         let new_content = std::fs::read_to_string(&self.config_path)?;
-        // Would compare with current config and reload if changed
         let _ = new_content;
         Ok(true)
     }

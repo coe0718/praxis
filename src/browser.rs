@@ -4,7 +4,6 @@
 //! This provides safe web scraping and automation without exposing the host.
 
 use anyhow::Result;
-use std::path::PathBuf;
 
 use crate::paths::PraxisPaths;
 

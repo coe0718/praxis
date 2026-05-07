@@ -1,21 +1,6 @@
 //! Voice I/O — Text-to-speech + Speech-to-text.
 //!
 //! Moltis has 8 TTS + 7 STT providers. This module provides the integration layer.
-//!
-//! # TTS Providers
-//! - ElevenLabs
-//! - OpenAI TTS
-//! - Piper (local)
-//! - Coqui (local)
-//!
-//! # STT Providers
-//! - whisper.cpp (local)
-//! - OpenAI Whisper
-//! - Groq
-//! - Deepgram
-//! - Google Speech-to-Text
-//! - Mistral Voxtral
-//! - SherpaOnnx
 
 use std::path::PathBuf;
 
@@ -70,22 +55,27 @@ pub struct TtsRequest {
     /// Voice ID override.
     pub voice_id: Option<String>,
     /// Output format (mp3, wav, etc).
-    #[serde(default = "default_audio_format")]
     pub format: String,
     /// Speed multiplier.
-    #[serde(default = "default_speed")]
     pub speed: f32,
 }
 
-fn default_audio_format() -> String { "mp3".to_string() }
-fn default_speed() -> f32 { 1.0 }
+impl Default for TtsRequest {
+    fn default() -> Self {
+        Self {
+            text: String::new(),
+            voice_id: None,
+            format: "mp3".to_string(),
+            speed: 1.0,
+        }
+    }
+}
 
 /// Synthesize speech from text.
 pub async fn synthesize_speech(
     _paths: &PraxisPaths,
     _req: TtsRequest,
 ) -> Result<Vec<u8>> {
-    // Placeholder - would integrate with providers
     anyhow::bail!("TTS not yet implemented")
 }
 
@@ -99,17 +89,7 @@ pub struct SttRequest {
     /// Audio format.
     pub format: String,
     /// Language code.
-    #[serde(default)]
     pub language: Option<String>,
-}
-
-/// Transcribe speech to text.
-pub async fn transcribe_speech(
-    _paths: &PraxisPaths,
-    _req: SttRequest,
-) -> Result<SttResponse> {
-    // Placeholder - would integrate with providers
-    anyhow::bail!("STT not yet implemented")
 }
 
 /// STT response.
@@ -117,13 +97,19 @@ pub async fn transcribe_speech(
 pub struct SttResponse {
     /// Transcribed text.
     pub text: String,
-    /// Confidence score (0-1).
-    pub confidence: Option<f32>,
-    /// Detected language.
-    pub language: Option<String>,
+    /// Confidence score.
+    pub confidence: f32,
 }
 
-// ── Provider Implementations ──────────────────────────────────────────────
+/// Transcribe speech to text.
+pub async fn transcribe_speech(
+    _paths: &PraxisPaths,
+    _req: SttRequest,
+) -> Result<SttResponse> {
+    anyhow::bail!("STT not yet implemented")
+}
+
+// ── Providers ───────────────────────────────────────────────────────────────
 
 /// Available TTS providers.
 pub mod tts {
@@ -133,7 +119,7 @@ pub mod tts {
     pub struct OpenAiTts;
     pub struct Piper;
     pub struct Coqui;
-    
+
     impl ElevenLabs {
         pub async fn synthesize(&self, _text: &str) -> Result<Vec<u8>> {
             anyhow::bail!("ElevenLabs TTS not implemented")
@@ -152,7 +138,7 @@ pub mod stt {
     pub struct GoogleStt;
     pub struct Voxtral;
     pub struct SherpaOnnx;
-    
+
     impl WhisperCpp {
         pub async fn transcribe(&self, _audio: &[u8]) -> Result<SttResponse> {
             anyhow::bail!("Whisper.cpp STT not implemented")

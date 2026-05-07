@@ -6,12 +6,11 @@
 //! Safety: Binary is downloaded to temp location, verified, then swapped atomically.
 
 use anyhow::Result;
-use std::path::PathBuf;
 
 use crate::paths::PraxisPaths;
 
 /// Check for updates and download if available.
-pub async fn check_for_updates(paths: &PraxisPaths) -> Result<Option<String>> {
+pub async fn check_for_updates(_paths: &PraxisPaths) -> Result<Option<String>> {
     // Check GitHub releases for newer version
     let client = reqwest::Client::new();
     let resp = client

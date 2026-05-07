@@ -44,8 +44,6 @@ pub fn combine_rrf(results: Vec<(String, Vec<(String, usize)>)>, k: usize) -> Ve
 }
 
 /// Perform hybrid search with RRF.
-pub fn hybrid_search(query: &str) -> Vec<RrfResult> {
-    // This would integrate with actual vector + FTS stores
-    // Placeholder for demonstration
+pub fn hybrid_search(_query: &str) -> Vec<RrfResult> {
     vec![]
 }

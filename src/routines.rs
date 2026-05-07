@@ -12,8 +12,6 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use tokio::time;
 
-use crate::paths::PraxisPaths;
-
 /// A routine that can be triggered by events or scheduled.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Routine {
@@ -45,14 +43,12 @@ pub struct RoutineAction {
 /// Routines scheduler with heartbeat monitoring.
 pub struct RoutinesEngine {
     routines: HashMap<String, Routine>,
-    paths: PraxisPaths,
 }
 
 impl RoutinesEngine {
-    pub fn new(paths: PraxisPaths) -> Self {
+    pub fn new() -> Self {
         Self {
             routines: HashMap::new(),
-            paths,
         }
     }
 
