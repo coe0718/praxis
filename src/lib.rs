@@ -60,6 +60,7 @@ pub mod tools;
 pub mod tui;
 pub mod usage;
 pub mod vault;
+pub mod voice;
 pub mod wakeup;
 pub mod wave;
 pub mod wasm;
