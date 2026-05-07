@@ -111,14 +111,12 @@ pub struct FederationResult {
 
 /// Agent Federation coordinator.
 pub struct AgentFederation {
-    paths: PraxisPaths,
     spawner: SessionSpawner,
 }
 
 impl AgentFederation {
     pub fn new(paths: &PraxisPaths) -> Self {
         Self {
-            paths: paths.clone(),
             spawner: SessionSpawner::new(paths),
         }
     }
@@ -126,7 +124,7 @@ impl AgentFederation {
     /// Decompose a task into sub-tasks based on the goal.
     pub fn decompose(&self, req: &FederationRequest) -> Result<Vec<SubTask>> {
         let mut tasks = Vec::new();
-        
+
         // Always start with planning
         tasks.push(SubTask {
             id: "plan".to_string(),
@@ -204,9 +202,11 @@ impl AgentFederation {
         let mut results: Vec<SubTaskResult> = Vec::new();
         for subtask in &subtasks {
             // Wait for dependencies
-            while subtask.depends_on.iter().any(|dep| {
-                results.iter().find(|r| &r.subtask_id == dep).is_none()
-            }) {
+            while subtask
+                .depends_on
+                .iter()
+                .any(|dep| results.iter().find(|r| &r.subtask_id == dep).is_none())
+            {
                 std::thread::sleep(std::time::Duration::from_millis(100));
             }
 
@@ -247,7 +247,7 @@ impl AgentFederation {
     /// Synthesize results into a final output.
     fn synthesize(&self, results: &[SubTaskResult]) -> Result<String> {
         let successful: Vec<_> = results.iter().filter(|r| r.success).collect();
-        
+
         Ok(format!(
             "Federation complete. {}/{} sub-tasks succeeded.\n\n{}",
             successful.len(),
@@ -262,7 +262,6 @@ impl AgentFederation {
 }
 
 fn uuid_simple() -> String {
-    // Simple UUID-like string for spawn IDs
     use std::time::{SystemTime, UNIX_EPOCH};
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -276,50 +275,25 @@ mod tests {
     use super::*;
 
     #[test]
-    fn decompose_creates_expected_tasks() {
+    fn test_decompose_returns_four_tasks() {
+        // Test the logic by calling decompose directly using a temp paths
+        use tempfile::tempdir;
+
+        let dir = tempdir().unwrap();
+        let paths = PraxisPaths::for_data_dir(dir.path().to_path_buf());
+        let federation = AgentFederation::new(&paths);
+
         let req = FederationRequest {
             task: "Build a web app".to_string(),
             max_agents: 4,
-            context: "starting context".to_string(),
+            context: "test context".to_string(),
         };
-
-        // Check that decomposition creates planner, researcher, coder
-        let tasks = req.decompose_mock();
-        let roles: std::collections::HashSet<_> = tasks.iter().map(|t| t.role).collect();
-        assert!(roles.contains(&AgentRole::Planner));
-        assert!(roles.contains(&AgentRole::Researcher));
-        assert!(roles.contains(&AgentRole::Coder));
-    }
-}
-
-trait Decompose {
-    fn decompose_mock(&self) -> Vec<SubTask>;
-}
-
-impl Decompose for FederationRequest {
-    fn decompose_mock(&self) -> Vec<SubTask> {
-        vec![
-            SubTask {
-                id: "plan".into(),
-                role: AgentRole::Planner,
-                description: "plan".into(),
-                depends_on: vec![],
-                context: self.context.clone(),
-            },
-            SubTask {
-                id: "research".into(),
-                role: AgentRole::Researcher,
-                description: "research".into(),
-                depends_on: vec!["plan".into()],
-                context: self.context.clone(),
-            },
-            SubTask {
-                id: "implement".into(),
-                role: AgentRole::Coder,
-                description: "implement".into(),
-                depends_on: vec!["research".into()],
-                context: self.context.clone(),
-            },
-        ]
+        let tasks = federation.decompose(&req).unwrap();
+        assert_eq!(tasks.len(), 4);
+        let ids: std::collections::HashSet<_> = tasks.iter().map(|t| t.id.as_str()).collect();
+        assert!(ids.contains("plan"));
+        assert!(ids.contains("research"));
+        assert!(ids.contains("implement"));
+        assert!(ids.contains("review"));
     }
 }
