@@ -561,11 +561,12 @@ fn record_operator_activity(paths: &PraxisPaths, now: DateTime<Utc>) {
 /// Check scheduled jobs for due triggers.  Returns a task description if a
 /// job is ready to fire, and persists the updated job store.
 ///
-/// When a due job has `workdir` set, the returned task is prefixed with a
-/// `cd <workdir>` instruction.  When `context_from` is set, the upstream
-/// jobs' most recent output is injected as context before the task.
+/// When a due job has `no_agent` set, runs the script directly and returns None.
+/// When `wake_gate` is set, checks output for `wakeAgent: false` to skip triggering.
+/// When `workdir` is set, the returned task is prefixed with a `cd <workdir>` instruction.
 fn check_scheduled_jobs(paths: &PraxisPaths, now: DateTime<Utc>) -> Option<String> {
     use crate::tools::cron::ScheduledJobs;
+    use crate::tools::cron_ext::{CronExtensions, run_script_job};
 
     let jobs_path = &paths.scheduled_jobs_file;
     let mut jobs = match ScheduledJobs::load(jobs_path) {
@@ -590,12 +591,36 @@ fn check_scheduled_jobs(paths: &PraxisPaths, now: DateTime<Utc>) -> Option<Strin
     // Ensure the cron outputs directory exists.
     let _ = std::fs::create_dir_all(&paths.cron_outputs_dir);
 
-    // Collect all due task descriptions, enriched with workdir and context_from.
+    // Process jobs - check for no_agent first
     let mut tasks = Vec::new();
     let mut names = Vec::new();
 
     for job in &due {
         names.push(job.name.clone());
+
+        // Check if this is a script-mode job (no_agent)
+        if job.no_agent {
+            let extensions = CronExtensions {
+                no_agent: true,
+                wake_gate: job.wake_gate,
+            };
+            // Run script directly without triggering agent session
+            if let Ok(result) = run_script_job(&job, &job.task, &extensions) {
+                if result.should_wake_agent {
+                    // For no_agent with wake_gate=false, output to a file instead
+                    let output_path = paths.cron_outputs_dir.join(format!("{}.txt", job.id));
+                    let _ = std::fs::write(&output_path, &result.output);
+                }
+                log::info!(
+                    "daemon: no_agent job {} completed ({} bytes output)",
+                    job.id,
+                    result.output.len()
+                );
+            } else {
+                log::warn!("daemon: no_agent job {} failed", job.id);
+            }
+            continue;
+        }
 
         let mut parts = Vec::new();
 
@@ -634,7 +659,11 @@ fn check_scheduled_jobs(paths: &PraxisPaths, now: DateTime<Utc>) -> Option<Strin
 
     log::info!("daemon: scheduled jobs due: [{}]", names.join(", "));
 
-    Some(tasks.join("\n\n"))
+    if tasks.is_empty() && !names.is_empty() {
+        None // All jobs were no_agent
+    } else {
+        Some(tasks.join("\n\n"))
+    }
 }
 
 // ── Platform polling ─────────────────────────────────────────────────────────

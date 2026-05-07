@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::providers::ProviderRoute;
 
 use super::{InputContent, ProviderRequest, ProviderResponse, successful_attempt};
+use crate::backend::retry::{RetryPolicy, retry_with_backoff};
 
 const OPENAI_CHAT_URL: &str = "https://api.openai.com/v1/chat/completions";
 
@@ -71,12 +72,16 @@ pub(super) fn execute(
         max_completion_tokens: Some(request.max_output_tokens),
     };
 
-    let response = client
-        .post(&endpoint)
-        .bearer_auth(api_key)
-        .json(&body)
-        .send()
-        .with_context(|| format!("failed to call provider {}", route.provider))?;
+    // HTTP call with retry on rate limits
+    let policy = RetryPolicy::default();
+    let response = retry_with_backoff(&policy, || {
+        client
+            .post(&endpoint)
+            .bearer_auth(api_key.clone())
+            .json(&body)
+            .send()
+            .with_context(|| format!("failed to call provider {}", route.provider))
+    })?;
 
     if !response.status().is_success() {
         let status = response.status();

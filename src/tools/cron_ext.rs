@@ -170,6 +170,8 @@ mod tests {
             fire_count: 0,
             workdir: None,
             context_from: None,
+            no_agent: false,
+            wake_gate: false,
         };
 
         let result = run_script_job(&job, "echo '{\"wakeAgent\": false}'", &ext).unwrap();

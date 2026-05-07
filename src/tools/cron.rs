@@ -59,6 +59,12 @@ pub struct ScheduledJob {
     /// on the output of job A.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub context_from: Option<Vec<String>>,
+    /// When true, run the task script directly without triggering an agent session.
+    #[serde(default)]
+    pub no_agent: bool,
+    /// When true and no_agent=false, check script output for wakeAgent:false to skip session.
+    #[serde(default)]
+    pub wake_gate: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -275,6 +281,8 @@ pub fn create_job(
         fire_count: 0,
         workdir,
         context_from,
+        no_agent: false,
+        wake_gate: false,
     })
 }
 
@@ -334,6 +342,8 @@ mod tests {
                 fire_count: 0,
                 workdir: None,
                 context_from: None,
+                no_agent: false,
+                wake_gate: false,
             }],
         };
 
@@ -363,6 +373,8 @@ mod tests {
                 fire_count: 0,
                 workdir: None,
                 context_from: None,
+                no_agent: false,
+                wake_gate: false,
             }],
         };
 
