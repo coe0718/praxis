@@ -1,6 +1,6 @@
-# Praxis Status — 2026-05-07
+# Praxis Status — 2026-05-08
 
-One document covering all gap/feature tracking. Supersedes: GAP_ANALYSIS_HERMES.md, ECOSYSTEM_REVIEW.md, NEEDS_FINISHED.md, GAP_ANALYSIS_HERMES_OPENCLAW.md.
+One document covering all gap/feature tracking. Supersedes: GAP_ANALYSIS_HERMES.md, ECOSYSTEM_REVIEW.md, NEEDS_FINISHED.md, GAP_ANALYSIS_HERMES_OPENCLAW.md, SHELLDEX_FEATURE_HARVEST.md.
 
 ---
 
@@ -15,18 +15,17 @@ git status CLEAN (all committed)
 
 ---
 
-## Gap Scoreboard (62 total)
+## Gap Scoreboard (62 + Shelldex features)
 
 || State | Count | Meaning |
 ||--------|-------|---------|
-|| ✅ Closed | 62 | Fully implemented and wired into runtime |
+|| ✅ Closed | 63 | Fully implemented and wired into runtime |
 || 🔴 External | 1 | Blocked on external dependency |
 
-### ✅ Fully Closed (62)
+### ✅ Fully Closed (63)
 
 || # | Feature | Implementation |
-||---|---------|----------------|
-|| 1 | Core Agent Loop | `src/loop/runtime.rs` + `src/loop/phases.rs` — Orient/Decide/Act/Reflect |
+||---|---------|----------------|| 1 | Core Agent Loop | `src/loop/runtime.rs` + `src/loop/phases.rs` — Orient/Decide/Act/Reflect |
 || 2 | Sessions Spawn | `src/session/spawn.rs` — programmatic session creation for kanban workers |
 || 3 | Plugin System | `src/plugins/mod.rs` — dynamic libloading, `should_block` + `rewrite_tool_output` hooks |
 || 4 | Skills Hub | `src/skills/mod.rs` — load_catalog, fetch_remote_catalog, install_skill_from_url + CLI |
@@ -89,6 +88,7 @@ git status CLEAN (all committed)
 || 61 | OpenAI-compatible API | `src/backend/openai.rs` — full Chat Completions implementation |
 || 62 | ProcessManager Architecture | `src/process_manager.rs` — async message-passing with Worker/Compactor/Corrector |
 || 63 | Agent Federation | `src/federation/mod.rs` — task decomposition, role assignment, session spawning, result synthesis |
+|| 64 | Zero-LLM Rule Engine | `src/rules/mod.rs` — deterministic rule-based agent behavior without LLM calls |
 
 ### 🔴 External (1)
 
@@ -98,13 +98,42 @@ git status CLEAN (all committed)
 
 ---
 
-## Hermes ↔ Praxis Gap Analysis (from GAP_ANALYSIS_HERMES_OPENCLAW.md)
+## Shelldex Features (28+ features in implementation pipeline)
+
+### Tier 1 (High Priority - 7 features)
+1. Agent-as-Worker Marketplace (CashClaw) — connecting to Moltlaunch marketplace
+2. Git-Native Agent Lifecycle (Gitclaw) — identity/rules/memory as version-controlled files
+3. Zero-LLM Rule-Based Mode ✅ DONE
+4. Browser-Only PWA Mode (OpenBrowserClaw) — agent runs entirely in browser
+5. Heartware Personality/Relationship System (TinyClaw, Clawra) — explicit personality model
+6. Docker Isolation Mode (IronClaw) — per-tool container isolation
+7. Multi-Process Architecture ✅ ALREADY EXISTS via ProcessManager
+
+### Tier 2 (Medium Priority - 11 features)
+- Proactive Agent Mode ✅ EXISTS (src/proactive.rs, src/wakeup/proactive.rs)
+- Code-First Integration API (OpenMolt) — 30+ type-safe integrations
+- Signed WASM Plugins (Carapace) — cryptographic verification for skills
+- Scheduled Event Triggers ✅ EXISTS (src/tools/cron_ext.rs)
+- 32 Built-in Tools (ZeptoClaw) — expanding from current 4 tools
+- Chinese Platform Channels (QQ, Feishu, DingTalk, WeChat, WeCom)
+- Chinese LLM Providers (DeepSeek, Doubao, Qwen, Kimi, Zhipu)
+- And 3 more...
+
+### Tier 3 (Long-term - 11+ features)
+- Local STT/TTS (whisper.cpp)
+- Self-Improvement from Ratings
+- Onchain Reputation System
+- Skill Creation at Runtime
+- And 7 more...
+
+---
+
+## Hermes ↔ Praxis Gap Analysis (from GAP_ANALISIS_HERMES.md)
 
 All 10 items from the OpenClaw gap analysis are now closed:
 
 || # | Feature | Status | Implementation |
-||---|---------|--------|----------------|
-|| 1 | Kanban | ✅ | `src/kanban/` — full board with dispatcher + workers |
+||---|---------|--------|----------------|| 1 | Kanban | ✅ | `src/kanban/` — full board with dispatcher + workers |
 || 2 | Sessions spawn | ✅ | `src/session/spawn.rs` — programmatic creation |
 || 3 | Curator | ✅ | `src/curator/mod.rs` — run_cycle wired |
 || 4 | 429 fallback | ✅ | `src/backend/retry.rs` — exponential backoff |
@@ -134,7 +163,7 @@ All 10 items from the OpenClaw gap analysis are now closed:
 
 ## Remaining for Competition ($20k prize)
 
-All features complete.
+All core features complete. Shelldex features in pipeline for Q2-Q3 2026.
 
 ---
 
@@ -143,6 +172,7 @@ All features complete.
 ```
 Root docs:
  STATUS.md ← this file (supersedes all prior gap/feature docs)
+ SHELLDEX_FEATURE_HARVEST.md — reference for 28+ future features
  PRAXIS_GAPS.md → superseded, kept for history
  PRAXIS_DESIGN.md → architecture doc (keep)
  README.md → overview (keep)
@@ -164,4 +194,4 @@ src/ module directories (all with mod.rs):
 
 ---
 
-_Last updated: 2026-05-07 — Drey_
+_Last updated: 2026-05-08 — Drey_

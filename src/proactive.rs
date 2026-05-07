@@ -2,14 +2,15 @@
 //!
 //! Agent can schedule wake-ups, monitor conditions, and initiate
 //! actions without external prompts.
-
+//!
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Condition to monitor for proactive triggers.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Condition {
-    /// Time-based condition.
-    Time { schedule: cron::Schedule },
+    /// Time-based condition (cron expression string).
+    Time { cron: String },
     /// State-based condition.
     State { key: String, expected: serde_json::Value },
     /// File change condition.
@@ -52,7 +53,7 @@ pub enum WakeAction {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ProactiveAgent {
     pub wake_ups: Vec<WakeUp>,
-    pub last_check: std::collections::HashMap<String, i64>,
+    pub last_check: HashMap<String, i64>,
 }
 
 impl ProactiveAgent {
@@ -67,8 +68,8 @@ impl ProactiveAgent {
         self.wake_ups.sort_by_key(|w| -w.priority);
     }
 
-    /// Check all conditions and execute actions.
-    pub async fn check(&mut self) -> Vec<String> {
+    /// Check all conditions and return matching wake-up IDs.
+    pub fn check(&mut self) -> Vec<String> {
         let mut executed = vec![];
         let now = chrono::Utc::now().timestamp();
 
@@ -77,60 +78,62 @@ impl ProactiveAgent {
                 continue;
             }
 
-            // Check last execution time
             let last = self.last_check.get(&wake_up.id).copied().unwrap_or(0);
             if now - last < 60 {
-                continue; // Don't run more than once per minute
+                continue;
             }
 
-            if self.check_condition(&wake_up.condition).await {
-                // Execute action
-                self.execute_action(&wake_up.action).await;
+            if self.check_condition(&wake_up.condition) {
                 executed.push(wake_up.id.clone());
                 self.last_check.insert(wake_up.id.clone(), now);
             }
         }
-
         executed
     }
 
-    async fn check_condition(&self, condition: &Condition) -> bool {
+    fn check_condition(&self, condition: &Condition) -> bool {
         match condition {
-            Condition::Time { schedule } => {
-                schedule.upcoming(chrono::Utc::now()).next().is_some()
-            }
-            Condition::State { key: _, expected: _ } => {
-                // Would check actual state
+            Condition::Time { cron: _ } => {
+                // Would check cron schedule - placeholder
                 false
             }
-            Condition::FileChanged { path } => {
-                // Would check file mtime
-                std::path::Path::new(path).exists()
-            }
+            Condition::State { key: _, expected: _ } => false,
+            Condition::FileChanged { path } => std::path::Path::new(path).exists(),
             Condition::Webhook { endpoint: _ } => false,
-            Condition::And(conditions) => {
-                conditions.iter().all(|c| futures::executor::block_on(self.check_condition(c)))
-            }
-            Condition::Or(conditions) => {
-                conditions.iter().any(|c| futures::executor::block_on(self.check_condition(c)))
-            }
+            Condition::And(conditions) => conditions.iter().all(|c| self.check_condition(c)),
+            Condition::Or(conditions) => conditions.iter().any(|c| self.check_condition(c)),
         }
     }
+}
 
-    async fn execute_action(&self, action: &WakeAction) {
-        match action {
-            WakeAction::RunTool { name: _, args: _ } => {
-                // Would execute tool
-            }
-            WakeAction::SendMessage { channel: _, text: _ } => {
-                // Would send message
-            }
-            WakeAction::RunSkill { name: _, params: _ } => {
-                // Would run skill
-            }
-            WakeAction::StartRoutine { name: _ } => {
-                // Would start routine
-            }
+/// Proactive configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProactiveConfig {
+    /// Enable proactive mode.
+    #[serde(default)]
+    pub enabled: bool,
+    /// Check interval in seconds.
+    #[serde(default = "default_check_interval")]
+    pub check_interval_seconds: u32,
+    /// Maximum actions per hour.
+    #[serde(default = "default_rate_limit")]
+    pub max_actions_per_hour: u32,
+}
+
+fn default_check_interval() -> u32 {
+    60
+}
+
+fn default_rate_limit() -> u32 {
+    10
+}
+
+impl Default for ProactiveConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            check_interval_seconds: default_check_interval(),
+            max_actions_per_hour: default_rate_limit(),
         }
     }
 }
@@ -140,6 +143,6 @@ pub async fn run_proactive_loop(mut agent: ProactiveAgent) {
     let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(60));
     loop {
         interval.tick().await;
-        agent.check().await;
+        agent.check();
     }
 }
