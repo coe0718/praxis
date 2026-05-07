@@ -124,14 +124,14 @@ impl Default for IntegrationRegistry {
 
 /// Typed integration client.
 pub struct TypedClient<T> {
-    config: IntegrationConfig,
+    _config: IntegrationConfig,
     _marker: std::marker::PhantomData<T>,
 }
 
 impl<T> TypedClient<T> {
     pub fn new(config: IntegrationConfig) -> Self {
         Self {
-            config,
+            _config: config,
             _marker: std::marker::PhantomData,
         }
     }

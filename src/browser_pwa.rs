@@ -114,7 +114,7 @@ impl BrowserAgent {
 /// IndexedDB state persistence stub.
 #[cfg(not(target_arch = "wasm32"))]
 pub mod storage {
-    use super::*;
+    // IndexedDBStore is self-contained, no need for super::*
 
     pub struct IndexedDBStore {
         pub db_name: String,

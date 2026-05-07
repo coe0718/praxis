@@ -33,7 +33,7 @@ pub struct MountSpec {
 
 /// IronClaw manager for container execution.
 pub struct IronClaw {
-    docker_host: String,
+    _docker_host: String,
     containers: std::collections::HashMap<String, ContainerInfo>,
 }
 
@@ -48,7 +48,7 @@ pub struct ContainerInfo {
 impl IronClaw {
     pub fn new() -> Result<Self, anyhow::Error> {
         Ok(Self {
-            docker_host: "unix:///var/run/docker.sock".to_string(),
+            _docker_host: "unix:///var/run/docker.sock".to_string(),
             containers: std::collections::HashMap::new(),
         })
     }
@@ -109,7 +109,7 @@ impl IronClaw {
     }
 
     /// Build a container image for a tool.
-    pub async fn build_image(&self, dockerfile: &str, tag: &str) -> Result<(), anyhow::Error> {
+    pub async fn build_image(&self, _dockerfile: &str, tag: &str) -> Result<(), anyhow::Error> {
         let output = Command::new("docker")
             .args(["build", "-t", tag, "-"])
             .stdin(std::process::Stdio::piped())

@@ -52,7 +52,7 @@ pub struct GitCapabilities {
 
 /// Gitclaw manager for version-controlled agent state.
 pub struct Gitclaw {
-    repo_path: PathBuf,
+    _repo_path: PathBuf,
     main_branch: String,
 }
 
@@ -61,7 +61,7 @@ impl Gitclaw {
     pub fn init(repo_path: &Path) -> Result<Self, anyhow::Error> {
         // Would run git init, set up branches
         Ok(Self {
-            repo_path: repo_path.to_path_buf(),
+            _repo_path: repo_path.to_path_buf(),
             main_branch: "main".to_string(),
         })
     }
@@ -69,11 +69,11 @@ impl Gitclaw {
     /// Commit agent state to git.
     pub fn commit_state(
         &self,
-        message: &str,
-        identity: &GitAgentIdentity,
+        _message: &str,
+        _identity: &GitAgentIdentity,
         rules: &GitAgentRules,
     ) -> Result<String, anyhow::Error> {
-        // Would serialize and commit files
+        let _ = rules; // Would serialize and commit files
         Ok("commit_hash_placeholder".to_string())
     }
 
@@ -101,7 +101,7 @@ impl Gitclaw {
     pub fn fork_from(
         &self,
         source_url: &str,
-        branch: &str,
+        _branch: &str,
     ) -> Result<GitAgentIdentity, anyhow::Error> {
         Ok(GitAgentIdentity {
             agent_id: "forked_agent".to_string(),

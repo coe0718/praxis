@@ -23,14 +23,14 @@ pub struct RatingContext {
 /// Rating processor that adjusts agent behavior based on feedback.
 pub struct RatingProcessor {
     ratings: Vec<UserRating>,
-    adjustment_rules: std::collections::HashMap<String, f32>,
+    _adjustment_rules: std::collections::HashMap<String, f32>,
 }
 
 impl RatingProcessor {
     pub fn new() -> Self {
         Self {
             ratings: Vec::new(),
-            adjustment_rules: std::collections::HashMap::new(),
+            _adjustment_rules: std::collections::HashMap::new(),
         }
     }
 
