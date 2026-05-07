@@ -12,6 +12,7 @@ pub mod boundaries;
 pub mod brief;
 pub mod bus;
 pub mod canary;
+pub mod carapace;
 pub mod canvas;
 pub mod channels;
 pub mod checkpoints;
