@@ -65,9 +65,9 @@ This document catalogs what the ecosystem has that Praxis doesn't.
 
 | # | Feature | Source | What It Does | Est. Scope |
 |---|---------|--------|-------------|-----------|
-| 17 | **Voice I/O (TTS + STT)** | Moltis | 8 TTS + 7 STT providers. Praxis has "Whisper integration" listed as not-finished (STT-only). Adding full voice pipeline with provider pattern. | ~2 weeks |
-| 18 | **WASM sandbox for tools** | IronClaw | Every tool runs in isolated WebAssembly container with capability-based permissions (filesystem, network, resources). Praxis uses filesystem sandboxing (`sandbox.rs`) — this is a fundamentally stronger isolation model. IronClaw's signature innovation. | ~1 month |
-| 19 | **Full Web UI** | Moltis, IronClaw | Rich web dashboard with live settings, tools inventory, deploy key management, host pinning. Praxis dashboard is lightweight (SSE + metrics + TUI + SPA sidebar). A proper setup/management UI would be a massive usability win. | ~3-4 weeks |
+| 17 | **Voice I/O (TTS + STT)** | Moltis | 8 TTS + 7 STT providers. Praxis has "Whisper integration" listed as not-finished (STT-only). This is the full voice pipeline. | ~2 weeks |
+| 18 | **WASM sandbox for tools** | IronClaw | Every tool runs in isolated WebAssembly container with capability-based permissions. Praxis uses filesystem sandboxing (`sandbox.rs`) — this is a fundamentally stronger isolation model. IronClaw's signature innovation. | ~1 month |
+| 19 | **Web UI (setup/management)** | Moltis | First-run setup wizard, live Settings → Tools inventory, deploy key management, host pinning, mobile PWA, push notifications. Praxis already has a deep 20-page React SPA — this is about the admin/setup layer Moltis has that Praxis doesn't. | ~2 weeks |
 | 20 | **Browser automation (containerized)** | Moltis | Run browser sessions in isolated Docker containers for safe web automation tasks | ~2 weeks |
 | 21 | **SSH/remote execution** | Moltis | Execute tools on remote machines via SSH with key management | ~1 week |
 | 22 | **Prompt injection detection** | IronClaw | Pattern detection + content sanitization on user inputs before they reach the LLM | ~1 week |

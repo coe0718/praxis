@@ -53,7 +53,7 @@ Gateway Server (Axum HTTP/WS)
 | Feature | Moltis Implementation | Notes |
 |---------|----------------------|-------|
 | **Voice I/O** | `moltis-voice` crate: 4 TTS providers (ElevenLabs, OpenAI, Piper local, Coqui local) + 7 STT providers (Whisper, Groq, Deepgram, Google, Mistral, Voxtral, SherpaOnnx). Feature-gated behind `voice` cargo flag. RPC methods: tts.convert, tts.setProvider, stt.transcribe, etc. | Praxis has Whisper listed as "not finished yet" (STT-only). This is a complete voice pipeline. |
-| **Full Web UI** | Compiled into single binary. Live Settings → Tools inventory, managed deploy keys, host pinning, password/passkey/API key auth, push notifications, mobile PWA. Serves at https://moltis.localhost:3000. | Praxis has lightweight dashboard (SSE + metrics + TUI + SPA sidebar). No setup wizard, no live settings management. |
+| **Web UI (setup/management focus)** | `moltis-web` crate — live Settings → Tools inventory, managed deploy keys, host pinning, password/passkey/API key auth, push notifications, mobile PWA. Setup wizard on first run. | Praxis has a full React SPA (`frontend/`) with 20+ pages covering every subsystem (Dashboard, Chat, Sessions, Goals, Memories, Identity, Learning, Tools, Evolution, Score, Tokens, Canary, Delegation, Argus, Forensics, Boundaries, Vault, Config, Agents, Approvals, Plugins). Recharts-based score/token charts, SSE live events, dark theme, collapsible sidebar, keyboard shortcuts, plugin tab system. **Praxis's web UI is deeper per-subsystem; Moltis's focuses more on setup/settings/key management.** |
 | **Signal channel** | `moltis-signal` crate — signal-cli daemon with SSE listener | Praxis only has Telegram, Discord, Slack |
 | **Matrix channel** | `moltis-matrix` crate — E2EE support | Not in Praxis |
 | **MS Teams channel** | `moltis-msteams` crate | Not in Praxis |
@@ -268,6 +268,7 @@ LLM selects a tool
 
 ### Where Praxis Wins
 
+- **Full React SPA web UI** — 20+ pages covering every subsystem (Dashboard, Chat, Sessions, Goals, Memories, Identity, Learning, Tools, Evolution, Score, Tokens, Canary, Delegation, Argus, Forensics, Boundaries, Vault, Config, Agents, Approvals, Plugins). Recharts charts, SSE live events, dark theme, plugin tabs. Moltis has a nicer setup wizard and settings UI; Praxis has deeper per-subsystem pages.
 - **Structured agent loop** (Orient/Decide/Act/Reflect) — nobody else has this structured approach
 - **Self-evolution + scoring + curator** — the learning pipeline is more mature than any competitor
 - **Kanban + A2A sync** — unique among Rust agents
@@ -277,7 +278,7 @@ LLM selects a tool
 
 ### Where Praxis Lags
 
-- **No full web UI** — Moltis has a polished one, Praxis's is lightweight
+- **Web UI setup/management** — Moltis has a first-run setup wizard, live Settings → Tools inventory, deploy key management, host pinning, and mobile PWA. Praxis's SPA is deeper for subsystem-aware pages but lighter on the admin/setup side.
 - **No voice I/O** — Moltis has 11 providers (4 TTS + 7 STT)
 - **Fewer messaging channels** — Moltis has 9, Praxis has 3 (Telegram, Discord, Slack)
 - **No WASM sandbox** — IronClaw's signature feature
