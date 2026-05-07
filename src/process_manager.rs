@@ -232,3 +232,24 @@ impl Default for ChannelProcess {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_process_manager_default() {
+        let pm = ProcessManager::default();
+        let _worker = pm.worker();
+        let _channel = pm.channel();
+    }
+
+    #[test]
+    fn test_channel_process_route() {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            let channel = ChannelProcess::new();
+            channel.route("test").await.unwrap();
+        });
+    }
+}
