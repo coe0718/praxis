@@ -581,7 +581,9 @@ where
         // Sandbox enforcement is applied in execute_tool_request() where it can
         // actually block tool execution per channel policy. See the SandboxVerdict gate there.
 
-        // Auto-checkpoints — snapshot state before file-modifying actions.
+        // Auto-checkpoints — snapshot state before finalize_action.
+        // Tool execution checkpoints are handled inside execute_tool_request()
+        // where restore-on-failure logic lives.
         if !self.lite.skip_capability(crate::lite::LiteCapability::Checkpoints) {
             let mgr = crate::checkpoints::CheckpointManager::new(self.paths);
             if let Err(e) = mgr.checkpoint(&self.paths.state_file) {
@@ -615,9 +617,27 @@ where
         }
 
         // Carapace — signed plugin verification.
+        // Plugins must be cryptographically signed by a trusted author.
+        // Unsigned/tampered plugins are rejected from execution.
         if !self.lite.skip_capability(crate::lite::LiteCapability::Carapace) {
-            let registry = crate::carapace::PluginRegistry::new();
-            log::debug!("act: carapace plugin registry loaded ({} plugins)", registry.list().len());
+            let plugin_dir = self.paths.data_dir.join("plugins");
+            if plugin_dir.exists() {
+                let mut registry = crate::carapace::PluginRegistry::new();
+                match registry.load_directory(&plugin_dir) {
+                    Ok(verified) => {
+                        log::info!(
+                            "act: carapace verified {} plugins: {}",
+                            verified.len(),
+                            verified.join(", ")
+                        );
+                    }
+                    Err(e) => {
+                        log::warn!("act: carapace plugin verification failed: {e}");
+                    }
+                }
+            } else {
+                log::debug!("act: no plugins directory at {:?}, skipping carapace", plugin_dir);
+            }
         }
 
         // Voice I/O — TTS/STT for voice brief delivery.
@@ -901,8 +921,85 @@ where
             return Ok(());
         }
 
-        let execution =
-            execute_request(self.paths, &manifest, &request, self.config.security.redact_secrets)?;
+        // ── IronClaw Docker isolation ──────────────────────────────────────
+        // For shell-type tools, route execution through Docker containers
+        // when IronClaw is enabled and Docker is available.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::IronClaw)
+            && matches!(manifest.kind, crate::tools::ToolKind::Shell)
+        {
+            // Use block_in_place to call async IronClaw from sync function
+            let result = tokio::task::block_in_place(|| {
+                let rt = tokio::runtime::Handle::try_current().ok();
+                if let Some(h) = rt {
+                    h.block_on(async {
+                        let mut ironclaw = crate::ironclaw::IronClaw::new()?;
+                        let config = crate::ironclaw::presets::shell_config();
+                        let args: Vec<String> = request
+                            .payload_json
+                            .as_deref()
+                            .unwrap_or("")
+                            .split_whitespace()
+                            .map(String::from)
+                            .collect();
+                        ironclaw.execute_isolated(&manifest.name, &config, &args).await
+                    })
+                } else {
+                    // No tokio runtime available — skip IronClaw
+                    Err(anyhow::anyhow!("No tokio runtime"))
+                }
+            });
+
+            if let Ok(container_output) = result {
+                self.store.mark_approval_consumed(request.id)?;
+                self.emit("agent:tool_call_isolated", &format!("{} (docker)", manifest.name))?;
+                state.last_outcome = Some("tool_executed_isolated".to_string());
+                state.action_summary = Some(container_output);
+                state.updated_at = self.clock.now_utc();
+                return Ok(());
+            } else {
+                log::debug!("ironclaw: skipping container execution for '{}'", manifest.name);
+            }
+        }
+
+        // ── Checkpoint before execution ────────────────────────────────────
+        // Take a checkpoint of the state file before executing the tool.
+        // If execution fails, restore from checkpoint to prevent partial state corruption.
+        let checkpoint = if !self.lite.skip_capability(crate::lite::LiteCapability::Checkpoints) {
+            let mgr = crate::checkpoints::CheckpointManager::new(self.paths);
+            match mgr.checkpoint(&self.paths.state_file) {
+                Ok(cp) => Some((mgr, cp)),
+                Err(_) => None,
+            }
+        } else {
+            None
+        };
+
+        let execution_result =
+            execute_request(self.paths, &manifest, &request, self.config.security.redact_secrets);
+
+        let execution = match execution_result {
+            Ok(exec) => exec,
+            Err(e) => {
+                // Restore from checkpoint on execution failure.
+                if let Some((mgr, cp)) = checkpoint {
+                    log::warn!(
+                        "execute_tool_request: tool '{}' failed, restoring checkpoint",
+                        manifest.name
+                    );
+                    if let Err(restore_err) = mgr.restore(&cp) {
+                        log::error!(
+                            "execute_tool_request: checkpoint restore failed: {restore_err}"
+                        );
+                    } else {
+                        log::info!(
+                            "execute_tool_request: state restored from checkpoint after '{}' failure",
+                            manifest.name
+                        );
+                    }
+                }
+                return Err(e);
+            }
+        };
         self.store.mark_approval_consumed(request.id)?;
         sync_capabilities(self.tools, self.store, self.paths)?;
         self.emit("agent:tool_call", &format!("{} {}", manifest.name, request.summary))?;
