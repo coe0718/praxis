@@ -10,7 +10,10 @@ use serde::{Deserialize, Serialize};
 #[serde(tag = "type")]
 pub enum Condition {
     /// Field equals value.
-    Equals { field: String, value: serde_json::Value },
+    Equals {
+        field: String,
+        value: serde_json::Value,
+    },
     /// Field contains substring.
     Contains { field: String, value: String },
     /// Regex match.
@@ -24,9 +27,15 @@ pub enum Condition {
 #[serde(tag = "type")]
 pub enum Action {
     /// Run a tool.
-    Tool { name: String, args: serde_json::Value },
+    Tool {
+        name: String,
+        args: serde_json::Value,
+    },
     /// Set context variable.
-    Set { field: String, value: serde_json::Value },
+    Set {
+        field: String,
+        value: serde_json::Value,
+    },
     /// Respond with message.
     Message { text: String },
     /// Branch to another rule.
@@ -50,13 +59,11 @@ pub struct Rule {
 }
 
 /// Rule set configuration.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct RuleSet {
     /// Rules in this set.
     pub rules: Vec<Rule>,
 }
-
 
 /// Rule engine for pattern matching.
 pub struct RuleEngine {
@@ -79,7 +86,10 @@ impl RuleEngine {
         let mut sorted = self.ruleset.rules.iter().collect::<Vec<_>>();
         sorted.sort_by_key(|a| std::cmp::Reverse(a.priority));
 
-        sorted.into_iter().find(|&rule| self.evaluate_conditions(&rule.when, context)).map(|v| v as _)
+        sorted
+            .into_iter()
+            .find(|&rule| self.evaluate_conditions(&rule.when, context))
+            .map(|v| v as _)
     }
 
     fn evaluate_conditions(&self, conditions: &[Condition], context: &serde_json::Value) -> bool {
@@ -88,17 +98,16 @@ impl RuleEngine {
 
     fn evaluate_condition(&self, condition: &Condition, context: &serde_json::Value) -> bool {
         match condition {
-            Condition::Equals { field, value } => {
-                context.get(field) == Some(value)
-            }
+            Condition::Equals { field, value } => context.get(field) == Some(value),
             Condition::Contains { field, value } => {
                 context.get(field).and_then(|v| v.as_str()).is_some_and(|s| s.contains(value))
             }
             Condition::Regex { field, pattern } => {
                 let re = regex::Regex::new(pattern);
-                context.get(field).and_then(|v| v.as_str()).is_some_and(|s| {
-                    re.is_ok_and(|re| re.is_match(s))
-                })
+                context
+                    .get(field)
+                    .and_then(|v| v.as_str())
+                    .is_some_and(|s| re.is_ok_and(|re| re.is_match(s)))
             }
             Condition::Always => true,
         }

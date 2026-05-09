@@ -130,9 +130,10 @@ impl AudioRouter {
             let entry = entry?;
             if let Ok(modified) = entry.metadata().and_then(|m| m.modified())
                 && modified < cutoff
-                    && fs::remove_file(entry.path()).is_ok() {
-                        removed += 1;
-                    }
+                && fs::remove_file(entry.path()).is_ok()
+            {
+                removed += 1;
+            }
         }
         Ok(removed)
     }

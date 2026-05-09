@@ -157,10 +157,11 @@ impl LanceMemoryStore {
         self.persist_local_cache()?;
 
         if self.available
-            && let Err(e) = self.store_remote(&record) {
-                log::warn!("lance_memory: remote store failed, kept in local cache: {:#}", e);
-                self.available = false;
-            }
+            && let Err(e) = self.store_remote(&record)
+        {
+            log::warn!("lance_memory: remote store failed, kept in local cache: {:#}", e);
+            self.available = false;
+        }
 
         Ok(())
     }
@@ -170,9 +171,10 @@ impl LanceMemoryStore {
         let limit = limit.unwrap_or(self.config.top_k);
 
         if self.available
-            && let Ok(results) = self.search_remote(query, limit) {
-                return Ok(results);
-            }
+            && let Ok(results) = self.search_remote(query, limit)
+        {
+            return Ok(results);
+        }
 
         // Fallback: keyword search in local cache
         let query_lower = query.to_lowercase();

@@ -49,7 +49,8 @@ fn runtime_blocks_repeated_tool_invocations() {
     LoopGuard.record(&mut state, invocation, 3);
     state.save(&paths.state_file).unwrap();
 
-    let summary = futures::executor::block_on(run_once(&paths, &config, &identity, &store, started_at));
+    let summary =
+        futures::executor::block_on(run_once(&paths, &config, &identity, &store, started_at));
 
     assert_eq!(summary.outcome, "blocked_loop_guard");
     assert_eq!(
@@ -100,7 +101,8 @@ fn runtime_blocks_repeated_two_step_tool_patterns() {
     }
     state.save(&paths.state_file).unwrap();
 
-    let summary = futures::executor::block_on(run_once(&paths, &config, &identity, &store, started_at));
+    let summary =
+        futures::executor::block_on(run_once(&paths, &config, &identity, &store, started_at));
 
     assert_eq!(summary.outcome, "blocked_loop_guard");
     assert!(summary.action_summary.contains("repeating 2-step tool pattern"));

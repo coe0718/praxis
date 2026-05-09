@@ -349,17 +349,22 @@ async fn async_daemon_loop(
         let proactive_task = {
             let proactive_path = paths.data_dir.join("proactive_state.json");
             if proactive_path.exists() {
-                let mut agent: crate::proactive::ProactiveAgent = 
-                    match serde_json::from_slice(&std::fs::read(&proactive_path).unwrap_or_default()) {
-                        Ok(a) => a,
-                        Err(_) => crate::proactive::ProactiveAgent::new(),
-                    };
+                let mut agent: crate::proactive::ProactiveAgent = match serde_json::from_slice(
+                    &std::fs::read(&proactive_path).unwrap_or_default(),
+                ) {
+                    Ok(a) => a,
+                    Err(_) => crate::proactive::ProactiveAgent::new(),
+                };
                 let wake_ids = agent.check();
                 if !wake_ids.is_empty() {
                     log::info!("daemon: proactive wake-ups triggered: {:?}", wake_ids);
                 }
                 // For now, proactive wake-ups just trigger a session
-                if !wake_ids.is_empty() { Some("proactive check".to_string()) } else { None }
+                if !wake_ids.is_empty() {
+                    Some("proactive check".to_string())
+                } else {
+                    None
+                }
             } else {
                 None
             }
@@ -513,12 +518,13 @@ async fn run_session_async(data_dir: &Path, task: Option<String>) -> Result<RunS
     // Set up ProcessManager for message-passing architecture.
     // Tool execution flows through execute_request in phases.rs.
     // with_tool_executor spawns async worker/compactor/corrector processes.
-    let process_manager = crate::process_manager::ProcessManager::with_tool_executor(
-        |tool_name, _args| crate::process_manager::ToolResult {
-            success: true,
-            summary: format!("tool {} would execute", tool_name),
-        },
-    );
+    let process_manager =
+        crate::process_manager::ProcessManager::with_tool_executor(|tool_name, _args| {
+            crate::process_manager::ToolResult {
+                success: true,
+                summary: format!("tool {} would execute", tool_name),
+            }
+        });
 
     let runtime = PraxisRuntime {
         config: &config,
@@ -537,12 +543,13 @@ async fn run_session_async(data_dir: &Path, task: Option<String>) -> Result<RunS
         personality: std::cell::RefCell::new(crate::personality::HeartwarePersonality::new()),
     };
 
-    let summary = runtime.run_once(RunOptions {
-        once: true, // Always single-pass from the daemon; the daemon manages the outer loop.
-        force: task.is_some(),
-        task,
-    })
-    .await?;
+    let summary = runtime
+        .run_once(RunOptions {
+            once: true, // Always single-pass from the daemon; the daemon manages the outer loop.
+            force: task.is_some(),
+            task,
+        })
+        .await?;
 
     Ok(summary)
 }
@@ -680,26 +687,27 @@ fn check_scheduled_jobs(paths: &PraxisPaths, now: DateTime<Utc>) -> Option<Strin
 
         // Inject context from upstream jobs.
         if let Some(ref upstream_ids) = job.context_from
-            && !upstream_ids.is_empty() {
-                let outputs =
-                    ScheduledJobs::read_upstream_outputs(&paths.cron_outputs_dir, upstream_ids);
-                if !outputs.is_empty() {
-                    parts.push("[context from previous jobs]".to_string());
-                    for (upstream_id, output) in &outputs {
-                        // Truncate very long outputs to avoid overwhelming the session.
-                        let trimmed = if output.len() > 4000 {
-                            format!(
-                                "{}...\n[truncated — full output is {} bytes]",
-                                &output[..4000],
-                                output.len()
-                            )
-                        } else {
-                            output.clone()
-                        };
-                        parts.push(format!("--- output of {upstream_id} ---\n{trimmed}"));
-                    }
+            && !upstream_ids.is_empty()
+        {
+            let outputs =
+                ScheduledJobs::read_upstream_outputs(&paths.cron_outputs_dir, upstream_ids);
+            if !outputs.is_empty() {
+                parts.push("[context from previous jobs]".to_string());
+                for (upstream_id, output) in &outputs {
+                    // Truncate very long outputs to avoid overwhelming the session.
+                    let trimmed = if output.len() > 4000 {
+                        format!(
+                            "{}...\n[truncated — full output is {} bytes]",
+                            &output[..4000],
+                            output.len()
+                        )
+                    } else {
+                        output.clone()
+                    };
+                    parts.push(format!("--- output of {upstream_id} ---\n{trimmed}"));
                 }
             }
+        }
 
         parts.push(job.task.clone());
         tasks.push(parts.join("\n"));
@@ -726,84 +734,87 @@ fn poll_platforms(paths: &PraxisPaths) {
 
     // ── Telegram ──────────────────────────────────────────────────────
     if crate::messaging::TelegramBot::validate_environment().is_ok()
-        && let Ok(bot) = crate::messaging::TelegramBot::from_env() {
-            let activation =
-                crate::messaging::ActivationStore::load(&paths.activation_file).unwrap_or_default();
-            let gating = crate::messaging::MessageGating::default();
-            let ephemeral = std::collections::HashMap::new();
-            match bot.poll_once(
-                &paths.telegram_state_file,
-                &paths.sender_pairing_file,
-                &bus,
-                &activation,
-                &gating,
-                &ephemeral,
-            ) {
-                Ok((msgs, _callbacks)) => {
-                    if !msgs.is_empty() {
-                        log::info!("daemon: telegram polled {} message(s)", msgs.len());
-                    }
+        && let Ok(bot) = crate::messaging::TelegramBot::from_env()
+    {
+        let activation =
+            crate::messaging::ActivationStore::load(&paths.activation_file).unwrap_or_default();
+        let gating = crate::messaging::MessageGating::default();
+        let ephemeral = std::collections::HashMap::new();
+        match bot.poll_once(
+            &paths.telegram_state_file,
+            &paths.sender_pairing_file,
+            &bus,
+            &activation,
+            &gating,
+            &ephemeral,
+        ) {
+            Ok((msgs, _callbacks)) => {
+                if !msgs.is_empty() {
+                    log::info!("daemon: telegram polled {} message(s)", msgs.len());
                 }
-                Err(e) => log::debug!("daemon: telegram poll skipped: {e}"),
             }
+            Err(e) => log::debug!("daemon: telegram poll skipped: {e}"),
         }
+    }
 
     // ── Discord ───────────────────────────────────────────────────────
     #[cfg(feature = "discord")]
     {
         if crate::messaging::DiscordClient::validate_environment().is_ok()
-            && let Ok(client) = crate::messaging::DiscordClient::from_env() {
-                let allowed = crate::messaging::discord_allowed_user_ids();
-                match client.poll_once(&paths.discord_state_file, &allowed) {
-                    Ok(msgs) => {
-                        for msg in &msgs {
-                            let event = BusEvent::new(
-                                "message",
-                                "discord",
-                                &msg.channel_id,
-                                msg.author_id.clone(),
-                                &msg.content,
-                            );
-                            if let Err(e) = bus.publish(&event) {
-                                log::warn!("daemon: discord bus publish: {e}");
-                            }
-                        }
-                        if !msgs.is_empty() {
-                            log::info!("daemon: discord polled {} message(s)", msgs.len());
+            && let Ok(client) = crate::messaging::DiscordClient::from_env()
+        {
+            let allowed = crate::messaging::discord_allowed_user_ids();
+            match client.poll_once(&paths.discord_state_file, &allowed) {
+                Ok(msgs) => {
+                    for msg in &msgs {
+                        let event = BusEvent::new(
+                            "message",
+                            "discord",
+                            &msg.channel_id,
+                            msg.author_id.clone(),
+                            &msg.content,
+                        );
+                        if let Err(e) = bus.publish(&event) {
+                            log::warn!("daemon: discord bus publish: {e}");
                         }
                     }
-                    Err(e) => log::debug!("daemon: discord poll skipped: {e}"),
+                    if !msgs.is_empty() {
+                        log::info!("daemon: discord polled {} message(s)", msgs.len());
+                    }
                 }
+                Err(e) => log::debug!("daemon: discord poll skipped: {e}"),
             }
+        }
     }
 
     // ── Slack ─────────────────────────────────────────────────────────
     #[cfg(feature = "slack")]
     {
         if crate::messaging::SlackClient::validate_environment().is_ok()
-            && let Ok(client) = crate::messaging::SlackClient::from_env() {
-                let allowed = crate::messaging::slack_allowed_user_ids();
-                match client.poll_once(&paths.slack_state_file, &allowed) {
-                    Ok(msgs) => {
-                        for msg in &msgs {
-                            let event = BusEvent::new(
-                                "message",
-                                "slack",
-                                &msg.channel_id,
-                                msg.user_id.clone(),
-                                &msg.text,
-                            );
-                            if let Err(e) = bus.publish(&event) {
-                                log::warn!("daemon: slack bus publish: {e}");
-                            }
-                        }
-                        if !msgs.is_empty() {
-                            log::info!("daemon: slack polled {} message(s)", msgs.len());
+            && let Ok(client) = crate::messaging::SlackClient::from_env()
+        {
+            let allowed = crate::messaging::slack_allowed_user_ids();
+            match client.poll_once(&paths.slack_state_file, &allowed) {
+                Ok(msgs) => {
+                    for msg in &msgs {
+                        let event = BusEvent::new(
+                            "message",
+                            "slack",
+                            &msg.channel_id,
+                            msg.user_id.clone(),
+                            &msg.text,
+                        );
+                        if let Err(e) = bus.publish(&event) {
+                            log::warn!("daemon: slack bus publish: {e}");
                         }
                     }
-                    Err(e) => log::debug!("daemon: slack poll skipped: {e}"),
+                    if !msgs.is_empty() {
+                        log::info!("daemon: slack polled {} message(s)", msgs.len());
+                    }
                 }
+                Err(e) => log::debug!("daemon: slack poll skipped: {e}"),
             }
+        }
     }
 }
 

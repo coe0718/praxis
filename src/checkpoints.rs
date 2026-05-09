@@ -22,18 +22,18 @@ impl CheckpointManager {
     /// Create a checkpoint before editing a file.
     pub fn checkpoint(&self, path: &PathBuf) -> Result<Checkpoint> {
         let checksum = self.compute_checksum(path)?;
-        
+
         let checkpoint = Checkpoint {
             original_path: path.clone(),
             checksum,
             timestamp: chrono::Utc::now(),
         };
-        
+
         // Store the checkpoint
         let checkpoint_path = self.snapshot_path(&checkpoint);
         std::fs::create_dir_all(checkpoint_path.parent().unwrap())?;
         std::fs::copy(path, &checkpoint_path)?;
-        
+
         Ok(checkpoint)
     }
 
@@ -47,7 +47,7 @@ impl CheckpointManager {
     }
 
     fn compute_checksum(&self, path: &PathBuf) -> Result<String> {
-        use sha2::{Sha256, Digest};
+        use sha2::{Digest, Sha256};
         let mut hasher = Sha256::new();
         let contents = std::fs::read(path)?;
         hasher.update(&contents);
@@ -73,17 +73,13 @@ pub struct Checkpoint {
 }
 
 /// Auto-checkpoint wrapper for file operations.
-pub async fn with_checkpoint<F>(
-    paths: &PraxisPaths,
-    path: &PathBuf,
-    f: F,
-) -> Result<()>
+pub async fn with_checkpoint<F>(paths: &PraxisPaths, path: &PathBuf, f: F) -> Result<()>
 where
     F: FnOnce() -> Result<()>,
 {
     let manager = CheckpointManager::new(paths);
     let checkpoint = manager.checkpoint(path)?;
-    
+
     match f() {
         Ok(()) => Ok(()),
         Err(e) => {

@@ -66,18 +66,20 @@ impl EmbeddingCache {
 
     /// Store an embedding in cache.
     pub fn put(&mut self, key: String, vector: Vec<f32>, ttl_seconds: u64) {
-        self.entries.insert(key, EmbeddingCacheEntry {
-            vector,
-            cached_at: chrono::Utc::now(),
-            ttl_seconds,
-        });
+        self.entries.insert(
+            key,
+            EmbeddingCacheEntry {
+                vector,
+                cached_at: chrono::Utc::now(),
+                ttl_seconds,
+            },
+        );
     }
 
     /// Clear expired entries.
     pub fn cleanup(&mut self) {
         let now: chrono::DateTime<chrono::Utc> = chrono::Utc::now();
-        self.entries.retain(|_, e| {
-            (now - e.cached_at).num_seconds() < e.ttl_seconds as i64
-        });
+        self.entries
+            .retain(|_, e| (now - e.cached_at).num_seconds() < e.ttl_seconds as i64);
     }
 }

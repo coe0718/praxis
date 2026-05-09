@@ -39,9 +39,7 @@ impl SignedPlugin {
     /// Load a signed plugin from a directory.
     pub fn load(dir: &Path) -> Result<Self, PluginError> {
         let manifest_path = dir.join("plugin.json");
-        let manifest: PluginManifest = serde_json::from_slice(
-            &std::fs::read(&manifest_path)?,
-        )?;
+        let manifest: PluginManifest = serde_json::from_slice(&std::fs::read(&manifest_path)?)?;
 
         let wasm_path = dir.join("plugin.wasm");
         let wasm_bytes = std::fs::read(&wasm_path)?;
@@ -63,7 +61,8 @@ impl SignedPlugin {
             return Ok(false);
         }
 
-        let sig_bytes = base64::engine::general_purpose::STANDARD.decode(&self.manifest.signature)?;
+        let sig_bytes =
+            base64::engine::general_purpose::STANDARD.decode(&self.manifest.signature)?;
         let signature = Signature::from_slice(&sig_bytes).map_err(PluginError::Ed25519)?;
 
         let pub_key_bytes = hex::decode(&self.manifest.author_key)?;
@@ -127,7 +126,8 @@ impl PluginRegistry {
                     Ok(mut plugin) => {
                         if plugin.verify().unwrap_or(false) {
                             verified.push(entry.file_name().to_string_lossy().to_string());
-                            self.plugins.insert(entry.file_name().to_string_lossy().to_string(), plugin);
+                            self.plugins
+                                .insert(entry.file_name().to_string_lossy().to_string(), plugin);
                         }
                     }
                     Err(e) => {

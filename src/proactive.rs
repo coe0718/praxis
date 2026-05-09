@@ -12,7 +12,10 @@ pub enum Condition {
     /// Time-based condition (cron expression string).
     Time { cron: String },
     /// State-based condition.
-    State { key: String, expected: serde_json::Value },
+    State {
+        key: String,
+        expected: serde_json::Value,
+    },
     /// File change condition.
     FileChanged { path: String },
     /// Webhook trigger condition.
@@ -40,11 +43,17 @@ pub struct WakeUp {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum WakeAction {
     /// Run a tool.
-    RunTool { name: String, args: serde_json::Value },
+    RunTool {
+        name: String,
+        args: serde_json::Value,
+    },
     /// Send a message.
     SendMessage { channel: String, text: String },
     /// Trigger a skill.
-    RunSkill { name: String, params: serde_json::Value },
+    RunSkill {
+        name: String,
+        params: serde_json::Value,
+    },
     /// Start a routine.
     StartRoutine { name: String },
 }

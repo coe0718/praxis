@@ -18,8 +18,8 @@
 //! Proactive Scheduling:
 //! Agent can schedule wake-ups based on conditions without external triggers.
 
-pub mod schedule;
 pub mod proactive;
+pub mod schedule;
 
 use std::{fs, path::Path};
 

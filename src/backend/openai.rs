@@ -89,12 +89,12 @@ pub(super) fn execute(
         let status = response.status();
         let body = response.text().unwrap_or_default();
         let safe_body = body.chars().take(200).collect::<String>();
-        
+
         // If 429, mark the key as rate-limited for credential pooling
         if status == 429 {
             super::mark_key_rate_limited(&route.provider, &api_key);
         }
-        
+
         bail!("provider {} request failed with {status}: {safe_body}", route.provider);
     }
 

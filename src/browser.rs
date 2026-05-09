@@ -33,12 +33,9 @@ impl Default for Viewport {
 }
 
 /// Create a new browser session in Docker.
-pub fn create_browser_session(
-    _paths: &PraxisPaths,
-    _url: Option<&str>,
-) -> Result<BrowserSession> {
+pub fn create_browser_session(_paths: &PraxisPaths, _url: Option<&str>) -> Result<BrowserSession> {
     let session_id = format!("browser-{}", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0));
-    
+
     Ok(BrowserSession {
         id: session_id,
         container_id: None,
@@ -48,10 +45,7 @@ pub fn create_browser_session(
 }
 
 /// Execute a browser task.
-pub async fn execute_browser_task(
-    _session: &BrowserSession,
-    _script: &str,
-) -> Result<String> {
+pub async fn execute_browser_task(_session: &BrowserSession, _script: &str) -> Result<String> {
     anyhow::bail!("Browser automation not fully implemented")
 }
 

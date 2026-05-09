@@ -53,9 +53,7 @@ impl Default for RoutinesEngine {
 
 impl RoutinesEngine {
     pub fn new() -> Self {
-        Self {
-            routines: HashMap::new(),
-        }
+        Self { routines: HashMap::new() }
     }
 
     /// Register a routine.
@@ -77,26 +75,26 @@ impl RoutinesEngine {
     async fn execute_routine(&self, routine: &Routine, payload: serde_json::Value) -> Result<()> {
         // Send heartbeat ping
         let start_time = std::time::Instant::now();
-        
+
         // Execute the action (placeholder)
         let _ = (routine, payload);
-        
+
         // Record completion time
         let elapsed = start_time.elapsed();
-        
+
         // Log metrics
         log::info!("Routine {} completed in {:?}", routine.id, elapsed);
-        
+
         Ok(())
     }
 
     /// Start the heartbeat monitor.
     pub async fn start_heartbeat_monitor(&self) {
         let mut interval = time::interval(Duration::from_secs(60));
-        
+
         loop {
             interval.tick().await;
-            
+
             // Check for stuck routines
             // This would integrate with actual running routine state
         }

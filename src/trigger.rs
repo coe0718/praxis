@@ -38,7 +38,10 @@ pub struct EventTrigger {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TriggerCondition {
     /// Field equals value.
-    Equals { field: String, value: serde_json::Value },
+    Equals {
+        field: String,
+        value: serde_json::Value,
+    },
     /// Field contains value.
     Contains { field: String, value: String },
     /// Regex match.
@@ -92,17 +95,16 @@ impl EventRouter {
 
     fn check_condition(&self, condition: &TriggerCondition, payload: &serde_json::Value) -> bool {
         match condition {
-            TriggerCondition::Equals { field, value } => {
-                payload.get(field) == Some(value)
-            }
+            TriggerCondition::Equals { field, value } => payload.get(field) == Some(value),
             TriggerCondition::Contains { field, value } => {
                 payload.get(field).and_then(|v| v.as_str()).is_some_and(|s| s.contains(value))
             }
             TriggerCondition::Regex { field, pattern } => {
                 let re = regex::Regex::new(pattern);
-                payload.get(field).and_then(|v| v.as_str()).is_some_and(|s| {
-                    re.is_ok_and(|re| re.is_match(s))
-                })
+                payload
+                    .get(field)
+                    .and_then(|v| v.as_str())
+                    .is_some_and(|s| re.is_ok_and(|re| re.is_match(s)))
             }
         }
     }
@@ -124,10 +126,7 @@ pub struct WebhookHandler {
 impl WebhookHandler {
     /// Create new handler.
     pub fn new(router: EventRouter) -> Self {
-        Self {
-            router,
-            secret: None,
-        }
+        Self { router, secret: None }
     }
 
     /// Set webhook secret for verification.
@@ -137,7 +136,12 @@ impl WebhookHandler {
     }
 
     /// Process incoming webhook.
-    pub fn handle(&self, event_type: &str, source: &str, payload: serde_json::Value) -> Option<ExecutingTool> {
+    pub fn handle(
+        &self,
+        event_type: &str,
+        source: &str,
+        payload: serde_json::Value,
+    ) -> Option<ExecutingTool> {
         let event = Event {
             event_type: event_type.to_string(),
             source: source.to_string(),

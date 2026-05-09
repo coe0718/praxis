@@ -228,10 +228,9 @@ pub fn execute_request(
     }
 
     // Opt-in secret redaction: replace common secret patterns in tool output.
-    if redact_secrets
-        && let Ok(ref mut r) = result {
-            r.summary = super::redact::redact_output(&r.summary);
-        }
+    if redact_secrets && let Ok(ref mut r) = result {
+        r.summary = super::redact::redact_output(&r.summary);
+    }
 
     result
 }
@@ -1218,9 +1217,10 @@ fn notify_completion(
     // Also try Telegram if configured.
     if let Ok(bot) = crate::messaging::TelegramBot::from_env()
         && let Some(chat_id) = bot.primary_chat_id()
-            && let Err(e) = bot.send_message(chat_id, &status) {
-                log::warn!("notify_on_complete: telegram send failed: {e}");
-            }
+        && let Err(e) = bot.send_message(chat_id, &status)
+    {
+        log::warn!("notify_on_complete: telegram send failed: {e}");
+    }
 }
 
 fn fallback_result(

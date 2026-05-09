@@ -41,11 +41,8 @@ impl RatingProcessor {
 
     /// Calculate average rating for a task type.
     pub fn avg_for_task(&self, task_type: &str) -> Option<f32> {
-        let relevant: Vec<&UserRating> = self
-            .ratings
-            .iter()
-            .filter(|r| r.context.task_type == task_type)
-            .collect();
+        let relevant: Vec<&UserRating> =
+            self.ratings.iter().filter(|r| r.context.task_type == task_type).collect();
 
         if relevant.is_empty() {
             return None;

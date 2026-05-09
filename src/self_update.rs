@@ -18,20 +18,20 @@ pub async fn check_for_updates(_paths: &PraxisPaths) -> Result<Option<String>> {
         .header("User-Agent", "Praxis-Updater")
         .send()
         .await?;
-    
+
     if !resp.status().is_success() {
         return Ok(None);
     }
-    
+
     let release: serde_json::Value = resp.json().await?;
     let tag = release["tag_name"].as_str().unwrap_or("");
-    
+
     // Compare with current version
     let current = env!("CARGO_PKG_VERSION");
     if tag != current {
         return Ok(Some(tag.to_string()));
     }
-    
+
     Ok(None)
 }
 
@@ -43,38 +43,42 @@ pub async fn perform_self_update(paths: &PraxisPaths) -> Result<()> {
         .header("User-Agent", "Praxis-Updater")
         .send()
         .await?;
-    
+
     let release: serde_json::Value = resp.json().await?;
     let asset = release["assets"]
         .as_array()
-        .and_then(|a| a.iter().find(|a| a["name"].as_str().map(|n| n.contains("linux")).unwrap_or(false)))
+        .and_then(|a| {
+            a.iter()
+                .find(|a| a["name"].as_str().map(|n| n.contains("linux")).unwrap_or(false))
+        })
         .ok_or_else(|| anyhow::anyhow!("No linux binary found"))?;
-    
-    let download_url = asset["browser_download_url"].as_str()
+
+    let download_url = asset["browser_download_url"]
+        .as_str()
         .ok_or_else(|| anyhow::anyhow!("No download URL"))?;
-    
+
     // Download to temp file
     let binary_bytes = client.get(download_url).send().await?.bytes().await?;
     let temp_path = paths.data_dir.join("praxis-new");
     tokio::fs::write(&temp_path, &binary_bytes).await?;
-    
+
     // Make executable
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
         tokio::fs::set_permissions(&temp_path, std::fs::Permissions::from_mode(0o755)).await?;
     }
-    
+
     // Swap current binary
     let current_exe = std::env::current_exe()?;
     let backup_path = paths.data_dir.join("praxis-backup");
-    
+
     if current_exe.exists() {
         tokio::fs::copy(&current_exe, &backup_path).await?;
         tokio::fs::remove_file(&current_exe).await?;
     }
-    
+
     tokio::fs::rename(&temp_path, &current_exe).await?;
-    
+
     Ok(())
 }

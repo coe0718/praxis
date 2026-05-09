@@ -84,9 +84,10 @@ impl CdpClient {
         loop {
             let msg: Value = serde_json::from_str(&text)?;
             if let Some(msg_id) = msg.get("id").and_then(|v| v.as_i64())
-                && msg_id == id {
-                    return Ok(msg.get("result").cloned().unwrap_or(serde_json::Value::Null));
-                }
+                && msg_id == id
+            {
+                return Ok(msg.get("result").cloned().unwrap_or(serde_json::Value::Null));
+            }
             // Wait for next message
             let resp = self.socket.read()?;
             let _text = resp.into_text()?;

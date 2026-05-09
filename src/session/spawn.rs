@@ -45,7 +45,6 @@ pub struct SessionSpawnRequest {
     pub priority: SpawnPriority,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 #[derive(Default)]

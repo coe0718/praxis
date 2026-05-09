@@ -1,7 +1,7 @@
 //! Bid management for marketplace work items.
 
-use serde::{Deserialize, Serialize};
 use super::work_item::BidQuote;
+use serde::{Deserialize, Serialize};
 
 /// A bid on a work item.
 #[derive(Debug, Clone, Serialize, Deserialize)]

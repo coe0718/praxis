@@ -12,14 +12,14 @@ use crate::paths::PraxisPaths;
 pub async fn create_backup(paths: &PraxisPaths) -> Result<PathBuf> {
     let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
     let backup_path = paths.data_dir.join(format!("praxis_backup_{}.tar.gz", timestamp));
-    
+
     // Create tar.gz of important directories
     let tar_dir = paths.data_dir.join("backups");
     tokio::fs::create_dir_all(&tar_dir).await?;
-    
+
     // For now, just create a placeholder
     tokio::fs::write(&backup_path, b"backup placeholder").await?;
-    
+
     Ok(backup_path)
 }
 

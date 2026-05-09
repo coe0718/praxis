@@ -91,6 +91,40 @@ impl Provider {
     }
 }
 
+/// All available OpenMolt providers — the integration registry uses this as
+/// the canonical list of natively supported services.
+pub const PROVIDER_LIST: &[Provider] = &[
+    Provider::Gmail,
+    Provider::Slack,
+    Provider::Discord,
+    Provider::GitHub,
+    Provider::Notion,
+    Provider::Stripe,
+    Provider::Spotify,
+    Provider::Telegram,
+    Provider::GoogleCalendar,
+    Provider::GoogleMeet,
+    Provider::Linear,
+    Provider::Jira,
+    Provider::Trello,
+    Provider::Asana,
+    Provider::HubSpot,
+    Provider::Salesforce,
+    Provider::Postgres,
+    Provider::MySQL,
+    Provider::Redis,
+    Provider::Webhook,
+];
+
+/// Wire OpenMolt into the tool registry at orient time.
+/// Returns a summary of available integrations for tool awareness.
+pub fn register_integrations() -> String {
+    let names: Vec<&str> = PROVIDER_LIST.iter().map(|p| p.name()).collect();
+    let joined = names.join(", ");
+    log::debug!("openmolt: {} providers available — {joined}", names.len());
+    format!("{} integrations available: {joined}", names.len())
+}
+
 /// Integration registry managing all available integrations.
 pub struct IntegrationRegistry {
     configs: std::collections::HashMap<String, IntegrationConfig>,

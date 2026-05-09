@@ -25,7 +25,7 @@ pub use docs::sync_capabilities;
 pub use execute::{ToolExecutionResult, discover_mcp_tools, execute_request};
 pub use guard::{DEFAULT_LOOP_GUARD_LIMIT, GuardDecision, LoopGuard};
 pub use manifest::{ToolKind, ToolManifest};
-pub use policy::{default_hardline_blocklist, SecurityPolicy};
+pub use policy::{SecurityPolicy, default_hardline_blocklist};
 pub use registry::{FileToolRegistry, ToolRegistry};
 pub use request::build_payload;
 pub use request::parse_payload;

@@ -73,7 +73,8 @@ impl SkillPack {
 
     /// Validate dependencies.
     pub fn validate_dependencies(&self, installed: &[&str]) -> Vec<String> {
-        self.manifest.dependencies
+        self.manifest
+            .dependencies
             .iter()
             .filter(|dep| !installed.contains(&dep.as_str()))
             .cloned()

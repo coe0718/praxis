@@ -117,27 +117,28 @@ pub fn process_due_jobs(
     for job in &store.jobs {
         let ext = extensions_fn(job);
         if ext.no_agent
-            && let Some(script) = script_fn(job) {
-                match run_script_job(job, &script, &ext) {
-                    Ok(result) => {
-                        log::info!(
-                            "cron: no_agent job {} completed (exit={}, wake={})",
-                            job.id,
-                            result.exit_code,
-                            result.should_wake_agent
-                        );
-                        results.push(result);
-                    }
-                    Err(e) => {
-                        log::warn!("cron: no_agent job {} failed: {:#}", job.id, e);
-                        results.push(ScriptJobResult {
-                            output: format!("error: {:#}", e),
-                            should_wake_agent: false,
-                            exit_code: -1,
-                        });
-                    }
+            && let Some(script) = script_fn(job)
+        {
+            match run_script_job(job, &script, &ext) {
+                Ok(result) => {
+                    log::info!(
+                        "cron: no_agent job {} completed (exit={}, wake={})",
+                        job.id,
+                        result.exit_code,
+                        result.should_wake_agent
+                    );
+                    results.push(result);
+                }
+                Err(e) => {
+                    log::warn!("cron: no_agent job {} failed: {:#}", job.id, e);
+                    results.push(ScriptJobResult {
+                        output: format!("error: {:#}", e),
+                        should_wake_agent: false,
+                        exit_code: -1,
+                    });
                 }
             }
+        }
         // Regular jobs are handled by the existing daemon WakeIntent flow
     }
 

@@ -43,6 +43,16 @@ pub struct LiteMode {
     pub disable_deterministic: bool,
     #[serde(default = "default_disable_curator")]
     pub disable_curator: bool,
+    #[serde(default = "default_disable_federation")]
+    pub disable_federation: bool,
+    #[serde(default = "default_disable_openmolt")]
+    pub disable_openmolt: bool,
+    #[serde(default = "default_disable_wave")]
+    pub disable_wave: bool,
+    #[serde(default = "default_disable_channels")]
+    pub disable_channels: bool,
+    #[serde(default = "default_disable_hotreload")]
+    pub disable_hotreload: bool,
 }
 
 impl Default for LiteMode {
@@ -59,6 +69,11 @@ impl Default for LiteMode {
             disable_deterministic: default_disable_deterministic(),
             disable_sse: default_disable_sse(),
             disable_curator: default_disable_curator(),
+            disable_federation: default_disable_federation(),
+            disable_openmolt: default_disable_openmolt(),
+            disable_wave: default_disable_wave(),
+            disable_channels: default_disable_channels(),
+            disable_hotreload: default_disable_hotreload(),
         }
     }
 }
@@ -92,6 +107,21 @@ fn default_disable_deterministic() -> bool {
 }
 fn default_disable_curator() -> bool {
     false
+}
+fn default_disable_federation() -> bool {
+    true
+}
+fn default_disable_openmolt() -> bool {
+    true
+}
+fn default_disable_wave() -> bool {
+    false
+}
+fn default_disable_channels() -> bool {
+    false
+}
+fn default_disable_hotreload() -> bool {
+    true
 }
 
 impl LiteMode {
@@ -142,6 +172,21 @@ impl LiteMode {
             if let Some(v) = t.get("lite_disable_curator").and_then(toml::Value::as_bool) {
                 lite.disable_curator = v;
             }
+            if let Some(v) = t.get("lite_disable_federation").and_then(toml::Value::as_bool) {
+                lite.disable_federation = v;
+            }
+            if let Some(v) = t.get("lite_disable_openmolt").and_then(toml::Value::as_bool) {
+                lite.disable_openmolt = v;
+            }
+            if let Some(v) = t.get("lite_disable_wave").and_then(toml::Value::as_bool) {
+                lite.disable_wave = v;
+            }
+            if let Some(v) = t.get("lite_disable_channels").and_then(toml::Value::as_bool) {
+                lite.disable_channels = v;
+            }
+            if let Some(v) = t.get("lite_disable_hotreload").and_then(toml::Value::as_bool) {
+                lite.disable_hotreload = v;
+            }
         }
         Ok(lite)
     }
@@ -160,6 +205,11 @@ impl LiteMode {
             LiteCapability::SseStream => self.disable_sse,
             LiteCapability::Deterministic => self.disable_deterministic,
             LiteCapability::Curator => self.disable_curator,
+            LiteCapability::Federation => self.disable_federation,
+            LiteCapability::OpenMolt => self.disable_openmolt,
+            LiteCapability::Wave => self.disable_wave,
+            LiteCapability::Channels => self.disable_channels,
+            LiteCapability::HotReload => self.disable_hotreload,
         }
     }
 }
@@ -174,9 +224,18 @@ pub enum LiteCapability {
     Brief,
     SseStream,
     Deterministic,
-    /// (#6) Autonomous curator — skill grading cycle.  Skipping this in lite
-    /// mode leaves curator reports stale but does not affect agent behaviour.
+    /// (#6) Autonomous curator — skill grading cycle.
     Curator,
+    /// Agent federation — multi-agent parallel task decomposition.
+    Federation,
+    /// OpenMolt integration registry — provider tool awareness.
+    OpenMolt,
+    /// Wave execution engine — parallel tool wave scheduling.
+    Wave,
+    /// Signal/Matrix enterprise channels — external messaging alerts.
+    Channels,
+    /// Config hot-reload — zero-downtime configuration updates.
+    HotReload,
 }
 
 // ---------------------------------------------------------------------------
@@ -225,6 +284,11 @@ impl LiteMode {
             disable_sse: true,
             disable_deterministic: true,
             disable_curator: true,
+            disable_federation: true,
+            disable_openmolt: true,
+            disable_wave: true,
+            disable_channels: true,
+            disable_hotreload: true,
             anatomy_refresh_hours: 24,
         }
     }

@@ -18,12 +18,13 @@ fn current_task_id() -> Option<String> {
 /// This is the hallucination gate from Hermes commit #20232.
 fn enforce_worker_ownership(_store: &KanbanStore, task_id: &str) -> Result<()> {
     if let Some(current) = current_task_id()
-        && current != task_id {
-            bail!(
-                "Hallucination gate: task {task_id} is not assigned to this worker (owned={current}). \
+        && current != task_id
+    {
+        bail!(
+            "Hallucination gate: task {task_id} is not assigned to this worker (owned={current}). \
                  Workers can only mutate their own task. This may indicate a prompt-injection attack."
-            );
-        }
+        );
+    }
     Ok(())
 }
 
@@ -65,8 +66,8 @@ pub fn handle_kanban_create(
             .collect()
     };
 
-    let priority =
-        TaskPriority::parse_from_str(&priority_str).context("invalid priority, use low|medium|high")?;
+    let priority = TaskPriority::parse_from_str(&priority_str)
+        .context("invalid priority, use low|medium|high")?;
 
     let store = dispatcher::get_store()?;
     let task = store.create_task(

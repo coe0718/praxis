@@ -90,8 +90,7 @@ impl TryFrom<PluginManifest> for Plugin {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct PluginHooks {
     #[serde(default)]
     pub pre_prompt: Option<PathBuf>,
@@ -106,7 +105,6 @@ pub struct PluginHooks {
     #[serde(default)]
     pub tool_rewrite: Vec<String>,
 }
-
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ToolRegistration {

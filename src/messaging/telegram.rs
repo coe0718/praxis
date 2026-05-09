@@ -12,8 +12,7 @@ use crate::{
 /// Gating configuration extracted from `SecurityConfig` for use during
 /// Telegram message filtering.  Keeps the messaging layer decoupled from
 /// the full config module.
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct MessageGating {
     /// When `true`, skip group messages that don't @mention the bot.
     pub require_mention: bool,
@@ -21,7 +20,6 @@ pub struct MessageGating {
     /// accepted.  Empty means all users are allowed.
     pub allowed_users: Vec<String>,
 }
-
 
 #[derive(Debug, Clone)]
 pub struct TelegramBot {
@@ -148,19 +146,20 @@ impl TelegramBot {
         let mut callbacks = Vec::new();
         for update in &updates {
             if let Some(cq) = &update.callback_query
-                && let (Some(data), Some(from)) = (&cq.data, &cq.from) {
-                    let sender_id = from.id;
-                    if self.allowed_chat_ids.contains(&sender_id) {
-                        callbacks.push(CallbackQuery {
-                            chat_id: sender_id,
-                            data: data.clone(),
-                        });
-                    }
-                    // Answer the callback to dismiss the loading spinner.
-                    if let Err(e) = self.answer_callback(&cq.id) {
-                        log::warn!("answer_callback failed: {e}");
-                    }
+                && let (Some(data), Some(from)) = (&cq.data, &cq.from)
+            {
+                let sender_id = from.id;
+                if self.allowed_chat_ids.contains(&sender_id) {
+                    callbacks.push(CallbackQuery {
+                        chat_id: sender_id,
+                        data: data.clone(),
+                    });
                 }
+                // Answer the callback to dismiss the loading spinner.
+                if let Err(e) = self.answer_callback(&cq.id) {
+                    log::warn!("answer_callback failed: {e}");
+                }
+            }
         }
 
         let messages = filter_messages(

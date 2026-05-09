@@ -122,6 +122,25 @@ where
         // (#51) Initialize the inactivity tracker at session start.
         self.last_tool_activity.set(Some(now));
 
+        // Config hot-reload: check for changes before beginning the session.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::HotReload) {
+            let watcher = crate::hotreload::ConfigWatcher::new(self.paths.config_file.clone());
+            match watcher.check_reload() {
+                Ok(true) => {
+                    log::info!(
+                        "config file changed — reload noted; full hot-reload pending restart"
+                    );
+                    if let Err(e) = self
+                        .emit("agent:config_hotreload", "config change detected at session start")
+                    {
+                        log::warn!("failed to emit config_hotreload event: {e}");
+                    }
+                }
+                Ok(false) => {}
+                Err(e) => log::warn!("config hot-reload check failed: {e}"),
+            }
+        }
+
         while state.current_phase != SessionPhase::Sleep {
             // (#51) Check inactivity timeout before each phase.
             if let Some(inactive_summary) = self.check_inactivity_timeout(&state)? {
@@ -145,33 +164,49 @@ where
 
     async fn run_phase(&self, state: &mut SessionState) -> Result<()> {
         match state.current_phase {
-            SessionPhase::Orient => self.execute_phase(
-                state,
-                "agent:orient_start",
-                "Loading identity, goals, tools, and local context.",
-                Self::orient,
-                SessionPhase::Decide,
-            ).await,
-            SessionPhase::Decide => self.execute_phase(
-                state,
-                "agent:decide_start",
-                "Selecting the next unit of work.",
-                Self::decide,
-                SessionPhase::Act,
-            ).await,
-            SessionPhase::Act => self.execute_phase(
-                state,
-                "agent:act_start",
-                "Executing safe internal maintenance or approved tool work.",
-                Self::act,
-                SessionPhase::Reflect,
-            ).await,
+            SessionPhase::Orient => {
+                self.execute_phase(
+                    state,
+                    "agent:orient_start",
+                    "Loading identity, goals, tools, and local context.",
+                    Self::orient,
+                    SessionPhase::Decide,
+                )
+                .await
+            }
+            SessionPhase::Decide => {
+                self.execute_phase(
+                    state,
+                    "agent:decide_start",
+                    "Selecting the next unit of work.",
+                    Self::decide,
+                    SessionPhase::Act,
+                )
+                .await
+            }
+            SessionPhase::Act => {
+                self.execute_phase(
+                    state,
+                    "agent:act_start",
+                    "Executing safe internal maintenance or approved tool work.",
+                    Self::act,
+                    SessionPhase::Reflect,
+                )
+                .await
+            }
             SessionPhase::Reflect => self.execute_reflect(state).await,
             SessionPhase::Sleep => Ok(()),
         }
     }
 
-    async fn execute_phase<F>(&self, state: &mut SessionState, event_kind: &str, detail: &str, handler: F, next_phase: SessionPhase) -> Result<()>
+    async fn execute_phase<F>(
+        &self,
+        state: &mut SessionState,
+        event_kind: &str,
+        detail: &str,
+        handler: F,
+        next_phase: SessionPhase,
+    ) -> Result<()>
     where
         F: FnOnce(&Self, &mut SessionState) -> Result<()>,
     {

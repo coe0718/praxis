@@ -30,13 +30,22 @@ pub enum SkillTrigger {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SkillAction {
     /// Run a tool.
-    RunTool { name: String, args: serde_json::Value },
+    RunTool {
+        name: String,
+        args: serde_json::Value,
+    },
     /// Set context variable.
-    Set { key: String, value: serde_json::Value },
+    Set {
+        key: String,
+        value: serde_json::Value,
+    },
     /// Send a message.
     Message { channel: String, text: String },
     /// Invoke another skill.
-    InvokeSkill { id: String, params: serde_json::Value },
+    InvokeSkill {
+        id: String,
+        params: serde_json::Value,
+    },
 }
 
 /// Runtime skill factory for creating skills dynamically.
@@ -53,10 +62,7 @@ impl RuntimeSkillFactory {
 
     /// Create a new skill from a template or specification.
     pub fn create(&mut self, spec: SkillSpec) -> Result<String, anyhow::Error> {
-        let id = format!(
-            "rt_{}",
-            chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
-        );
+        let id = format!("rt_{}", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0));
 
         let skill = RuntimeSkill {
             id: id.clone(),

@@ -85,9 +85,9 @@ pub struct BrowserAgent {
 impl BrowserAgent {
     #[wasm_bindgen(constructor)]
     pub fn new(config_json: &str) -> Result<BrowserAgent, JsValue> {
-        let config: BrowserAgentConfig = serde_json::from_str(config_json)
-            .map_err(|e| JsValue::from_str(&e.to_string()))?;
-        
+        let config: BrowserAgentConfig =
+            serde_json::from_str(config_json).map_err(|e| JsValue::from_str(&e.to_string()))?;
+
         Ok(BrowserAgent {
             agent_id: config.agent_id.clone(),
             config,

@@ -12,8 +12,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::providers::ProviderRoute;
 
-use super::{InputContent, ProviderRequest};
 use super::openai::{resolve_api_key, resolve_endpoint};
+use super::{InputContent, ProviderRequest};
 
 /// A single streamed token (or the final usage block).
 #[derive(Debug, Clone)]

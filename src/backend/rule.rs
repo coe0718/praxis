@@ -9,7 +9,10 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Condition {
     /// Check if a field equals a value.
-    Equals { field: String, value: serde_json::Value },
+    Equals {
+        field: String,
+        value: serde_json::Value,
+    },
     /// Check if a field contains a substring.
     Contains { field: String, value: String },
     /// Check if numeric comparison.
@@ -28,9 +31,7 @@ impl Condition {
     /// Evaluate condition against context.
     pub fn eval(&self, ctx: &serde_json::Value) -> bool {
         match self {
-            Condition::Equals { field, value } => {
-                ctx.get(field) == Some(value)
-            }
+            Condition::Equals { field, value } => ctx.get(field) == Some(value),
             Condition::Contains { field, value } => {
                 ctx.get(field).and_then(|v| v.as_str()).is_some_and(|s| s.contains(value))
             }
@@ -39,9 +40,9 @@ impl Condition {
             }
             Condition::Regex { field, pattern } => {
                 let re = regex::Regex::new(pattern);
-                ctx.get(field).and_then(|v| v.as_str()).is_some_and(|s| {
-                    re.is_ok_and(|re| re.is_match(s))
-                })
+                ctx.get(field)
+                    .and_then(|v| v.as_str())
+                    .is_some_and(|s| re.is_ok_and(|re| re.is_match(s)))
             }
             Condition::Always => true,
             Condition::And(conditions) => conditions.iter().all(|c| c.eval(ctx)),
@@ -54,9 +55,15 @@ impl Condition {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Action {
     /// Run a tool by name with parameters.
-    Tool { name: String, args: serde_json::Value },
+    Tool {
+        name: String,
+        args: serde_json::Value,
+    },
     /// Set a variable in context.
-    Set { field: String, value: serde_json::Value },
+    Set {
+        field: String,
+        value: serde_json::Value,
+    },
     /// Send a message.
     Message { channel: String, text: String },
     /// Create a new context branch.
@@ -114,11 +121,12 @@ impl RuleEngine {
     /// Update context with new values.
     pub fn update_context(&mut self, updates: serde_json::Value) {
         if let serde_json::Value::Object(map) = updates
-            && let serde_json::Value::Object(ctx) = &mut self.context {
-                for (k, v) in map {
-                    ctx.insert(k, v);
-                }
+            && let serde_json::Value::Object(ctx) = &mut self.context
+        {
+            for (k, v) in map {
+                ctx.insert(k, v);
             }
+        }
     }
 }
 

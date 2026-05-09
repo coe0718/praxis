@@ -3,13 +3,13 @@
 //! Praxis agents can connect to decentralized marketplaces to find paid work,
 //! submit bids, execute tasks, and collect reputation.
 
-mod work_item;
 mod bid;
 mod reputation;
+mod work_item;
 
-pub use work_item::{BidQuote, WorkItem, WorkItemStatus};
 pub use bid::{Bid, BidStatus};
 pub use reputation::{MarketplaceReputation, ReputationEvent};
+pub use work_item::{BidQuote, WorkItem, WorkItemStatus};
 
 /// Marketplace client for agent work discovery.
 pub struct MarketplaceClient {

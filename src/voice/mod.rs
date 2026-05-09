@@ -29,9 +29,15 @@ pub struct VoiceConfig {
     pub local_fallback: bool,
 }
 
-fn default_tts() -> String { "openai".to_string() }
-fn default_stt() -> String { "whisper".to_string() }
-fn true_val() -> bool { true }
+fn default_tts() -> String {
+    "openai".to_string()
+}
+fn default_stt() -> String {
+    "whisper".to_string()
+}
+fn true_val() -> bool {
+    true
+}
 
 impl Default for VoiceConfig {
     fn default() -> Self {
@@ -72,10 +78,7 @@ impl Default for TtsRequest {
 }
 
 /// Synthesize speech from text.
-pub async fn synthesize_speech(
-    _paths: &PraxisPaths,
-    _req: TtsRequest,
-) -> Result<Vec<u8>> {
+pub async fn synthesize_speech(_paths: &PraxisPaths, _req: TtsRequest) -> Result<Vec<u8>> {
     anyhow::bail!("TTS not yet implemented")
 }
 
@@ -102,10 +105,7 @@ pub struct SttResponse {
 }
 
 /// Transcribe speech to text.
-pub async fn transcribe_speech(
-    _paths: &PraxisPaths,
-    _req: SttRequest,
-) -> Result<SttResponse> {
+pub async fn transcribe_speech(_paths: &PraxisPaths, _req: SttRequest) -> Result<SttResponse> {
     anyhow::bail!("STT not yet implemented")
 }
 
@@ -114,7 +114,7 @@ pub async fn transcribe_speech(
 /// Available TTS providers.
 pub mod tts {
     use super::*;
-    
+
     pub struct ElevenLabs;
     pub struct OpenAiTts;
     pub struct Piper;
@@ -130,7 +130,7 @@ pub mod tts {
 /// Available STT providers.
 pub mod stt {
     use super::*;
-    
+
     pub struct WhisperCpp;
     pub struct OpenAiStt;
     pub struct Groq;

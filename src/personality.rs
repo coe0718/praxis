@@ -156,12 +156,7 @@ impl HeartwarePersonality {
     }
 
     /// Record an interaction.
-    pub fn record_interaction(
-        &mut self,
-        name: &str,
-        summary: &str,
-        outcome: InteractionOutcome,
-    ) {
+    pub fn record_interaction(&mut self, name: &str, summary: &str, outcome: InteractionOutcome) {
         let interaction = Interaction {
             timestamp: chrono::Utc::now().timestamp(),
             summary: summary.to_string(),

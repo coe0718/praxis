@@ -8,7 +8,7 @@ use anyhow::Result;
 /// Scan input for prompt injection patterns.
 pub fn detect_injection(text: &str) -> Result<Vec<InjectionFinding>> {
     let mut findings = Vec::new();
-    
+
     // Common injection patterns
     let patterns = [
         ("Jailbreak", r"(?i)(ignore.*[previous|all].*instruction|disregard.*system)"),
@@ -17,7 +17,7 @@ pub fn detect_injection(text: &str) -> Result<Vec<InjectionFinding>> {
         ("Instruction override", r"(?i)(new instruction|override|replace.*system)"),
         ("DAN mode", r"(?i)(do anything now|dan mode|unfiltered)"),
     ];
-    
+
     for (pattern_name, pattern) in patterns {
         if regex::Regex::new(pattern)?.is_match(text) {
             findings.push(InjectionFinding {
@@ -26,7 +26,7 @@ pub fn detect_injection(text: &str) -> Result<Vec<InjectionFinding>> {
             });
         }
     }
-    
+
     Ok(findings)
 }
 
@@ -51,12 +51,8 @@ pub enum Severity {
 /// Sanitize input by removing injection patterns.
 pub fn sanitize_input(text: &str) -> Result<String> {
     // Remove common injection markers
-    let sanitized = text
-        .replace("<|", "")
-        .replace("|>", "")
-        .replace("<?", "")
-        .replace("?>", "");
-    
+    let sanitized = text.replace("<|", "").replace("|>", "").replace("<?", "").replace("?>", "");
+
     Ok(sanitized)
 }
 

@@ -7,7 +7,7 @@
 use anyhow::Result;
 use once_cell::sync::Lazy;
 use std::sync::atomic::{AtomicU64, Ordering};
-use tracing_subscriber::{fmt, EnvFilter};
+use tracing_subscriber::{EnvFilter, fmt};
 
 /// Global metrics registry for Prometheus exports.
 pub mod metrics {
@@ -18,10 +18,18 @@ pub mod metrics {
     pub static MCP_CALL_COUNT: Lazy<AtomicU64> = Lazy::new(|| AtomicU64::new(0));
     pub static STREAMING_TOKEN_COUNT: Lazy<AtomicU64> = Lazy::new(|| AtomicU64::new(0));
 
-    pub fn inc_request() { REQUEST_COUNT.fetch_add(1, Ordering::Relaxed); }
-    pub fn inc_tool() { TOOL_EXECUTION_COUNT.fetch_add(1, Ordering::Relaxed); }
-    pub fn inc_mcp() { MCP_CALL_COUNT.fetch_add(1, Ordering::Relaxed); }
-    pub fn inc_tokens(n: u64) { STREAMING_TOKEN_COUNT.fetch_add(n, Ordering::Relaxed); }
+    pub fn inc_request() {
+        REQUEST_COUNT.fetch_add(1, Ordering::Relaxed);
+    }
+    pub fn inc_tool() {
+        TOOL_EXECUTION_COUNT.fetch_add(1, Ordering::Relaxed);
+    }
+    pub fn inc_mcp() {
+        MCP_CALL_COUNT.fetch_add(1, Ordering::Relaxed);
+    }
+    pub fn inc_tokens(n: u64) {
+        STREAMING_TOKEN_COUNT.fetch_add(n, Ordering::Relaxed);
+    }
 
     pub fn gather() -> String {
         format!(
@@ -52,13 +60,9 @@ pub mod metrics {
 pub fn init_tracing() -> Result<()> {
     let log_level = std::env::var("PRAXIS_LOG").unwrap_or_else(|_| "info".to_string());
 
-    let env_filter = EnvFilter::try_new(&log_level)
-        .unwrap_or_else(|_| EnvFilter::new("info"));
+    let env_filter = EnvFilter::try_new(&log_level).unwrap_or_else(|_| EnvFilter::new("info"));
 
-    fmt()
-        .with_env_filter(env_filter)
-        .json()
-        .init();
+    fmt().with_env_filter(env_filter).json().init();
 
     Ok(())
 }

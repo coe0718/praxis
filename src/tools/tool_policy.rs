@@ -104,9 +104,10 @@ impl ToolPolicy {
             if pp.allow_all {
                 allowed = None; // None = all allowed
             } else if let Some(ts_name) = &pp.toolset
-                && let Some(ts) = self.toolsets.get(ts_name) {
-                    allowed = Some(ts.tools.iter().cloned().collect());
-                }
+                && let Some(ts) = self.toolsets.get(ts_name)
+            {
+                allowed = Some(ts.tools.iter().cloned().collect());
+            }
             for (tool, enabled) in &pp.overrides {
                 if !enabled {
                     disabled.insert(tool.clone());
@@ -117,9 +118,10 @@ impl ToolPolicy {
         // Step 2: Channel overrides
         if let Some(cp) = self.channels.get(channel_id) {
             if let Some(ts_name) = &cp.toolset
-                && let Some(ts) = self.toolsets.get(ts_name) {
-                    allowed = Some(ts.tools.iter().cloned().collect());
-                }
+                && let Some(ts) = self.toolsets.get(ts_name)
+            {
+                allowed = Some(ts.tools.iter().cloned().collect());
+            }
             for (tool, enabled) in &cp.overrides {
                 if !enabled {
                     disabled.insert(tool.clone());

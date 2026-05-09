@@ -3,8 +3,8 @@
 //! Tools execute in isolated Docker containers with resource limits.
 //! Each tool gets its own container with specific capabilities and mounts.
 
-use std::process::Command;
 use serde::{Deserialize, Serialize};
+use std::process::Command;
 
 /// Container configuration for isolated tool execution.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -60,22 +60,30 @@ impl IronClaw {
         config: &ContainerConfig,
         args: &[String],
     ) -> Result<String, anyhow::Error> {
-        let container_name = format!("praxis-{}-{}", tool_name, chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0));
-        
+        let container_name = format!(
+            "praxis-{}-{}",
+            tool_name,
+            chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+        );
+
         let mut cmd = Command::new("docker");
         cmd.args(["run", "--rm", "--name", &container_name]);
-        
+
         // Add resource limits
         cmd.args(["--memory", &config.memory_limit]);
         if let Some(cpu) = &config.cpu_limit {
             cmd.args(["--cpus", cpu]);
         }
 
-// Network mode
+        // Network mode
         match config.network_mode {
-            NetworkMode::Isolated => { cmd.args(["--network", "none"]); }
-            NetworkMode::Bridge => { cmd.args(["--network", "bridge"]); }
-            NetworkMode::None => {},
+            NetworkMode::Isolated => {
+                cmd.args(["--network", "none"]);
+            }
+            NetworkMode::Bridge => {
+                cmd.args(["--network", "bridge"]);
+            }
+            NetworkMode::None => {}
         }
 
         // Mounts
@@ -97,14 +105,11 @@ impl IronClaw {
         cmd.args(args);
 
         let output = cmd.output()?;
-        
+
         if output.status.success() {
             Ok(String::from_utf8_lossy(&output.stdout).to_string())
         } else {
-            Err(anyhow::anyhow!(
-                "Container failed: {}",
-                String::from_utf8_lossy(&output.stderr)
-            ))
+            Err(anyhow::anyhow!("Container failed: {}", String::from_utf8_lossy(&output.stderr)))
         }
     }
 
@@ -124,9 +129,7 @@ impl IronClaw {
 
     /// Remove unused containers.
     pub fn cleanup(&mut self) -> Result<(), anyhow::Error> {
-        let _ = Command::new("docker")
-            .args(["container", "prune", "-f"])
-            .output();
+        let _ = Command::new("docker").args(["container", "prune", "-f"]).output();
         self.containers.clear();
         Ok(())
     }

@@ -60,6 +60,14 @@ where
 
         self.identity.validate(self.paths)?;
         self.tools.validate(self.paths)?;
+
+        // OpenMolt integration registry: register available providers as tool awareness
+        // so the agent knows which services are natively integrated.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::OpenMolt) {
+            let summary = crate::openmolt::register_integrations();
+            log::debug!("orient: {summary}");
+        }
+
         enforce_active_hand(self.paths, self.tools)?;
 
         // Convert any inbound delegation tasks into approval requests so the
@@ -265,7 +273,9 @@ where
 
         // ── Marketplace integration ───────────────────────────────────────────────
         // Check for available paid work when no local goals match
-        if state.selected_goal_id.is_none() && state.last_outcome.as_deref() == Some("waiting_on_dependencies") {
+        if state.selected_goal_id.is_none()
+            && state.last_outcome.as_deref() == Some("waiting_on_dependencies")
+        {
             let client = crate::marketplace::MarketplaceClient::new("praxis");
             let work_items = client.query_work(None);
             if !work_items.is_empty() {
@@ -343,7 +353,22 @@ where
             self.try_delegate(state, task_key, &summary, self.clock.now_utc())?
         {
             state.last_outcome = Some("delegated".to_string());
-            state.action_summary = Some(delegated_to);
+            state.action_summary = Some(delegated_to.clone());
+            // Channel notification: delegated task alert.
+            crate::channels::notify_event("delegated", &format!("{task_key}: {delegated_to}"));
+            state.updated_at = self.clock.now_utc();
+            return Ok(());
+        }
+
+        // Agent Federation: decompose complex tasks across specialized agent roles.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::Federation)
+            && let Some(goal_title) = state.selected_goal_title.as_deref()
+            && summary.len() > 200
+            && let Ok(fed) = self.try_federation(goal_title, &summary)
+        {
+            state.last_outcome = Some("federated".to_string());
+            state.action_summary = Some(fed);
+            crate::channels::notify_event("federated", goal_title);
             state.updated_at = self.clock.now_utc();
             return Ok(());
         }
@@ -359,6 +384,11 @@ where
         } else {
             self.run_speculative(&summary, state)?
         };
+
+        // Wave execution: log availability for parallel tool plans when enabled.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::Wave) {
+            log::debug!("wave: parallel execution engine available for multi-tool plans");
+        }
 
         let output = self.backend.finalize_action(
             &summary,
@@ -442,6 +472,39 @@ where
         let available: Vec<String> =
             store.available_outbound(task_key).into_iter().map(|l| l.name.clone()).collect();
         let Some(link_name) = available.into_iter().next() else {
+            // No local delegation link — try A2A protocol if a remote agent URL is configured.
+            if let Ok(agent_url) = std::env::var("PRAXIS_A2A_AGENT_URL")
+                && let Ok(client) = crate::a2a::A2aClient::new(&agent_url)
+            {
+                let req = crate::a2a::types::SendTaskRequest {
+                    id: format!("praxis_{}", now.timestamp_millis()),
+                    session_id: format!("session_{}", now.timestamp_millis()),
+                    message: crate::a2a::types::Message {
+                        role: "user".to_string(),
+                        parts: vec![crate::a2a::types::Part::Text {
+                            text: task_summary.to_string(),
+                        }],
+                    },
+                };
+                match client.send_task(&req) {
+                    Ok(resp) => {
+                        self.emit(
+                            "agent:a2a_delegated",
+                            &format!(
+                                "task sent via A2A to {} — status: {:?}",
+                                agent_url, resp.status
+                            ),
+                        )?;
+                        return Ok(Some(format!(
+                            "Task delegated via A2A to {agent_url}: {task_summary}"
+                        )));
+                    }
+                    Err(e) => {
+                        log::warn!("A2A delegation failed: {e}");
+                        return Ok(None);
+                    }
+                }
+            }
             return Ok(None);
         };
         if let Some(link) = store.links.get_mut(&link_name) {
@@ -458,6 +521,45 @@ where
             &format!("task delegated to {link_name} ({endpoint}): {task_summary}"),
         )?;
         Ok(Some(format!("Task delegated to {link_name}: {task_summary}")))
+    }
+
+    /// Attempt agent federation for a complex task.
+    /// Decomposes the task across specialized agent roles and returns a summary.
+    fn try_federation(&self, goal_title: &str, summary: &str) -> Result<String> {
+        let fed = crate::federation::AgentFederation::new(self.paths);
+        let req = crate::federation::FederationRequest {
+            task: goal_title.to_string(),
+            max_agents: 4,
+            context: summary.to_string(),
+        };
+        let result = fed.run(req)?;
+        if result.success {
+            self.emit(
+                "agent:federated",
+                &format!(
+                    "federation {}: {} subtasks completed",
+                    result.federation_id,
+                    result.results.len()
+                ),
+            )?;
+            crate::channels::notify_event(
+                "federated",
+                &format!(
+                    "{}: {}",
+                    result.federation_id,
+                    result.final_output.chars().take(120).collect::<String>()
+                ),
+            );
+            Ok(format!(
+                "Federation {} completed: {} subtasks — {}",
+                result.federation_id,
+                result.results.len(),
+                result.final_output.chars().take(200).collect::<String>()
+            ))
+        } else {
+            log::warn!("federation {} failed — falling back to single-agent", result.federation_id);
+            anyhow::bail!("federation run unsuccessful")
+        }
     }
 
     fn execute_tool_request(&self, state: &mut SessionState, request_id: i64) -> Result<()> {
@@ -703,55 +805,52 @@ pub(crate) fn notify_approval_request(approval_id: i64, tool_name: &str, summary
     {
         use crate::messaging::DiscordClient;
         if let Ok(discord) = DiscordClient::from_env()
-            && let Ok(channel_ids) = std::env::var("PRAXIS_DISCORD_CHANNEL_IDS") {
-                // Send to the first configured Discord channel.
-                if let Some(channel_id) =
-                    channel_ids.split(',').next().map(|s| s.trim().to_string())
+            && let Ok(channel_ids) = std::env::var("PRAXIS_DISCORD_CHANNEL_IDS")
+        {
+            // Send to the first configured Discord channel.
+            if let Some(channel_id) = channel_ids.split(',').next().map(|s| s.trim().to_string()) {
+                let discord_buttons =
+                    vec![("✅ Approve", approve_data.as_str()), ("❌ Deny", deny_data.as_str())];
+                if let Err(e) =
+                    discord.send_message_with_buttons(&channel_id, &text, &discord_buttons)
                 {
-                    let discord_buttons = vec![
-                        ("✅ Approve", approve_data.as_str()),
-                        ("❌ Deny", deny_data.as_str()),
-                    ];
-                    if let Err(e) =
-                        discord.send_message_with_buttons(&channel_id, &text, &discord_buttons)
-                    {
-                        log::warn!(
-                            "failed to send Discord approval notification with buttons: {e}"
-                        );
-                    }
+                    log::warn!("failed to send Discord approval notification with buttons: {e}");
                 }
             }
+        }
     }
 }
 
 pub(crate) fn handle_approval_callback(store: &dyn ApprovalStore, data: &str) -> Result<bool> {
     if let Some(id_str) = data.strip_prefix("approve:") {
         if let Ok(id) = id_str.parse::<i64>()
-            && let Some(req) = store.get_approval(id)? {
-                use crate::storage::ApprovalStatus;
-                if req.status == ApprovalStatus::Pending {
-                    store.set_approval_status(
-                        id,
-                        ApprovalStatus::Approved,
-                        Some("approved via Telegram button"),
-                    )?;
-                    log::info!("approval #{id} approved via Telegram button");
-                    return Ok(true);
-                }
+            && let Some(req) = store.get_approval(id)?
+        {
+            use crate::storage::ApprovalStatus;
+            if req.status == ApprovalStatus::Pending {
+                store.set_approval_status(
+                    id,
+                    ApprovalStatus::Approved,
+                    Some("approved via Telegram button"),
+                )?;
+                log::info!("approval #{id} approved via Telegram button");
+                return Ok(true);
             }
+        }
     } else if let Some(id_str) = data.strip_prefix("deny:")
         && let Ok(id) = id_str.parse::<i64>()
-            && let Some(req) = store.get_approval(id)? {
-                use crate::storage::ApprovalStatus;
-                if req.status == ApprovalStatus::Pending {
-                    store.set_approval_status(
-                        id,
-                        ApprovalStatus::Rejected,
-                        Some("denied via Telegram button"),
-                    )?;
-                    log::info!("approval #{id} denied via Telegram button");
-                    return Ok(true);
-                }
-            }
+        && let Some(req) = store.get_approval(id)?
+    {
+        use crate::storage::ApprovalStatus;
+        if req.status == ApprovalStatus::Pending {
+            store.set_approval_status(
+                id,
+                ApprovalStatus::Rejected,
+                Some("denied via Telegram button"),
+            )?;
+            log::info!("approval #{id} denied via Telegram button");
+            return Ok(true);
+        }
+    }
     Ok(false)
 }

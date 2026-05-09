@@ -15,10 +15,10 @@ pub mod streaming;
 pub mod transport;
 
 pub(crate) use credential_pool::init_pools;
-/// Re-exported for cross-module tool use (e.g., image generation).
-pub(crate) use openai::resolve_api_key;
 /// Re-exported for rate limit handling.
 pub(crate) use credential_pool::mark_key_rate_limited;
+/// Re-exported for cross-module tool use (e.g., image generation).
+pub(crate) use openai::resolve_api_key;
 
 use anyhow::Result;
 

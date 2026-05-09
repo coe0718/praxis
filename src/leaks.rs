@@ -8,7 +8,7 @@ use anyhow::Result;
 /// Scan output for credential leaks.
 pub fn detect_leaks(text: &str) -> Result<Vec<LeakFinding>> {
     let mut findings = Vec::new();
-    
+
     // Common credential patterns
     let patterns = [
         ("OpenAI key", r"sk-[a-zA-Z0-9]{48}"),
@@ -20,7 +20,7 @@ pub fn detect_leaks(text: &str) -> Result<Vec<LeakFinding>> {
         ("Google API", r"AIza[0-9A-Za-z_-]{35}"),
         ("JWT", r"eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+"),
     ];
-    
+
     for (name, pattern) in patterns {
         if let Ok(re) = regex::Regex::new(pattern) {
             for m in re.find_iter(text) {
@@ -33,7 +33,7 @@ pub fn detect_leaks(text: &str) -> Result<Vec<LeakFinding>> {
             }
         }
     }
-    
+
     Ok(findings)
 }
 

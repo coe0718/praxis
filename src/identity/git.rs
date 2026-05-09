@@ -111,13 +111,15 @@ impl GitIdentity {
         if output.status.success() {
             let skills = self.scan_for_new_skills()?;
             self.head_sha = Some(
-                String::from_utf8_lossy(&std::process::Command::new("git")
-                    .args(["rev-parse", "HEAD"])
-                    .current_dir(&self.repo_path)
-                    .output()?
-                    .stdout)
-                    .trim()
-                    .to_string(),
+                String::from_utf8_lossy(
+                    &std::process::Command::new("git")
+                        .args(["rev-parse", "HEAD"])
+                        .current_dir(&self.repo_path)
+                        .output()?
+                        .stdout,
+                )
+                .trim()
+                .to_string(),
             );
             Ok(skills)
         } else {
@@ -136,9 +138,10 @@ impl GitIdentity {
         for entry in std::fs::read_dir(skills_dir)? {
             let entry = entry?;
             if entry.path().extension().is_some_and(|e| e == "rs" || e == "toml")
-                && let Some(name) = entry.file_name().to_str() {
-                    skills.push(name.to_string());
-                }
+                && let Some(name) = entry.file_name().to_str()
+            {
+                skills.push(name.to_string());
+            }
         }
         Ok(skills)
     }

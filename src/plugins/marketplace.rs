@@ -62,9 +62,10 @@ impl PluginMarketplace {
         let query_lower = query.to_lowercase();
 
         if self.cached_entries.is_empty()
-            && let Err(e) = self.fetch_remote() {
-                log::warn!("plugin_marketplace: remote fetch failed: {:#}", e);
-            }
+            && let Err(e) = self.fetch_remote()
+        {
+            log::warn!("plugin_marketplace: remote fetch failed: {:#}", e);
+        }
 
         let results: Vec<MarketplaceEntry> = self
             .cached_entries
@@ -74,7 +75,8 @@ impl PluginMarketplace {
                     || p.description.to_lowercase().contains(&query_lower)
                     || p.tags.iter().any(|t| t.to_lowercase().contains(&query_lower))
             })
-            .take(limit).cloned()
+            .take(limit)
+            .cloned()
             .collect();
 
         Ok(results)
