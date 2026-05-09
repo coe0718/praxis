@@ -214,6 +214,8 @@ where
         state.selected_tool_request_id = None;
 
         // Rules engine — check for Zero-LLM fast-path decisions before LLM call.
+        // When a rule matches, its actions are applied directly: Tool actions set
+        // selected_tool_name (skipping LLM planning), Message actions set action_summary.
         if !self.lite.skip_capability(crate::lite::LiteCapability::Rules) {
             let engine = crate::rules::RuleEngine::new(crate::rules::RuleSet::default());
             let context = serde_json::json!({
@@ -222,6 +224,41 @@ where
             });
             if let Some(rule) = engine.match_rule(&context) {
                 log::debug!("decide: rule engine matched rule '{}' — using fast path", rule.id);
+                let mut tool_set = false;
+                for action in &rule.then {
+                    match action {
+                        crate::rules::Action::Tool { name, args } => {
+                            log::info!(
+                                "decide: rule '{}' selecting tool '{}' via Zero-LLM fast path",
+                                rule.id,
+                                name
+                            );
+                            state.selected_tool_name = Some(name.clone());
+                            state.last_outcome = Some("rule_tool_selected".to_string());
+                            state.action_summary = Some(format!(
+                                "Rule '{}' selected tool '{}' with args: {}",
+                                rule.id, name, args
+                            ));
+                            tool_set = true;
+                        }
+                        crate::rules::Action::Message { text } => {
+                            state.action_summary = Some(text.clone());
+                            state.last_outcome = Some("rule_message".to_string());
+                            log::info!("decide: rule '{}' produced message response", rule.id);
+                            tool_set = true;
+                        }
+                        crate::rules::Action::Set { field, value } => {
+                            log::debug!("decide: rule '{}' set {}={}", rule.id, field, value);
+                        }
+                        crate::rules::Action::Branch { rule: target } => {
+                            log::debug!("decide: rule '{}' branches to '{}'", rule.id, target);
+                        }
+                    }
+                }
+                if tool_set {
+                    state.updated_at = self.clock.now_utc();
+                    return Ok(());
+                }
             }
         }
 
@@ -460,7 +497,7 @@ where
 
         // Speculative execution: rehearse an alternative approach and pick the
         // higher-scoring branch before committing to finalize_action.
-        let summary = if self.lite.skip_capability(crate::lite::LiteCapability::Speculative) {
+        let mut summary = if self.lite.skip_capability(crate::lite::LiteCapability::Speculative) {
             summary.clone()
         } else {
             self.run_speculative(&summary, state)?
@@ -472,25 +509,66 @@ where
         }
 
         // Prompt injection detection — scan LLM output before execution.
+        // If findings are detected with Block policy, abort execution entirely.
         if !self.lite.skip_capability(crate::lite::LiteCapability::Injection) {
             if let Ok(findings) = crate::injection::detect_injection(&summary) {
                 if !findings.is_empty() {
+                    let has_critical = findings
+                        .iter()
+                        .any(|f| matches!(f.severity, crate::injection::Severity::Critical));
+                    let has_high = findings
+                        .iter()
+                        .any(|f| matches!(f.severity, crate::injection::Severity::High));
                     log::warn!(
-                        "act: injection detection found {} suspicious pattern(s)",
-                        findings.len()
+                        "act: injection detection found {} suspicious pattern(s) (critical={}, high={})",
+                        findings.len(),
+                        has_critical,
+                        has_high,
                     );
-                    if let Ok(_sanitized) = crate::injection::sanitize_input(&summary) {
-                        log::debug!("act: input sanitized before execution");
+                    if has_critical || has_high {
+                        let patterns: Vec<&str> =
+                            findings.iter().map(|f| f.pattern.as_str()).collect();
+                        let _ = self.emit(
+                            "agent:injection_blocked",
+                            &format!(
+                                "Blocked execution: injection patterns [{}]",
+                                patterns.join(", ")
+                            ),
+                        );
+                        state.last_outcome = Some("blocked_injection".to_string());
+                        state.action_summary = Some(format!(
+                            "Execution blocked: {} injection pattern(s) detected ({})",
+                            findings.len(),
+                            patterns.join(", "),
+                        ));
+                        state.updated_at = self.clock.now_utc();
+                        return Ok(());
+                    }
+                    // Medium/Low severity — sanitize and continue.
+                    if let Ok(sanitized) = crate::injection::sanitize_input(&summary) {
+                        log::debug!("act: input sanitized (non-critical injection patterns)");
+                        summary = sanitized;
                     }
                 }
             }
         }
 
         // Secret leak scanning — check tool response for key/secret exfiltration.
+        // Redact any found credentials from the summary before it propagates further.
         if !self.lite.skip_capability(crate::lite::LiteCapability::Leaks) {
             if let Ok(findings) = crate::leaks::detect_leaks(&summary) {
                 if !findings.is_empty() {
-                    log::warn!("act: leak detection found {} sensitive pattern(s)", findings.len());
+                    log::warn!(
+                        "act: leak detection found {} sensitive pattern(s) — redacting",
+                        findings.len()
+                    );
+                    summary = crate::leaks::redact(&summary, &findings);
+                    let types: Vec<&str> =
+                        findings.iter().map(|f| f.credential_type.as_str()).collect();
+                    let _ = self.emit(
+                        "agent:leaks_redacted",
+                        &format!("Redacted {} credential(s): {}", findings.len(), types.join(", ")),
+                    );
                 }
             }
         }
@@ -500,14 +578,8 @@ where
             log::debug!("act: IronClaw container isolation available for shell tools");
         }
 
-        // Sandbox enforcement — per-channel filesystem isolation.
-        if !self.lite.skip_capability(crate::lite::LiteCapability::SandboxEnforcement) {
-            if let Ok(store) = crate::sandbox::ChannelSandboxStore::load(
-                &self.paths.data_dir.join("sandbox_policies.json"),
-            ) {
-                log::debug!("act: sandbox policies loaded — {}", store.summary());
-            }
-        }
+        // Sandbox enforcement is applied in execute_tool_request() where it can
+        // actually block tool execution per channel policy. See the SandboxVerdict gate there.
 
         // Auto-checkpoints — snapshot state before file-modifying actions.
         if !self.lite.skip_capability(crate::lite::LiteCapability::Checkpoints) {
@@ -748,6 +820,41 @@ where
                 Some(format!("Tool '{}' blocked by plugin policy: {reason}", request.tool_name));
             state.updated_at = self.clock.now_utc();
             return Ok(());
+        }
+
+        // Sandbox gate — evaluate tool against per-channel sandbox policy.
+        // Blocks tools that exceed the channel's security level or match denied patterns.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::SandboxEnforcement) {
+            let tool_kind = manifest.kind.clone();
+            let required_level = manifest.required_level;
+            let tool_name = request.tool_name.clone();
+            let verdict = crate::sandbox::check_channel_tool(
+                self.paths,
+                "default",
+                &tool_name,
+                tool_kind,
+                required_level,
+            );
+            match verdict {
+                crate::sandbox::SandboxVerdict::Block(reason) => {
+                    self.emit(
+                        "agent:tool_blocked_by_sandbox",
+                        &format!("{} — {}", tool_name, reason),
+                    )?;
+                    state.last_outcome = Some("blocked_sandbox".to_string());
+                    state.action_summary =
+                        Some(format!("Tool '{}' blocked by sandbox policy: {reason}", tool_name));
+                    state.updated_at = self.clock.now_utc();
+                    return Ok(());
+                }
+                crate::sandbox::SandboxVerdict::RequireApproval => {
+                    log::info!(
+                        "sandbox: tool '{}' requires explicit approval (force_approval=true)",
+                        tool_name
+                    );
+                }
+                crate::sandbox::SandboxVerdict::Allow => {}
+            }
         }
 
         SecurityPolicy.validate_request(self.config, self.paths, &manifest, &request)?;
