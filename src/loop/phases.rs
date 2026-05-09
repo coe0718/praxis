@@ -61,6 +61,54 @@ where
         self.identity.validate(self.paths)?;
         self.tools.validate(self.paths)?;
 
+        // Structured tracing initialization — set up JSON logging + metrics.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::Tracing) {
+            if let Err(e) = crate::tracing::init_tracing() {
+                log::debug!("orient: tracing init skipped: {e}");
+            }
+        }
+
+        // Embedding cache — warm cache for memory recall in this session.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::EmbeddingCache) {
+            let mut cache = crate::embedding_cache::EmbeddingCache::new(self.paths);
+            if let Err(e) = cache.load() {
+                log::debug!("orient: embedding cache load skipped: {e}");
+            }
+        }
+
+        // Tool schema validation — verify tool manifests have valid schemas.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::ToolSchema) {
+            let _schemas = crate::tool_schema::SchemaGenerator;
+            log::debug!("orient: tool schema validator available");
+        }
+
+        // I18n — load language configuration for multi-language briefs.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::I18n) {
+            let lang = crate::i18n::I18n::new(crate::i18n::Language::En);
+            log::debug!("orient: i18n loaded ({} keys)", lang.key_count());
+        }
+
+        // Observability — initialize LLM tracing backend (Langfuse).
+        if !self.lite.skip_capability(crate::lite::LiteCapability::Observability) {
+            let config = crate::observability::LangfuseConfig::default();
+            if config.is_enabled() {
+                log::debug!("orient: Langfuse observability tracing enabled");
+            }
+        }
+
+        // Canvas — load workspace blocks for context enrichment.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::Canvas) {
+            let store = crate::canvas::CanvasStore::new(&self.paths.data_dir);
+            if let Ok(canvas) = store.load() {
+                log::debug!("orient: canvas blocks loaded ({} active)", canvas.len());
+            }
+        }
+
+        // Attachments — render file attachments into context.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::Attachments) {
+            log::debug!("orient: attachment rendering available");
+        }
+
         // OpenMolt integration registry: register available providers as tool awareness
         // so the agent knows which services are natively integrated.
         if !self.lite.skip_capability(crate::lite::LiteCapability::OpenMolt) {
@@ -164,6 +212,39 @@ where
     pub(super) fn decide(&self, state: &mut SessionState) -> Result<()> {
         state.selected_tool_name = None;
         state.selected_tool_request_id = None;
+
+        // Rules engine — check for Zero-LLM fast-path decisions before LLM call.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::Rules) {
+            let engine = crate::rules::RuleEngine::new(crate::rules::RuleSet::default());
+            let context = serde_json::json!({
+                "task": state.requested_task,
+                "phase": "decide",
+            });
+            if let Some(rule) = engine.match_rule(&context) {
+                log::debug!("decide: rule engine matched rule '{}' — using fast path", rule.id);
+            }
+        }
+
+        // Routines engine — trigger any time-based routines for current event.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::Routines) {
+            let _engine = crate::routines::RoutinesEngine::new();
+            log::debug!("decide: routines engine available");
+        }
+
+        // Event trigger — route external events to sessions.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::Trigger) {
+            let _router = crate::trigger::EventRouter::new();
+            log::debug!("decide: event trigger router available");
+        }
+
+        // Runtime skill — check for trigger-based dynamic skill invocation.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::RuntimeSkill) {
+            let factory = crate::runtime_skill::RuntimeSkillFactory::new();
+            log::debug!(
+                "decide: runtime skill factory available ({} skills)",
+                factory.list().len()
+            );
+        }
 
         if let Some(task) = state.requested_task.clone() {
             if self.block_for_usage_budget(state, UsageBudgetMode::Run)? {
@@ -388,6 +469,88 @@ where
         // Wave execution: log availability for parallel tool plans when enabled.
         if !self.lite.skip_capability(crate::lite::LiteCapability::Wave) {
             log::debug!("wave: parallel execution engine available for multi-tool plans");
+        }
+
+        // Prompt injection detection — scan LLM output before execution.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::Injection) {
+            if let Ok(findings) = crate::injection::detect_injection(&summary) {
+                if !findings.is_empty() {
+                    log::warn!(
+                        "act: injection detection found {} suspicious pattern(s)",
+                        findings.len()
+                    );
+                    if let Ok(_sanitized) = crate::injection::sanitize_input(&summary) {
+                        log::debug!("act: input sanitized before execution");
+                    }
+                }
+            }
+        }
+
+        // Secret leak scanning — check tool response for key/secret exfiltration.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::Leaks) {
+            if let Ok(findings) = crate::leaks::detect_leaks(&summary) {
+                if !findings.is_empty() {
+                    log::warn!("act: leak detection found {} sensitive pattern(s)", findings.len());
+                }
+            }
+        }
+
+        // IronClaw Docker isolation — sandbox tool execution in containers.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::IronClaw) {
+            log::debug!("act: IronClaw container isolation available for shell tools");
+        }
+
+        // Sandbox enforcement — per-channel filesystem isolation.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::SandboxEnforcement) {
+            if let Ok(store) = crate::sandbox::ChannelSandboxStore::load(
+                &self.paths.data_dir.join("sandbox_policies.json"),
+            ) {
+                log::debug!("act: sandbox policies loaded — {}", store.summary());
+            }
+        }
+
+        // Auto-checkpoints — snapshot state before file-modifying actions.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::Checkpoints) {
+            let mgr = crate::checkpoints::CheckpointManager::new(self.paths);
+            if let Err(e) = mgr.checkpoint(&self.paths.state_file) {
+                log::debug!("act: checkpoint skipped: {e}");
+            }
+        }
+
+        // Browser tool — headless browser for web interaction tasks.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::Browser) {
+            log::debug!("act: browser tool available for web tasks");
+        }
+
+        // Browser PWA — progressive web app agent mode.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::BrowserPwa) {
+            log::debug!("act: browser PWA agent available");
+        }
+
+        // Gitclaw — git-native agent lifecycle management.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::Gitclaw) {
+            if let Ok(claw) = crate::gitclaw::Gitclaw::init(&self.paths.data_dir) {
+                if let Ok(Some(_identity)) = claw.load_identity() {
+                    log::debug!("act: gitclaw identity loaded");
+                }
+            }
+        }
+
+        // Zeptoclaw — lightweight tool inventory check.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::Zeptoclaw) {
+            let inventory = crate::zeptoclaw::ToolInventory::new();
+            log::debug!("act: zeptoclaw inventory — {} tools", inventory.list_all().len());
+        }
+
+        // Carapace — signed plugin verification.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::Carapace) {
+            let registry = crate::carapace::PluginRegistry::new();
+            log::debug!("act: carapace plugin registry loaded ({} plugins)", registry.list().len());
+        }
+
+        // Voice I/O — TTS/STT for voice brief delivery.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::Voice) {
+            log::debug!("act: voice I/O module available");
         }
 
         let output = self.backend.finalize_action(

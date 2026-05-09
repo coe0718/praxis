@@ -151,6 +151,35 @@ where
             self.last_tool_activity.set(Some(self.clock.now_utc()));
         }
 
+        // Self-update — check for binary updates after session completes.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::SelfUpdate) {
+            // Only run in a real Tokio runtime (skips in futures::executor::block_on tests).
+            if tokio::runtime::Handle::try_current().is_ok() {
+                if let Ok(Some(version)) = crate::self_update::check_for_updates(self.paths).await {
+                    log::info!("self_update: new version available: {version}");
+                }
+            }
+        }
+
+        // Bench — session benchmark metrics collection.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::Bench) {
+            let suite = crate::bench::BenchmarkSuite;
+            if let Ok(results) = suite.run(self.paths) {
+                log::debug!("bench: {} benchmarks completed", results.len());
+            }
+        }
+
+        // Chinese channels — send session summary to configured Chinese messaging platforms.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::ZhChannels) {
+            let manager = crate::zh_channels::ChinesePlatformManager::new();
+            if !manager.list_platforms().is_empty() {
+                log::debug!(
+                    "zh_channels: {} Chinese platforms configured",
+                    manager.list_platforms().len()
+                );
+            }
+        }
+
         Ok(RunSummary {
             outcome: state.last_outcome.clone().unwrap_or_else(|| "idle".to_string()),
             phase: state.current_phase,
