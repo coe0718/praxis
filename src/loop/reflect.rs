@@ -197,13 +197,9 @@ where
             }
         }
 
-        // Archive — daily snapshot for data portability.
-        if !self.lite.skip_capability(crate::lite::LiteCapability::Archive)
-            && let Err(e) =
-                crate::archive::maybe_create_daily_snapshot(self.config, self.paths, ended_at)
-        {
-            log::debug!("reflect: archive snapshot skipped: {e}");
-        }
+        // Archive — daily snapshot is handled by the CLI handler after run_once()
+        // returns (core.rs), so it can include the result in structured output.
+        // Avoid creating it here to prevent double-creation.
 
         // Backup verification — check backup integrity after session.
         if !self.lite.skip_capability(crate::lite::LiteCapability::Backup)
