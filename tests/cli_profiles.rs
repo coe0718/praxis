@@ -36,7 +36,7 @@ fn offline_profile_forces_local_backend_and_surfaces_in_status() {
         .arg("check")
         .assert()
         .success()
-        .stdout(predicate::str::contains("answer: Offline profile local answer"));
+        .stdout(predicate::str::contains("summary: Offline profile local answer"));
 
     praxis_command()
         .arg("--data-dir")

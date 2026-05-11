@@ -163,7 +163,9 @@ pub(crate) fn handle_run(data_dir_override: Option<PathBuf>, args: RunArgs) -> R
         .context("failed to create tokio runtime")?
         .block_on(runtime.run_once(RunOptions { once, force, task: args.task }))?;
     let snapshot = if config.runtime.daily_backup_snapshots {
-        maybe_create_daily_snapshot(&config, &paths, clock.now_utc())?
+        let result = maybe_create_daily_snapshot(&config, &paths, clock.now_utc())?;
+        log::info!("snapshot result: {:?}", result);
+        result
     } else {
         None
     };

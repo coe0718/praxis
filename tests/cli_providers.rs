@@ -84,5 +84,5 @@ fn local_first_fallback_prefers_ollama_for_low_risk_asks() {
         .arg("brief")
         .assert()
         .success()
-        .stdout(predicate::str::contains("answer: Ollama local fallback answer"));
+        .stdout(predicate::str::contains("summary: Ollama local fallback answer"));
 }
