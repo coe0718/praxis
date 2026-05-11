@@ -13,7 +13,7 @@
 - Proactive Agent Mode ✅ EXISTS (src/proactive.rs, src/wakeup/proactive.rs)
 - Code-First Integration API (OpenMolt) ✅ DONE — 30+ type-safe integrations
 - Signed WASM Plugins (Carapace) ✅ DONE — cryptographic verification for skills
-- Scheduled Event Triggers ✅ EXISTS (src/tools/cron_ext.rs)
+- Scheduled Event Triggers ✅ DONE — cron evaluation, composite conditions, trigger chains
 - 32 Built-in Tools (ZeptoClaw) ✅ DONE — 32 tools across 6 categories
 - Chinese Platform Channels ✅ DONE (QQ, Feishu, DingTalk, WeChat, WeCom)
 - Chinese LLM Providers ✅ N/A — integrated via provider system
@@ -22,12 +22,19 @@
 - Onchain Reputation System ✅ DONE — verifiable reputation from work
 - Mobile App Framework ✅ DONE — push notifications and session summaries
 
-### Tier 3 (Long-term - 11+ features)
+### Tier 3 (Long-term - ALL COMPLETE)
 - Zod-typed Tool Outputs ✅ DONE — JSON schema generator with OpenAPI compatibility
-- Local STT/TTS — Stub structs exist (ElevenLabs, WhisperCpp, etc.), impl not done
+- Voice I/O (STT/TTS) ✅ DONE — OpenAI TTS-1 + ElevenLabs TTS, Whisper/Deepgram/Groq STT
 - Local Embedding Caching ✅ DONE — wired in orient() phase, load/save/get/put
-- Embedding Provider System — Not started
-- Scheduled Event Triggers — Basic version exists in trigger.rs, enhanced routing not done
+- Embedding Provider System ✅ DONE — OpenAI + local hash, cache integration, cosine similarity
+- Scheduled Event Triggers ✅ DONE — cron evaluation, And/Or/Not conditions, HMAC webhooks, chains
+
+### New Features (2026-05-11)
+- Rate Limiter ✅ DONE — token bucket, per-tool + global, dynamic registration
+- Health Monitor ✅ DONE — subsystem checks, alerting, Healthy/Degraded/Unhealthy
+- Semantic Search ✅ DONE — vector similarity search, metadata filtering
+- Tool Pipeline ✅ DONE — declarative multi-step chains, variable resolution, failure policies
+- Cost Tracker ✅ DONE — per-session/tool/model, 15 known model prices, token summaries
 
 ---
 
@@ -36,37 +43,49 @@
 All 10 items from the OpenClaw gap analysis are now closed:
 
 || # | Feature | Status | Implementation |
-||---|---------|--------|----------------|| 1 | Kanban | ✅ | `src/kanban/` — full board with dispatcher + workers |
-|| 2 | Sessions spawn | ✅ | `src/session/spawn.rs` — programmatic creation |
-|| 3 | Curator | ✅ | `src/curator/mod.rs` — run_cycle wired |
-|| 4 | 429 fallback | ✅ | `src/backend/retry.rs` — exponential backoff |
-|| 5 | Cron extensions | ✅ | `src/tools/cron_ext.rs` — no_agent, wake_gate |
-|| 6 | Live Canvas | ✅ | `src/canvas/mod.rs` — streaming HTML surface |
-|| 7 | LanceDB memory | ✅ | `src/memory/lance.rs` — vector semantic recall |
-|| 8 | Auto-reply | ✅ | `src/messaging/auto_reply.rs` — rate-limited responses |
-|| 9 | i18n | ✅ | `src/i18n/mod.rs` — 9 languages |
-|| 10 | Plugin registry | ✅ | `src/plugins/marketplace.rs` — remote discovery |
+|---|---------|--------|----------------|
+| 1 | Kanban | ✅ | `src/kanban/` — full board with dispatcher + workers |
+| 2 | Sessions spawn | ✅ | `src/session/spawn.rs` — programmatic creation |
+| 3 | Curator | ✅ | `src/curator/mod.rs` — run_cycle wired |
+| 4 | 429 fallback | ✅ | `src/backend/retry.rs` — exponential backoff |
+| 5 | Cron extensions | ✅ | `src/tools/cron_ext.rs` — no_agent, wake_gate |
+| 6 | Live Canvas | ✅ | `src/canvas/mod.rs` — streaming HTML surface |
+| 7 | LanceDB memory | ✅ | `src/memory/lance.rs` — vector semantic recall |
+| 8 | Auto-reply | ✅ | `src/messaging/auto_reply.rs` — rate-limited responses |
+| 9 | i18n | ✅ | `src/i18n/mod.rs` — 9 languages |
+| 10 | Plugin registry | ✅ | `src/plugins/marketplace.rs` — remote discovery |
 
 ---
 
 ## External Integrations
 
 || Integration | Status | Notes |
-||-------------|--------|-------|
-|| Telegram | ✅ Working | Polling bot, morning brief, daily gate |
-|| Discord | ✅ In+Out | `discord.rs` outbound + `inbound.rs` REST polling |
-|| Slack | ✅ In+Out | `slack.rs` outbound + `inbound.rs` REST polling |
-|| Spotify | ✅ Working | PKCE OAuth2, 8 actions |
-|| Google Meet | ✅ Working | OAuth2 device flow, 4 actions |
-|| Langfuse | ✅ Wired | Real HTTP client |
-|| Prometheus | ✅ Wired | `/metrics` endpoint |
-|| Vercel | 🔴 Blocked | No vercel.com project/SDK |
+|-------------|--------|-------|
+| Telegram | ✅ Working | Polling bot, morning brief, daily gate |
+| Discord | ✅ In+Out | `discord.rs` outbound + `inbound.rs` REST polling |
+| Slack | ✅ In+Out | `slack.rs` outbound + `inbound.rs` REST polling |
+| Spotify | ✅ Working | PKCE OAuth2, 8 actions |
+| Google Meet | ✅ Working | OAuth2 device flow, 4 actions |
+| Langfuse | ✅ Wired | Real HTTP client |
+| Prometheus | ✅ Wired | `/metrics` endpoint |
+| Vercel | 🔴 Blocked | No vercel.com project/SDK |
+
+---
+
+## Test Status
+
+**370 tests passing, 1 ignored, 0 failures.**
 
 ---
 
 ## Remaining for Competition ($20k prize)
 
-All core features complete. Shelldex features in pipeline for Q2-Q3 2026.
+All core features complete. All Shelldex Tiers 1-3 complete.
+5 additional features added today (rate limiter, health monitor, semantic search, tool pipeline, cost tracker).
+
+External blockers only:
+- Vercel Sandbox SDK — no SDK available
+- Discord Voice/opus crate — not available
 
 ---
 
@@ -84,18 +103,18 @@ Root docs:
 src/ module directories (all with mod.rs):
  a2a/ anatomy/ anomaly/ archive/ argus/ attachments/
  backend/ bench/ boundaries/ brief/ bus/ canary/
- carapace/ canvas/ cli/ config/ context/ crypto/ curator/
- daemon/ dashboard/ delegation/ events/ evolution/ examples/
- federation/ forensics/ hands/ heartbeat/ hooks/ i18n/ identity/
+ carapace/ canvas/ cli/ config/ context/ cost/ curator/
+ daemon/ dashboard/ delegation/ embedding/ events/ evolution/ examples/
+ federation/ forensics/ hands/ health/ heartbeat/ hooks/ i18n/ identity/
  kanban/ learning/ lib/ lite/ loop/ main/ mcp/
  meet/ memory/ merkle/ messaging/ oauth/ observability/
- onchain_reputation/ openmolt/ paths/ personality/ plugins/ profiles/ providers/ quality/
- rating_improve/ report/ runtime_skill/ rules/ sandbox/ score/ session/ skills/ speculative/
+ onchain_reputation/ openmolt/ paths/ personality/ pipeline/ plugins/ profiles/ providers/ quality/
+ rate_limit/ rating_improve/ report/ runtime_skill/ rules/ sandbox/ score/
+ semantic_search/ session/ skill_pack/ skills/ speculative/
  spotify/ state/ storage/ time/ tools/ tui/
- usage/ vault/ wakeup/ wave/ webhook/ webhooks/
+ usage/ vault/ voice/ wakeup/ wave/ webhook/ webhooks/
  zeptoclaw/ zh_channels/
 ```
 
 ---
 
-_Last updated: 2026-05-08 — Drey_
