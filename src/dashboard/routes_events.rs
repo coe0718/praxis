@@ -19,10 +19,15 @@ use crate::{
 
 use super::server::DashboardState;
 
-pub(super) async fn index() -> Html<&'static str> {
-    Html(
-        r#"<!doctype html><html><body><p>Praxis — React UI served separately on port 5173</p></body></html>"#,
-    )
+pub(super) async fn index() -> impl IntoResponse {
+    use axum::response::Html;
+    // Try to load from frontend/dist/index.html (allows frontend rebuilds without Rust recompile)
+    let index_path = std::path::Path::new("frontend/dist/index.html");
+    let html = std::fs::read_to_string(index_path).unwrap_or_else(|e| {
+        log::warn!("dashboard: failed to load frontend/dist/index.html: {e}");
+        format!(r#"<!doctype html><html><head><title>Praxis</title></head><body><p>Loading Praxis dashboard...</p><script>fetch('/api/summary').then(r=>r.json()).then(d=>document.body.innerHTML='<pre>'+JSON.stringify(d,null,2))</script></body></html>"#)
+    });
+    Html(html)
 }
 
 pub(super) async fn status_text(State(state): State<DashboardState>) -> impl IntoResponse {
