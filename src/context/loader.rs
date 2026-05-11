@@ -54,6 +54,14 @@ impl LocalContextLoader {
         let operational = OperationalMemoryLoader.load(store, requested_task, open_goals)?;
         let recent_decisions = store.recent_decisions(5)?;
         let reader = TrackedContextReader;
+
+        // Semantic + FTS hybrid search fused with RRF for higher relevance.
+        let semantic_results = if let Some(task) = requested_task {
+            hybrid_memory_search(store, task)
+        } else {
+            String::new()
+        };
+
         let inputs = vec![
             source("soul", reader.read(store, state, &paths.soul_file, "soul")?),
             source("identity", reader.read(store, state, &paths.identity_file, "identity")?),
@@ -65,6 +73,7 @@ impl LocalContextLoader {
             source("memory_hot", memory.render_hot()),
             source("memory_cold", memory.render_cold()),
             source("memory_linked", memory.render_linked()),
+            source("semantic_memory", semantic_results),
             source("patterns", reader.read(store, state, &paths.patterns_file, "patterns")?),
             source(
                 "journal",
@@ -209,6 +218,60 @@ fn load_user_memory(path: &std::path::Path) -> String {
     crate::memory::user::UserMemory::load(path)
         .map(|m| m.render())
         .unwrap_or_default()
+}
+
+/// Hybrid memory search: run both FTS and semantic search, fuse results with RRF.
+fn hybrid_memory_search<S: MemoryStore + MemoryLinkStore>(store: &S, task: &str) -> String {
+    // FTS results
+    let fts_results = match store.search_memories(task, 10) {
+        Ok(r) => r,
+        Err(_) => return String::new(),
+    };
+
+    // Semantic results
+    let semantic_results = match store.search_memories_semantic(task, 10) {
+        Ok(r) => r,
+        Err(_) => return String::new(),
+    };
+
+    // Build ranked lists for RRF fusion.
+    let fts_ranked: Vec<(String, usize)> = fts_results
+        .iter()
+        .enumerate()
+        .map(|(rank, m)| (format!("mem-{}", m.id), rank + 1))
+        .collect();
+    let sem_ranked: Vec<(String, usize)> = semantic_results
+        .iter()
+        .enumerate()
+        .map(|(rank, m)| (format!("mem-{}", m.id), rank + 1))
+        .collect();
+
+    let fused = crate::rrf::combine_rrf(
+        vec![("fts".to_string(), fts_ranked), ("semantic".to_string(), sem_ranked)],
+        60, // RRF k parameter
+    );
+
+    // Build a deduplicated set of top memories sorted by RRF score.
+    let mut seen_ids = std::collections::HashSet::new();
+    let mut lines = Vec::new();
+    for rrf in fused.iter().take(5) {
+        if seen_ids.insert(rrf.id.clone()) {
+            // Find the original memory in either result set.
+            let mem = fts_results
+                .iter()
+                .chain(semantic_results.iter())
+                .find(|m| format!("mem-{}", m.id) == rrf.id);
+            if let Some(m) = mem {
+                lines.push(format!("[{:.2}] {}", rrf.score, m.content));
+            }
+        }
+    }
+
+    if lines.is_empty() {
+        String::new()
+    } else {
+        format!("Hybrid search (RRF-fused FTS + semantic):\n{}", lines.join("\n"))
+    }
 }
 
 #[cfg(test)]

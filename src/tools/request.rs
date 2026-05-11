@@ -156,6 +156,7 @@ mod tests {
             body: None,
             allowed_vault_keys: None,
             allowed_oauth_providers: None,
+            cache_ttl_secs: None,
         }
     }
 

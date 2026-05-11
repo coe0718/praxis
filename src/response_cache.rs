@@ -137,15 +137,24 @@ impl ResponseCache {
         if total == 0 { 0.0 } else { hits as f64 / total as f64 }
     }
 
+    /// Store a raw HTTP response body keyed by a pre-computed SHA256 hash.
+    /// Used by the HTTP tool executor to cache GET/POST responses.
+    pub fn put_http(&self, key: &str, body: String, ttl_secs: u64) {
+        let entry = CachedResponse {
+            input_hash: key.to_string(),
+            output: body,
+            model: "http".to_string(),
+            input_tokens: 0,
+            output_tokens: 0,
+            cached_at: chrono::Utc::now(),
+            ttl_seconds: ttl_secs,
+        };
+        self.entries.lock().unwrap().insert(key.to_string(), entry);
+    }
+
     /// Get hit/miss counts.
     pub fn stats(&self) -> (u64, u64) {
         (*self.hit_count.lock().unwrap(), *self.miss_count.lock().unwrap())
-    }
-
-    /// Reset hit/miss counters.
-    pub fn reset_stats(&self) {
-        *self.hit_count.lock().unwrap() = 0;
-        *self.miss_count.lock().unwrap() = 0;
     }
 
     /// Estimated token savings.
@@ -153,6 +162,40 @@ impl ResponseCache {
         let entries = self.entries.lock().unwrap();
         entries.values().map(|e| e.output_tokens).sum()
     }
+}
+
+// ── Global HTTP response cache ─────────────────────────────────────────────────
+
+use once_cell::sync::Lazy;
+
+/// Process-global HTTP response cache shared by all HTTP tool invocations.
+static HTTP_CACHE: Lazy<Mutex<ResponseCache>> = Lazy::new(|| {
+    Mutex::new(ResponseCache::new(300)) // 5-minute default TTL
+});
+
+/// Look up a cached HTTP response by its SHA256 cache key.
+/// Returns `None` if absent or expired.
+pub fn get_cached(key: &str, _ttl_secs: u64) -> Option<String> {
+    let cache = HTTP_CACHE.lock().unwrap();
+    let mut entries = cache.entries.lock().unwrap();
+    if let Some(resp) = entries.get(key) {
+        if !resp.is_expired() {
+            return Some(resp.output.clone());
+        }
+        entries.remove(key);
+    }
+    None
+}
+
+/// Store an HTTP response body under its pre-computed cache key.
+pub fn put_cached(key: &str, body: String, ttl_secs: u64) {
+    HTTP_CACHE.lock().unwrap().put_http(key, body, ttl_secs);
+}
+
+/// Get hit/miss counts from the global cache.
+pub fn http_cache_stats() -> (u64, u64) {
+    let cache = HTTP_CACHE.lock().unwrap();
+    (*cache.hit_count.lock().unwrap(), *cache.miss_count.lock().unwrap())
 }
 
 #[cfg(test)]

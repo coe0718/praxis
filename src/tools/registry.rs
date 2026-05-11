@@ -136,6 +136,7 @@ fn default_manifests() -> Vec<ToolManifest> {
             body: None,
             allowed_vault_keys: None,
             allowed_oauth_providers: None,
+            cache_ttl_secs: None,
         },
         ToolManifest {
             name: "praxis-data-write".to_string(),
@@ -161,6 +162,7 @@ fn default_manifests() -> Vec<ToolManifest> {
             body: None,
             allowed_vault_keys: None,
             allowed_oauth_providers: None,
+            cache_ttl_secs: None,
         },
         ToolManifest {
             name: "file-read".to_string(),
@@ -180,6 +182,7 @@ fn default_manifests() -> Vec<ToolManifest> {
             body: None,
             allowed_vault_keys: None,
             allowed_oauth_providers: None,
+            cache_ttl_secs: None,
         },
         ToolManifest {
             name: "git-query".to_string(),
@@ -199,6 +202,7 @@ fn default_manifests() -> Vec<ToolManifest> {
             body: None,
             allowed_vault_keys: None,
             allowed_oauth_providers: None,
+            cache_ttl_secs: None,
         },
         ToolManifest {
             name: "shell-exec".to_string(),
@@ -218,6 +222,7 @@ fn default_manifests() -> Vec<ToolManifest> {
             body: None,
             allowed_vault_keys: None,
             allowed_oauth_providers: None,
+            cache_ttl_secs: None,
         },
         ToolManifest {
             name: "web-fetch".to_string(),
@@ -237,6 +242,7 @@ fn default_manifests() -> Vec<ToolManifest> {
             body: None,
             allowed_vault_keys: None,
             allowed_oauth_providers: None,
+            cache_ttl_secs: None,
         },
         ToolManifest {
             name: "todo".to_string(),
@@ -256,6 +262,7 @@ fn default_manifests() -> Vec<ToolManifest> {
             body: None,
             allowed_vault_keys: None,
             allowed_oauth_providers: None,
+            cache_ttl_secs: None,
         },
         ToolManifest {
             name: "memory".to_string(),
@@ -275,6 +282,7 @@ fn default_manifests() -> Vec<ToolManifest> {
             body: None,
             allowed_vault_keys: None,
             allowed_oauth_providers: None,
+            cache_ttl_secs: None,
         },
         ToolManifest {
             name: "clarify".to_string(),
@@ -294,6 +302,7 @@ fn default_manifests() -> Vec<ToolManifest> {
             body: None,
             allowed_vault_keys: None,
             allowed_oauth_providers: None,
+            cache_ttl_secs: None,
         },
         ToolManifest {
             name: "cron".to_string(),
@@ -313,6 +322,7 @@ fn default_manifests() -> Vec<ToolManifest> {
             body: None,
             allowed_vault_keys: None,
             allowed_oauth_providers: None,
+            cache_ttl_secs: None,
         },
         ToolManifest {
             name: "image".to_string(),
@@ -332,6 +342,7 @@ fn default_manifests() -> Vec<ToolManifest> {
             body: None,
             allowed_vault_keys: None,
             allowed_oauth_providers: None,
+            cache_ttl_secs: None,
         },
         ToolManifest {
             name: "vision".to_string(),
@@ -351,6 +362,7 @@ fn default_manifests() -> Vec<ToolManifest> {
             body: None,
             allowed_vault_keys: None,
             allowed_oauth_providers: None,
+            cache_ttl_secs: None,
         },
         ToolManifest {
             name: "voice".to_string(),
@@ -370,6 +382,7 @@ fn default_manifests() -> Vec<ToolManifest> {
             body: None,
             allowed_vault_keys: None,
             allowed_oauth_providers: None,
+            cache_ttl_secs: None,
         },
         ToolManifest {
             name: "code_exec".to_string(),
@@ -389,6 +402,7 @@ fn default_manifests() -> Vec<ToolManifest> {
             body: None,
             allowed_vault_keys: None,
             allowed_oauth_providers: None,
+            cache_ttl_secs: None,
         },
         ToolManifest {
             name: "browser".to_string(),
@@ -408,6 +422,7 @@ fn default_manifests() -> Vec<ToolManifest> {
             body: None,
             allowed_vault_keys: None,
             allowed_oauth_providers: None,
+            cache_ttl_secs: None,
         },
     ]
 }

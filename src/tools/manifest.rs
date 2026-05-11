@@ -56,6 +56,10 @@ pub struct ToolManifest {
     /// Absent means all providers (backwards-compatible); empty vec means none.
     #[serde(default)]
     pub allowed_oauth_providers: Option<Vec<String>>,
+    /// Cache TTL in seconds for http tool responses. 0 (default) = no caching.
+    /// Only applies to 2xx responses. Reduces redundant API calls for stable data.
+    #[serde(default)]
+    pub cache_ttl_secs: Option<u64>,
 }
 
 impl ToolManifest {

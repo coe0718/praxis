@@ -10,6 +10,7 @@ use std::{
 use super::ToolRegistry;
 use anyhow::{Context, Result, bail};
 use reqwest::blocking::Client;
+use sha2::{Digest, Sha256};
 
 use crate::{
     oauth::OAuthTokenStore, paths::PraxisPaths, storage::StoredApprovalRequest, vault::Vault,
@@ -437,6 +438,34 @@ fn run_http(
         .clone()
         .or_else(|| manifest.body.as_ref().map(|t| substitute_params(t, &payload.params)));
 
+    // ── Response cache ──────────────────────────────────────────────────────
+    let cache_ttl = manifest.cache_ttl_secs.unwrap_or(0);
+    let cache_key = if cache_ttl > 0 {
+        let mut hasher = Sha256::new();
+        hasher.update(method.as_bytes());
+        hasher.update(url.as_bytes());
+        if let Some(ref b) = body_str {
+            hasher.update(b.as_bytes());
+        }
+        Some(format!("{:064x}", hasher.finalize()))
+    } else {
+        None
+    };
+
+    // Cache hit — return immediately without making a network call.
+    if let Some(ref key) = cache_key {
+        if let Some(cached) = crate::response_cache::get_cached(key, cache_ttl) {
+            log::info!(
+                "http tool {}: cache HIT (key={}, ttl={}s)",
+                manifest.name,
+                &key[..8],
+                cache_ttl
+            );
+            return Ok(ToolExecutionResult { summary: cached });
+        }
+        log::info!("http tool {}: cache MISS (key={})", manifest.name, &key[..8]);
+    }
+
     if let Some(body) = body_str {
         builder = builder.header("Content-Type", "application/json").body(body);
     }
@@ -458,9 +487,16 @@ fn run_http(
     }
 
     let snippet = body_text.chars().take(500).collect::<String>();
-    Ok(ToolExecutionResult {
+    let result = ToolExecutionResult {
         summary: format!("HTTP tool {} completed ({}).\n{}", manifest.name, status, snippet),
-    })
+    };
+
+    // Store in cache on success.
+    if let Some(key) = cache_key {
+        crate::response_cache::put_cached(&key, result.summary.clone(), cache_ttl);
+    }
+
+    Ok(result)
 }
 
 /// Substitute `{key}` placeholders in `template` with values from `params`.
@@ -1332,6 +1368,7 @@ pub fn discover_mcp_tools(paths: &crate::paths::PraxisPaths) -> anyhow::Result<(
                 body: None,
                 allowed_vault_keys: None,
                 allowed_oauth_providers: None,
+                cache_ttl_secs: None,
             };
 
             if registry.get(paths, &manifest_name)?.is_none() {

@@ -17,14 +17,13 @@ pub const EMBEDDING_DIM: usize = 128;
 /// This is a hash-based approach for offline operation. Replace with
 /// `text-embedding-3-small` or a local model for real semantic search.
 pub fn generate_embedding(text: &str) -> Vec<f32> {
-    use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
 
     let mut vec = vec![0.0f32; EMBEDDING_DIM];
     let chunks: Vec<&str> = text.split_whitespace().collect();
 
     for (i, chunk) in chunks.iter().enumerate() {
-        let mut hasher = DefaultHasher::new();
+        let mut hasher = rustc_hash::FxHasher::default();
         chunk.hash(&mut hasher);
         let h = hasher.finish();
         for j in 0..EMBEDDING_DIM.min(8) {

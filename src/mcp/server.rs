@@ -347,6 +347,7 @@ mod tests {
             body: None,
             allowed_vault_keys: None,
             allowed_oauth_providers: None,
+            cache_ttl_secs: None,
         };
         let tool = manifest_to_mcp_tool(&m);
         assert_eq!(tool.name, "file-read");
