@@ -65,7 +65,8 @@ fn tool_requests_flow_through_queue_and_execute_after_approval() {
         .success()
         .stdout(predicate::str::contains("outcome: tool_executed"))
         .stdout(predicate::str::contains("task: praxis-data-write"))
-        .stdout(predicate::str::contains("appended operator-approved text"));
+        .stdout(predicate::str::contains("Wrote"))
+        .stdout(predicate::str::contains("JOURNAL.md"));
 
     let journal = fs::read_to_string(data_dir.join("JOURNAL.md")).unwrap();
     assert!(journal.contains("Approved operator note"));

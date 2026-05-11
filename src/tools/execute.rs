@@ -810,7 +810,12 @@ fn append_text(
     };
 
     let payload = parse_payload(Some(raw_payload))?;
-    let Some(rel_path) = payload.params.get("path") else {
+    let Some(rel_path) = request
+        .write_paths
+        .first()
+        .map(|s| s.as_str())
+        .or_else(|| payload.params.get("path").map(|v| v.as_str()))
+    else {
         return Ok(fallback_result(
             manifest,
             request,
