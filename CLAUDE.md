@@ -125,13 +125,21 @@ Capped at 3 pending proposals; deduplicated by title prefix. Calls `render_self_
 
 ---
 
-## What is NOT yet wired (see NEEDS_FINISHED.md for full list)
+## What is wired (2026-05-11 update)
 
-- **Delegation** — store exists, Act phase never sends work over a link
-- **Speculative execution** — store exists, Act has no branching logic
-- **MCP** — dispatch stub exists, never touches tool registry
-- **Discord/Slack inbound** — outbound only, no polling loop
-- **Dashboard UI** — SSE and Prometheus work; HTML is a skeleton
+All 5 previously-listed features are now wired:
+- **Delegation** ✅ — drain_inbound in orient(), send_over_link in act(), A2A fallback
+- **Speculative execution** ✅ — run_speculative() in act(), select_branch scoring
+- **MCP** ✅ — discover_mcp_tools in daemon, stdio+HTTP server, client with list_tools/call_tool
+- **Discord/Slack inbound** ✅ — poll_platforms() in daemon, full polling + bus event publishing
+- **Dashboard UI** ✅ — serves frontend/dist/index.html + /assets static files
+
+Tier 3 Shelldex:
+- Zod-typed Tool Outputs ✅ (tool_schema.rs)
+- Local Embedding Caching ✅ (wired in orient())
+- Local STT/TTS — stubs exist, impl not done
+- Embedding Provider System — not started
+- Scheduled Event Triggers — basic version exists
 
 ---
 

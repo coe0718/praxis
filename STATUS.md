@@ -24,11 +24,10 @@
 
 ### Tier 3 (Long-term - 11+ features)
 - Zod-typed Tool Outputs ✅ DONE — JSON schema generator with OpenAPI compatibility
-- Local STT/TTS (whisper.cpp)
-- Local Embedding Caching
-- Embedding Provider System
-- Scheduled Event Triggers (enhanced)
-- And 7 more...
+- Local STT/TTS — Stub structs exist (ElevenLabs, WhisperCpp, etc.), impl not done
+- Local Embedding Caching ✅ DONE — wired in orient() phase, load/save/get/put
+- Embedding Provider System — Not started
+- Scheduled Event Triggers — Basic version exists in trigger.rs, enhanced routing not done
 
 ---
 
