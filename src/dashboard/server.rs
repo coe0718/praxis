@@ -9,6 +9,7 @@ use axum::{
     response::Response,
     routing::{delete, get, post},
 };
+use tower_http::services::ServeDir;
 
 use super::{
     routes_admin, routes_control, routes_core, routes_events, routes_learning, routes_memory,
@@ -199,6 +200,8 @@ pub async fn serve_dashboard(data_dir: PathBuf, host: String, port: u16) -> Resu
     let app = Router::new()
         .merge(public_routes)
         .merge(app)
+        // Serve frontend static assets (JS, CSS, images)
+        .nest_service("/assets", ServeDir::new("frontend/dist/assets"))
         .layer(axum::middleware::from_fn(add_security_headers));
 
     let listener = tokio::net::TcpListener::bind(format!("{host}:{port}")).await?;

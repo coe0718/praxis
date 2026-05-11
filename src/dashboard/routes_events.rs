@@ -6,7 +6,7 @@ use axum::{
     body::Bytes,
     extract::{Query, State},
     http::{HeaderMap, StatusCode},
-    response::{Html, IntoResponse, Response, Sse, sse::Event},
+    response::{IntoResponse, Response, Sse, sse::Event},
 };
 use serde::Deserialize;
 use serde_json::json;
