@@ -52,5 +52,5 @@ fn freeze_blocks_remote_backend_until_a_canary_passes() {
         .arg("gate")
         .assert()
         .success()
-        .stdout(predicate::str::contains("answer: allowed answer"));
+        .stdout(predicate::str::contains("summary: allowed answer"));
 }
