@@ -36,6 +36,11 @@
 - Tool Pipeline ✅ DONE — declarative multi-step chains, variable resolution, failure policies
 - Cost Tracker ✅ DONE — per-session/tool/model, 15 known model prices, token summaries
 
+### New Features (2026-05-12)
+- Circuit Breaker ✅ DONE — closed/open/half-open states, failure threshold, timeout, registry
+- Response Cache ✅ DONE — SHA256 content-addressable, TTL, hit/miss stats, token savings
+- Graceful Shutdown ✅ DONE — ShutdownFlag, cleanup hooks, grace period
+
 ---
 
 ## Hermes ↔ Praxis Gap Analysis (from GAP_ANALYSIS_HERMES.md)
