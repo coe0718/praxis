@@ -25,6 +25,7 @@ pub mod curator;
 pub mod daemon;
 pub mod dashboard;
 pub mod delegation;
+pub mod embedding;
 pub mod embedding_cache;
 pub mod events;
 pub mod evolution;
