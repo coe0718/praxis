@@ -11,8 +11,6 @@
 //! cache_ttl = 86400    # 24h cache TTL
 //! ```
 
-use std::collections::HashMap;
-
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
@@ -342,7 +340,7 @@ mod tests {
     fn test_deterministic_embedding_dimensions() {
         let vec = deterministic_embedding("hello world", 128);
         assert_eq!(vec.len(), 128);
-        assert!(vec.iter().all(|v| v >= &-1.0 && v <= &1.0));
+        assert!(vec.iter().all(|v| (-1.0..=1.0).contains(v)));
     }
 
     #[test]

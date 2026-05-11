@@ -9,7 +9,6 @@
 //! alert_on_failure = true
 //! ```
 
-use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::Instant;
 

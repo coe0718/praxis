@@ -62,10 +62,10 @@ where
         self.tools.validate(self.paths)?;
 
         // Structured tracing initialization — set up JSON logging + metrics.
-        if !self.lite.skip_capability(crate::lite::LiteCapability::Tracing) {
-            if let Err(e) = crate::tracing::init_tracing() {
-                log::debug!("orient: tracing init skipped: {e}");
-            }
+        if !self.lite.skip_capability(crate::lite::LiteCapability::Tracing)
+            && let Err(e) = crate::tracing::init_tracing()
+        {
+            log::debug!("orient: tracing init skipped: {e}");
         }
 
         // Embedding cache — warm cache for memory recall in this session.
@@ -510,67 +510,59 @@ where
 
         // Prompt injection detection — scan LLM output before execution.
         // If findings are detected with Block policy, abort execution entirely.
-        if !self.lite.skip_capability(crate::lite::LiteCapability::Injection) {
-            if let Ok(findings) = crate::injection::detect_injection(&summary) {
-                if !findings.is_empty() {
-                    let has_critical = findings
-                        .iter()
-                        .any(|f| matches!(f.severity, crate::injection::Severity::Critical));
-                    let has_high = findings
-                        .iter()
-                        .any(|f| matches!(f.severity, crate::injection::Severity::High));
-                    log::warn!(
-                        "act: injection detection found {} suspicious pattern(s) (critical={}, high={})",
-                        findings.len(),
-                        has_critical,
-                        has_high,
-                    );
-                    if has_critical || has_high {
-                        let patterns: Vec<&str> =
-                            findings.iter().map(|f| f.pattern.as_str()).collect();
-                        let _ = self.emit(
-                            "agent:injection_blocked",
-                            &format!(
-                                "Blocked execution: injection patterns [{}]",
-                                patterns.join(", ")
-                            ),
-                        );
-                        state.last_outcome = Some("blocked_injection".to_string());
-                        state.action_summary = Some(format!(
-                            "Execution blocked: {} injection pattern(s) detected ({})",
-                            findings.len(),
-                            patterns.join(", "),
-                        ));
-                        state.updated_at = self.clock.now_utc();
-                        return Ok(());
-                    }
-                    // Medium/Low severity — sanitize and continue.
-                    if let Ok(sanitized) = crate::injection::sanitize_input(&summary) {
-                        log::debug!("act: input sanitized (non-critical injection patterns)");
-                        summary = sanitized;
-                    }
-                }
+        if !self.lite.skip_capability(crate::lite::LiteCapability::Injection)
+            && let Ok(findings) = crate::injection::detect_injection(&summary)
+            && !findings.is_empty()
+        {
+            let has_critical = findings
+                .iter()
+                .any(|f| matches!(f.severity, crate::injection::Severity::Critical));
+            let has_high =
+                findings.iter().any(|f| matches!(f.severity, crate::injection::Severity::High));
+            log::warn!(
+                "act: injection detection found {} suspicious pattern(s) (critical={}, high={})",
+                findings.len(),
+                has_critical,
+                has_high,
+            );
+            if has_critical || has_high {
+                let patterns: Vec<&str> = findings.iter().map(|f| f.pattern.as_str()).collect();
+                let _ = self.emit(
+                    "agent:injection_blocked",
+                    &format!("Blocked execution: injection patterns [{}]", patterns.join(", ")),
+                );
+                state.last_outcome = Some("blocked_injection".to_string());
+                state.action_summary = Some(format!(
+                    "Execution blocked: {} injection pattern(s) detected ({})",
+                    findings.len(),
+                    patterns.join(", "),
+                ));
+                state.updated_at = self.clock.now_utc();
+                return Ok(());
+            }
+            // Medium/Low severity — sanitize and continue.
+            if let Ok(sanitized) = crate::injection::sanitize_input(&summary) {
+                log::debug!("act: input sanitized (non-critical injection patterns)");
+                summary = sanitized;
             }
         }
 
         // Secret leak scanning — check tool response for key/secret exfiltration.
         // Redact any found credentials from the summary before it propagates further.
-        if !self.lite.skip_capability(crate::lite::LiteCapability::Leaks) {
-            if let Ok(findings) = crate::leaks::detect_leaks(&summary) {
-                if !findings.is_empty() {
-                    log::warn!(
-                        "act: leak detection found {} sensitive pattern(s) — redacting",
-                        findings.len()
-                    );
-                    summary = crate::leaks::redact(&summary, &findings);
-                    let types: Vec<&str> =
-                        findings.iter().map(|f| f.credential_type.as_str()).collect();
-                    let _ = self.emit(
-                        "agent:leaks_redacted",
-                        &format!("Redacted {} credential(s): {}", findings.len(), types.join(", ")),
-                    );
-                }
-            }
+        if !self.lite.skip_capability(crate::lite::LiteCapability::Leaks)
+            && let Ok(findings) = crate::leaks::detect_leaks(&summary)
+            && !findings.is_empty()
+        {
+            log::warn!(
+                "act: leak detection found {} sensitive pattern(s) — redacting",
+                findings.len()
+            );
+            summary = crate::leaks::redact(&summary, &findings);
+            let types: Vec<&str> = findings.iter().map(|f| f.credential_type.as_str()).collect();
+            let _ = self.emit(
+                "agent:leaks_redacted",
+                &format!("Redacted {} credential(s): {}", findings.len(), types.join(", ")),
+            );
         }
 
         // IronClaw Docker isolation — sandbox tool execution in containers.
@@ -602,12 +594,11 @@ where
         }
 
         // Gitclaw — git-native agent lifecycle management.
-        if !self.lite.skip_capability(crate::lite::LiteCapability::Gitclaw) {
-            if let Ok(claw) = crate::gitclaw::Gitclaw::init(&self.paths.data_dir) {
-                if let Ok(Some(_identity)) = claw.load_identity() {
-                    log::debug!("act: gitclaw identity loaded");
-                }
-            }
+        if !self.lite.skip_capability(crate::lite::LiteCapability::Gitclaw)
+            && let Ok(claw) = crate::gitclaw::Gitclaw::init(&self.paths.data_dir)
+            && let Ok(Some(_identity)) = claw.load_identity()
+        {
+            log::debug!("act: gitclaw identity loaded");
         }
 
         // Zeptoclaw — lightweight tool inventory check.

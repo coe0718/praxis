@@ -3,7 +3,6 @@
 //! Coordinates shutdown across all components with configurable grace period.
 
 use std::sync::Arc;
-use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
@@ -147,6 +146,7 @@ impl ShutdownHook for NoOpHook {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
 
     #[test]
     fn test_shutdown_flag() {

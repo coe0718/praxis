@@ -198,19 +198,18 @@ where
         }
 
         // Archive — daily snapshot for data portability.
-        if !self.lite.skip_capability(crate::lite::LiteCapability::Archive) {
-            if let Err(e) =
-                crate::archive::maybe_create_daily_snapshot(&self.config, self.paths, ended_at)
-            {
-                log::debug!("reflect: archive snapshot skipped: {e}");
-            }
+        if !self.lite.skip_capability(crate::lite::LiteCapability::Archive)
+            && let Err(e) =
+                crate::archive::maybe_create_daily_snapshot(self.config, self.paths, ended_at)
+        {
+            log::debug!("reflect: archive snapshot skipped: {e}");
         }
 
         // Backup verification — check backup integrity after session.
-        if !self.lite.skip_capability(crate::lite::LiteCapability::Backup) {
-            if let Err(e) = crate::backup::verify_backup(&self.paths.data_dir) {
-                log::debug!("reflect: backup verification skipped: {e}");
-            }
+        if !self.lite.skip_capability(crate::lite::LiteCapability::Backup)
+            && let Err(e) = crate::backup::verify_backup(&self.paths.data_dir)
+        {
+            log::debug!("reflect: backup verification skipped: {e}");
         }
 
         // Rating improve — process operator ratings for behavior improvement.
@@ -233,15 +232,15 @@ where
         }
 
         // Skill pack — package session learnings into distributable skill packs.
-        if !self.lite.skip_capability(crate::lite::LiteCapability::SkillPack) {
-            if let Ok(registry) = crate::skill_pack::SkillPackRegistry::load(
+        if !self.lite.skip_capability(crate::lite::LiteCapability::SkillPack)
+            && let Ok(registry) = crate::skill_pack::SkillPackRegistry::load(
                 &self.paths.data_dir.join("skill_packs.json"),
-            ) {
-                log::debug!(
-                    "reflect: skill pack registry available ({} packs)",
-                    registry.installed_ids().len()
-                );
-            }
+            )
+        {
+            log::debug!(
+                "reflect: skill pack registry available ({} packs)",
+                registry.installed_ids().len()
+            );
         }
 
         // RRF — hybrid search scoring for memory retrieval improvement.

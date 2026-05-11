@@ -104,24 +104,6 @@ pub struct TtsRequest {
     pub speed: f32,
 }
 
-fn default_format() -> String {
-    "mp3".to_string()
-}
-fn default_speed() -> f32 {
-    1.0
-}
-
-impl Default for TtsRequest {
-    fn default() -> Self {
-        Self {
-            text: String::new(),
-            voice_id: None,
-            format: "mp3".to_string(),
-            speed: 1.0,
-        }
-    }
-}
-
 /// Synthesize speech from text using configured provider.
 pub async fn synthesize_speech(paths: &PraxisPaths, req: TtsRequest) -> Result<Vec<u8>> {
     let config = VoiceConfig::load(paths)?;
@@ -225,18 +207,35 @@ pub struct SttRequest {
     /// Audio bytes (mp3, wav, etc).
     pub audio: Vec<u8>,
     /// Audio format.
-    #[serde(default = "default_audio_format")]
+    #[serde(default = "default_format")]
     pub format: String,
     /// Language code (e.g., "en").
     pub language: Option<String>,
 }
 
-fn default_audio_format() -> String {
+#[allow(dead_code)]
+fn default_format() -> String {
     "mp3".to_string()
 }
 
+#[allow(dead_code)]
+fn default_speed() -> f32 {
+    1.0
+}
+
+impl Default for TtsRequest {
+    fn default() -> Self {
+        Self {
+            text: String::new(),
+            voice_id: None,
+            format: default_format(),
+            speed: default_speed(),
+        }
+    }
+}
+
 /// STT response.
-#[derive(Debug, Serialize)]
+#[derive(Debug, serde::Serialize)]
 pub struct SttResponse {
     /// Transcribed text.
     pub text: String,

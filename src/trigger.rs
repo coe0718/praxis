@@ -355,10 +355,10 @@ impl ScheduledTriggerManager {
         if field == "?" {
             return true; // ? means "any" (used for day-of-week vs day-of-month)
         }
-        if let Some(step) = field.strip_prefix("*/") {
-            if let Ok(step) = step.parse::<i64>() {
-                return step > 0 && value % step == 0;
-            }
+        if let Some(step) = field.strip_prefix("*/")
+            && let Ok(step) = step.parse::<i64>()
+        {
+            return step > 0 && value % step == 0;
         }
         // Comma-separated values: "1,15"
         if field.contains(',') {
@@ -367,10 +367,10 @@ impl ScheduledTriggerManager {
         // Range: "1-5"
         if field.contains('-') {
             let parts: Vec<&str> = field.split('-').collect();
-            if parts.len() == 2 {
-                if let (Ok(start), Ok(end)) = (parts[0].parse::<i64>(), parts[1].parse::<i64>()) {
-                    return value >= start && value <= end;
-                }
+            if parts.len() == 2
+                && let (Ok(start), Ok(end)) = (parts[0].parse::<i64>(), parts[1].parse::<i64>())
+            {
+                return value >= start && value <= end;
             }
         }
         // Exact value

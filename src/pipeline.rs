@@ -40,9 +40,10 @@ fn default_timeout() -> u64 {
 }
 
 /// What to do when a step fails.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub enum FailurePolicy {
     /// Stop the pipeline.
+    #[default]
     Stop,
     /// Continue to next step.
     Continue,
@@ -53,12 +54,6 @@ pub enum FailurePolicy {
         max_attempts: u32,
         delay_secs: u64,
     },
-}
-
-impl Default for FailurePolicy {
-    fn default() -> Self {
-        Self::Stop
-    }
 }
 
 /// A declarative tool pipeline.

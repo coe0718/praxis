@@ -140,11 +140,11 @@ impl RateLimiter {
         // Check tool-specific limit first
         {
             let mut tools = self.tools.lock().unwrap();
-            if let Some(bucket) = tools.get_mut(tool) {
-                if !bucket.try_consume() {
-                    let wait = bucket.wait_time();
-                    return Err(wait);
-                }
+            if let Some(bucket) = tools.get_mut(tool)
+                && !bucket.try_consume()
+            {
+                let wait = bucket.wait_time();
+                return Err(wait);
             }
         }
 

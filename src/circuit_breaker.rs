@@ -73,11 +73,11 @@ impl CircuitBreaker {
         // Check if we should transition from Open to HalfOpen
         if state == CircuitState::Open {
             let last = *self.last_failure.lock().unwrap();
-            if let Some(t) = last {
-                if t.elapsed() >= self.config.timeout {
-                    *self.state.lock().unwrap() = CircuitState::HalfOpen;
-                    return CircuitState::HalfOpen;
-                }
+            if let Some(t) = last
+                && t.elapsed() >= self.config.timeout
+            {
+                *self.state.lock().unwrap() = CircuitState::HalfOpen;
+                return CircuitState::HalfOpen;
             }
         }
         state

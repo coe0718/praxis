@@ -25,7 +25,7 @@ pub(super) async fn index() -> impl IntoResponse {
     let index_path = std::path::Path::new("frontend/dist/index.html");
     let html = std::fs::read_to_string(index_path).unwrap_or_else(|e| {
         log::warn!("dashboard: failed to load frontend/dist/index.html: {e}");
-        format!(r#"<!doctype html><html><head><title>Praxis</title></head><body><p>Loading Praxis dashboard...</p><script>fetch('/api/summary').then(r=>r.json()).then(d=>document.body.innerHTML='<pre>'+JSON.stringify(d,null,2))</script></body></html>"#)
+        r#"<!doctype html><html><head><title>Praxis</title></head><body><p>Loading Praxis dashboard...</p><script>fetch('/api/summary').then(r=>r.json()).then(d=>document.body.innerHTML='<pre>'+JSON.stringify(d,null,2))</script></body></html>"#.to_string()
     });
     Html(html)
 }
