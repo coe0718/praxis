@@ -40,6 +40,7 @@ ratatui = { version = "0.29", optional = true }
 futures = "0.3"
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls", "stream", "multipart"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
+    rustc-hash = "2"
 tungstenite = "0.26"
 tokio-tungstenite = "0.26"
 libloading = "0.8"
@@ -88,5 +89,5 @@ path = "src/watchdog/main.rs"
 
 [profile.release]
 opt-level = 2
-lto = false
+lto = "thin"
 strip = true

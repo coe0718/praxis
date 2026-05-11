@@ -1,7 +1,14 @@
 //! Prompt injection detection — Detect and sanitize malicious inputs.
 //!
-//! IronClaw's innovation: Pattern detection + content sanitization.
-//! Prevents LLM manipulation via crafted inputs.
+//! # Caveat — incomplete by design
+//!
+//! This module uses regex-based pattern matching to catch *obvious* injection
+//! attempts (jailbreak phrasing, roleplay overrides, DAN-mode triggers). It is
+//! inherently bypassable via Unicode homoglyphs, encoding tricks, adversarial
+//! tokenisation, and novel phrasing not covered by the pattern list. Treat the
+//! output as a *first-layer heuristic*, not a strong guarantee. Downstream
+//! systems (approval queue, sandbox, LLM system prompt hardening) provide the
+//! actual defence-in-depth.
 
 use anyhow::Result;
 

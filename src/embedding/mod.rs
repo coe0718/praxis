@@ -236,7 +236,7 @@ impl EmbeddingProvider for LocalEmbeddingProvider {
 /// NOT semantically meaningful — only for testing/caching/offline.
 fn deterministic_embedding(text: &str, dimensions: usize) -> Vec<f32> {
     use std::hash::{Hash, Hasher};
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    let mut hasher = rustc_hash::FxHasher::default();
     text.hash(&mut hasher);
     let seed = hasher.finish();
 

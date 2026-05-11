@@ -267,7 +267,7 @@ impl VoiceTool {
 /// Simple deterministic hash for filename generation (not cryptographic).
 fn simple_hash(s: &str) -> String {
     use std::hash::{Hash, Hasher};
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    let mut hasher = rustc_hash::FxHasher::default();
     s.hash(&mut hasher);
     format!("{:08x}", hasher.finish())
 }

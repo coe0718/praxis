@@ -74,7 +74,7 @@ impl ProviderHealthTracker {
 
     /// Record a successful provider response.
     pub fn record_success(&self, provider: &str, response_ms: u64) {
-        let mut health = self.health.lock().unwrap();
+        let mut health = self.health.lock().unwrap_or_else(|e| e.into_inner());
         let status = health.providers.entry(provider.to_string()).or_default();
         status.healthy = true;
         status.last_error = None;
@@ -87,7 +87,7 @@ impl ProviderHealthTracker {
 
     /// Record a provider failure.
     pub fn record_failure(&self, provider: &str, error: &str) {
-        let mut health = self.health.lock().unwrap();
+        let mut health = self.health.lock().unwrap_or_else(|e| e.into_inner());
         let status = health.providers.entry(provider.to_string()).or_default();
         status.consecutive_failures += 1;
         status.last_error = Some(error.to_string());
@@ -104,25 +104,25 @@ impl ProviderHealthTracker {
 
     /// Check if a provider is healthy.
     pub fn is_healthy(&self, provider: &str) -> bool {
-        let health = self.health.lock().unwrap();
+        let health = self.health.lock().unwrap_or_else(|e| e.into_inner());
         health.providers.get(provider).map(|s| s.healthy).unwrap_or(true) // Assume healthy if no data
     }
 
     /// Get provider health status.
     pub fn get_status(&self, provider: &str) -> Option<ProviderStatus> {
-        let health = self.health.lock().unwrap();
+        let health = self.health.lock().unwrap_or_else(|e| e.into_inner());
         health.providers.get(provider).cloned()
     }
 
     /// Get all provider statuses.
     pub fn get_all_statuses(&self) -> HashMap<String, ProviderStatus> {
-        let health = self.health.lock().unwrap();
+        let health = self.health.lock().unwrap_or_else(|e| e.into_inner());
         health.providers.clone()
     }
 
     /// Reset a provider to healthy status.
     pub fn reset_provider(&self, provider: &str) {
-        let mut health = self.health.lock().unwrap();
+        let mut health = self.health.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(status) = health.providers.get_mut(provider) {
             status.healthy = true;
             status.consecutive_failures = 0;
@@ -135,7 +135,7 @@ impl ProviderHealthTracker {
 
     /// Maybe persist to disk (debounced to avoid excessive I/O).
     fn maybe_persist(&self) {
-        let mut last_persist = self.last_persist.lock().unwrap();
+        let mut last_persist = self.last_persist.lock().unwrap_or_else(|e| e.into_inner());
         if last_persist.elapsed() < Duration::from_secs(60) {
             return;
         }
@@ -143,7 +143,7 @@ impl ProviderHealthTracker {
         drop(last_persist);
 
         if let Some(path) = &self.persistence_path {
-            let health = self.health.lock().unwrap();
+            let health = self.health.lock().unwrap_or_else(|e| e.into_inner());
             if let Ok(raw) = serde_json::to_string_pretty(&*health) {
                 let _ = fs::write(path, raw);
             }

@@ -50,10 +50,7 @@
 use std::{
     fs,
     path::{Path, PathBuf},
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    },
+    sync::Arc,
     time::Duration,
 };
 
@@ -63,7 +60,11 @@ use chrono::{DateTime, Utc};
 use crate::{
     anatomy::refresh_stale_anatomy,
     backend::ConfiguredBackend,
+    circuit_breaker::CircuitBreaker,
+    cost::CostTracker,
     events::FileEventSink,
+    graceful_shutdown::GracefulShutdown,
+    health::{HealthMonitor, HealthStatus},
     heartbeat::write_heartbeat,
     identity::{IdentityPolicy, LocalIdentityPolicy, MarkdownGoalParser},
     lite::LiteMode,
@@ -251,18 +252,93 @@ async fn async_daemon_loop(
     config: DaemonConfig,
     paths: PraxisPaths,
 ) -> Result<()> {
-    // Set up a shared shutdown flag that signal handlers will flip.
-    let shutdown = Arc::new(AtomicBool::new(false));
+    // Set up graceful shutdown with cleanup hooks.
+    let mut shutdown = GracefulShutdown::new(Duration::from_secs(30));
+    let shutdown_flag = shutdown.flag().clone();
+
+    // Register cleanup hooks.
+    {
+        let pid_path = paths.daemon_pid_file.clone();
+        shutdown.register_closure("remove-pid-file", move || {
+            let _ = fs::remove_file(&pid_path);
+            Ok(())
+        });
+    }
 
     // Spawn signal watchers that set the flag when SIGINT/SIGTERM arrives.
     {
-        let flag = Arc::clone(&shutdown);
+        let flag = shutdown_flag.clone();
         tokio::spawn(async move {
             wait_for_shutdown_signal().await;
             log::info!("daemon: shutdown signal received — finishing current session then exiting");
-            flag.store(true, Ordering::SeqCst);
+            flag.request_shutdown();
         });
     }
+
+    // Set up health monitor with subsystem checks.
+    let health_monitor = {
+        let monitor = HealthMonitor::new();
+        let db_path = paths.database_file.clone();
+        let cfg_path = paths.config_file.clone();
+        monitor.register(
+            "database",
+            3,
+            Box::new(move || {
+                if db_path.exists() {
+                    let store = SqliteSessionStore::new(db_path.clone());
+                    match store.initialize().and_then(|_| store.validate_schema()) {
+                        Ok(()) => HealthStatus::Healthy,
+                        Err(e) => HealthStatus::Unhealthy {
+                            reason: format!("db error: {e}"),
+                        },
+                    }
+                } else {
+                    HealthStatus::Unhealthy {
+                        reason: "database file not found".to_string(),
+                    }
+                }
+            }),
+        );
+        monitor.register(
+            "config",
+            3,
+            Box::new(move || {
+                if cfg_path.exists() {
+                    match crate::config::AppConfig::load(&cfg_path) {
+                        Ok(_) => HealthStatus::Healthy,
+                        Err(e) => HealthStatus::Unhealthy {
+                            reason: format!("parse error: {e}"),
+                        },
+                    }
+                } else {
+                    HealthStatus::Healthy
+                }
+            }),
+        );
+        monitor.register(
+            "goals",
+            3,
+            Box::new({
+                let goals_path = paths.data_dir.join("GOALS.md");
+                move || {
+                    if goals_path.exists() {
+                        HealthStatus::Healthy
+                    } else {
+                        HealthStatus::Degraded {
+                            reason: "GOALS.md missing".to_string(),
+                        }
+                    }
+                }
+            }),
+        );
+        Arc::new(monitor)
+    };
+
+    // Set up circuit breaker for session execution.
+    let session_breaker = CircuitBreaker::new("session");
+
+    // Set up cost tracker.
+    let cost_tracker = Arc::new(std::sync::Mutex::new(CostTracker::new()));
 
     let mut bus_watcher = BusWatcher::new(paths.bus_file.clone());
     let mut last_session_at: Option<DateTime<Utc>> = None;
@@ -297,7 +373,7 @@ async fn async_daemon_loop(
     );
 
     loop {
-        if shutdown.load(Ordering::SeqCst) {
+        if shutdown_flag.is_shutting_down() {
             log::info!("daemon: clean shutdown");
             break;
         }
@@ -399,8 +475,17 @@ async fn async_daemon_loop(
             let label = trigger.label();
             let task = trigger.task().map(str::to_string);
 
-            log::info!("daemon: starting session (trigger={label})");
+            // Check circuit breaker before running session.
+            if !session_breaker.is_available() {
+                log::warn!(
+                    "daemon: session circuit breaker OPEN — skipping session (consecutive failures: {})",
+                    session_breaker.failures()
+                );
+                tokio::time::sleep(poll).await;
+                continue;
+            }
 
+            log::info!("daemon: starting session (trigger={label})");
             // Run the session directly - we're already in an async context.
             // Use block_in_place to allow the async runtime to progress through
             // the synchronous session execution.
@@ -408,6 +493,7 @@ async fn async_daemon_loop(
 
             match result {
                 Ok(summary) => {
+                    session_breaker.record_success();
                     log::info!(
                         "daemon: session complete (trigger={label} outcome={} goal={:?})",
                         summary.outcome,
@@ -429,6 +515,7 @@ async fn async_daemon_loop(
                     }
                 }
                 Err(e) => {
+                    session_breaker.record_failure();
                     log::error!("daemon: session failed (trigger={label}): {e:#}");
                     // Don't exit on session failure — stay alive and try again.
                     last_session_at = Some(Utc::now());
@@ -436,7 +523,7 @@ async fn async_daemon_loop(
             }
 
             // Re-check shutdown after a (potentially long) session.
-            if shutdown.load(Ordering::SeqCst) {
+            if shutdown_flag.is_shutting_down() {
                 log::info!("daemon: clean shutdown after session");
                 break;
             }
@@ -450,6 +537,19 @@ async fn async_daemon_loop(
 
         if should_run_maintenance(last_maintenance_at, &config, now) {
             log::debug!("daemon: running maintenance window");
+
+            // Run health checks.
+            let results = health_monitor.check_all();
+            let overall = health_monitor.overall_health();
+            if overall != HealthStatus::Healthy {
+                let failed: Vec<&str> = results
+                    .iter()
+                    .filter(|r| !matches!(r.status, HealthStatus::Healthy | HealthStatus::Unknown))
+                    .map(|r| r.name.as_str())
+                    .collect();
+                log::warn!("daemon: health check degraded — {:?}", failed);
+            }
+
             let data_dir2 = data_dir.clone();
             let result = tokio::task::block_in_place(|| run_maintenance_blocking(&data_dir2));
             match result {
@@ -465,6 +565,18 @@ async fn async_daemon_loop(
         // ── Poll sleep ─────────────────────────────────────────────────────
 
         tokio::time::sleep(poll).await;
+    }
+
+    // Run cleanup hooks before exiting.
+    shutdown.run_hooks();
+
+    // Log cost summary.
+    if let Ok(tracker) = cost_tracker.lock() {
+        log::info!(
+            "daemon: total cost ${:.4} across {} entries",
+            tracker.total_cost(),
+            tracker.len()
+        );
     }
 
     Ok(())

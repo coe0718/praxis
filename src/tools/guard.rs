@@ -1,5 +1,6 @@
-use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+
+use rustc_hash::FxHasher;
 
 use crate::state::SessionState;
 
@@ -70,7 +71,7 @@ fn repeated_pattern_count(history: &[String], pattern_len: usize) -> usize {
 }
 
 fn hash_key(value: &str) -> String {
-    let mut hasher = DefaultHasher::new();
+    let mut hasher = FxHasher::default();
     value.hash(&mut hasher);
     format!("{:016x}", hasher.finish())
 }

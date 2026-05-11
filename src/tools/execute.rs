@@ -633,6 +633,15 @@ fn read_file(
 /// Validate that a shell command does not contain characters that enable
 /// command injection when passed to `/bin/bash -c`. Returns `Err` if any
 /// dangerous metacharacters are found.
+///
+/// # Security advisory
+///
+/// This is an **advisory lint**, not a security boundary. The denylist blocks
+/// obvious metacharacters (`; | & $ ( ) < > \n \r \`) but commands like
+/// `rm -rf important_file` pass cleanly. Real safety comes from the approval
+/// queue sitting upstream (every shell-exec requires human approval at level 3)
+/// and the filesystem sandbox that restricts writes to `data_dir`. Do NOT rely
+/// on this function alone to prevent malicious execution.
 fn validate_shell_command(command: &str) -> Result<()> {
     if command.is_empty() {
         bail!("shell-exec command must not be empty");
