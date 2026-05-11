@@ -65,7 +65,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 thiserror = "1"
 base64 = "0.22"
 zeroize = { version = "1", features = ["zeroize_derive"] }
-notify = { version = "7", default-features = false, features = ["macos_kqueue"] }
+notify = { version = "9.0.0-rc.4", default-features = false, features = ["macos_kqueue"] }
 dialoguer = "0.11"
 flate2 = "1"
 once_cell = "1"
