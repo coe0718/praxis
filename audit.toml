@@ -1,0 +1,6 @@
+[advisories]
+ignore = [
+    # instant 0.1.13 - unmaintained, transitive via notify → notify-types
+    # No fix available - not our direct dependency
+    "RUSTSEC-2024-0384",
+]
