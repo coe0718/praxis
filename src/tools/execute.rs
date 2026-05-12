@@ -810,32 +810,23 @@ fn append_text(
     };
 
     let payload = parse_payload(Some(raw_payload))?;
-    let Some(rel_path) = request
-        .write_paths
-        .first()
-        .map(|s| s.as_str())
-        .or_else(|| payload.params.get("path").map(|v| v.as_str()))
-    else {
+
+    // Collect write targets — prefer write_paths field, fall back to payload param.
+    let targets: Vec<&str> = if !request.write_paths.is_empty() {
+        request.write_paths.iter().map(|s| s.as_str()).collect()
+    } else {
+        payload.params.get("path").map(|s| s.as_str()).into_iter().collect()
+    };
+
+    if targets.is_empty() {
         return Ok(fallback_result(
             manifest,
             request,
             "Approved request did not specify a path, so Praxis kept this run safe and skipped the file mutation.",
         ));
-    };
-
-    let relative = normalize_relative(rel_path)?;
-    let full_path = paths.data_dir.join(&relative);
-    if !full_path.starts_with(&paths.data_dir) {
-        anyhow::bail!("praxis-data-write path escapes the Praxis data directory");
     }
 
-    // Symlink safety.
-    if let Ok(meta) = fs::symlink_metadata(&full_path)
-        && meta.file_type().is_symlink()
-    {
-        anyhow::bail!("praxis-data-write refuses to follow symlink at {}", full_path.display());
-    }
-
+    // Extract text once — shared across all targets.
     let text = match (payload.append_text.as_deref(), payload.body.as_deref()) {
         (Some(t), _) => t.to_string(),
         (_, Some(b)) => b.to_string(),
@@ -848,24 +839,58 @@ fn append_text(
         }
     };
 
-    if let Some(parent) = full_path.parent() {
-        fs::create_dir_all(parent)
-            .with_context(|| format!("failed to create parent for {}", full_path.display()))?;
+    // Validate ALL targets before writing any (fail-fast on symlinks / escapes).
+    let full_paths: Vec<PathBuf> = targets
+        .iter()
+        .map(|rel| {
+            let relative = normalize_relative(rel)?;
+            let full = paths.data_dir.join(&relative);
+            if !full.starts_with(&paths.data_dir) {
+                anyhow::bail!("praxis-data-write path escapes the Praxis data directory");
+            }
+            if let Ok(meta) = fs::symlink_metadata(&full)
+                && meta.file_type().is_symlink()
+            {
+                anyhow::bail!(
+                    "praxis-data-write refuses to follow symlink target at {}",
+                    full.display()
+                );
+            }
+            Ok(full)
+        })
+        .collect::<Result<Vec<_>>>()?;
+
+    // Write to all targets, skipping files that already contain the text.
+    let mut written_count = 0usize;
+    for full_path in &full_paths {
+        // Skip if the text already exists in the file.
+        let should_skip = fs::read(full_path)
+            .map(|existing| existing.windows(text.len()).any(|w| w == text.as_bytes()))
+            .unwrap_or(false);
+        if should_skip {
+            continue;
+        }
+        if let Some(parent) = full_path.parent() {
+            fs::create_dir_all(parent)
+                .with_context(|| format!("failed to create parent for {}", full_path.display()))?;
+        }
+        let mut file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(full_path)
+            .with_context(|| format!("failed to open {} for append", full_path.display()))?;
+        file.write_all(text.as_bytes())
+            .with_context(|| format!("failed to write to {}", full_path.display()))?;
+        file.write_all(b"\n")?;
+        file.flush()?;
+        written_count += 1;
     }
 
-    let mut file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&full_path)
-        .with_context(|| format!("failed to open {} for append", full_path.display()))?;
-
-    file.write_all(text.as_bytes())
-        .with_context(|| format!("failed to write to {}", full_path.display()))?;
-    file.write_all(b"\n")?;
-    file.flush()?;
-
     Ok(ToolExecutionResult {
-        summary: format!("Wrote {} bytes to {}.", text.len(), relative.display()),
+        summary: format!(
+            "Executed approved tool {} and appended operator-approved text to {} file(s).",
+            manifest.name, written_count
+        ),
     })
 }
 
