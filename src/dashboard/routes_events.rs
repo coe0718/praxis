@@ -84,10 +84,17 @@ pub(super) async fn events_sse(
 
 pub(super) async fn mcp_endpoint(
     State(state): State<DashboardState>,
+    headers: HeaderMap,
     Json(request): Json<JsonRpcRequest>,
 ) -> impl IntoResponse {
     let paths = PraxisPaths::for_data_dir(state.data_dir.clone());
-    let response = dispatch(&paths, &request);
+    // Extract Bearer token from Authorization header if present
+    let auth_token = headers
+        .get("authorization")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.strip_prefix("Bearer "))
+        .map(|s| s.to_string());
+    let response = dispatch(&paths, &request, auth_token.as_deref());
     (StatusCode::OK, Json(response)).into_response()
 }
 

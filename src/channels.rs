@@ -64,10 +64,12 @@ impl MatrixClient {
     /// Send a message to the configured Matrix room.
     pub async fn send(&self, message: &str) -> Result<()> {
         let client = reqwest::Client::new();
+        // C6 fix: URL-encode room_id to prevent injection attacks
+        let encoded_room_id = urlencoding::encode(&self.room_id);
         let url = format!(
             "{}/_matrix/client/r0/rooms/{}/send/m.room.message",
             self.homeserver.trim_end_matches('/'),
-            self.room_id
+            encoded_room_id
         );
 
         let txn_id = format!("praxis_{}", chrono::Utc::now().timestamp_millis());

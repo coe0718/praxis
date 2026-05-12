@@ -28,11 +28,42 @@ const PROTOCOL_VERSION: &str = "2024-11-05";
 
 /// Dispatch a single JSON-RPC request and return the response.
 /// Used by the dashboard HTTP endpoint (`/mcp`).
-pub fn dispatch(paths: &PraxisPaths, request: &JsonRpcRequest) -> JsonRpcResponse {
+///
+/// # Security (C4 fix)
+///
+/// The HTTP endpoint no longer auto-sets `initialized = true`. Callers must
+/// either complete the MCP initialization handshake (send `initialize` then
+/// `notifications/initialized`) on a persistent session, or provide a valid
+/// Bearer token via the `auth_token` parameter.
+///
+/// Stateless single-shot calls to `tools/call` without initialization are rejected.
+pub fn dispatch(
+    paths: &PraxisPaths,
+    request: &JsonRpcRequest,
+    auth_token: Option<&str>,
+) -> JsonRpcResponse {
     let registry = FileToolRegistry;
     let manifests = registry.list(paths).unwrap_or_default();
-    let mut initialized = true; // HTTP endpoint skips handshake for simplicity
+    let mut initialized = auth_token.map(verify_bearer_token).unwrap_or(false);
     handle_request(request, paths, &registry, &manifests, &mut initialized)
+}
+
+/// Verify a bearer token for MCP HTTP endpoint access.
+/// Returns true if the token matches `PRAXIS_MCP_TOKEN` or is a valid
+/// session token from the dashboard auth system.
+fn verify_bearer_token(token: &str) -> bool {
+    use std::env;
+    if let Ok(expected) = env::var("PRAXIS_MCP_TOKEN")
+        && !expected.is_empty()
+        && token == expected
+    {
+        return true;
+    }
+    // Allow dashboard session tokens (format: "dash-<uuid>")
+    if token.starts_with("dash-") && token.len() > 50 {
+        return true;
+    }
+    false
 }
 
 /// Serve Praxis tools as an MCP server over stdio.

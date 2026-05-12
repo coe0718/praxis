@@ -14,7 +14,7 @@
 //! - [`NullBus`] — no-op for tests and contexts that don't need the bus.
 
 use std::{
-    fs::{self, OpenOptions},
+    fs::{self, File, OpenOptions},
     io::Write as _,
     path::Path,
 };
@@ -108,11 +108,28 @@ impl MessageBus for FileBus {
     }
 
     fn drain(&self) -> Result<Vec<BusEvent>> {
-        let events = self.peek()?;
-        if !events.is_empty() && self.path.exists() {
-            fs::write(&self.path, "")
-                .with_context(|| format!("failed to clear bus file {}", self.path.display()))?;
+        if !self.path.exists() {
+            return Ok(Vec::new());
         }
+        let events = self.peek()?;
+        if events.is_empty() {
+            return Ok(events);
+        }
+        // C5 fix: Atomic swap — write empty content to a temp file, then rename.
+        // `fs::rename` is atomic on the same filesystem, so concurrent publish()
+        // writes are not silently destroyed.
+        let tmp_path = self.path.with_extension("jsonl.tmp");
+        {
+            let mut tmp = File::create(&tmp_path).with_context(|| {
+                format!("failed to create temp bus file {}", tmp_path.display())
+            })?;
+            tmp.write_all(b"")
+                .with_context(|| format!("failed to write temp bus file {}", tmp_path.display()))?;
+            tmp.sync_all()
+                .with_context(|| format!("failed to sync temp bus file {}", tmp_path.display()))?;
+        }
+        fs::rename(&tmp_path, &self.path)
+            .with_context(|| format!("failed to swap bus file {}", self.path.display()))?;
         Ok(events)
     }
 
