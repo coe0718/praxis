@@ -607,27 +607,30 @@ where
             log::debug!("act: zeptoclaw inventory — {} tools", inventory.list_all().len());
         }
 
-        // Carapace — signed plugin verification.
+        // Capability — signed plugin verification.
         // Plugins must be cryptographically signed by a trusted author.
         // Unsigned/tampered plugins are rejected from execution.
         if !self.lite.skip_capability(crate::lite::LiteCapability::Carapace) {
             let plugin_dir = self.paths.data_dir.join("plugins");
             if plugin_dir.exists() {
-                let mut registry = crate::carapace::PluginRegistry::new();
+                let mut registry = crate::plugin_signing::PluginRegistry::new();
                 match registry.load_directory(&plugin_dir) {
                     Ok(verified) => {
                         log::info!(
-                            "act: carapace verified {} plugins: {}",
+                            "act: plugin_signing verified {} plugins: {}",
                             verified.len(),
                             verified.join(", ")
                         );
                     }
                     Err(e) => {
-                        log::warn!("act: carapace plugin verification failed: {e}");
+                        log::warn!("act: plugin_signing plugin verification failed: {e}");
                     }
                 }
             } else {
-                log::debug!("act: no plugins directory at {:?}, skipping carapace", plugin_dir);
+                log::debug!(
+                    "act: no plugins directory at {:?}, skipping plugin verification",
+                    plugin_dir
+                );
             }
         }
 
