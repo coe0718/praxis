@@ -109,16 +109,16 @@ Root docs:
  README.md → overview (keep)
  CLAUDE.md → dev guide (keep)
 
-src/ module directories (all with mod.rs):
+src/ module directories (74 dirs, all with mod.rs):
  a2a/ anatomy/ anomaly/ archive/ argus/ attachments/
  backend/ bench/ boundaries/ brief/ bus/ canary/
- canvas/ cli/ config/ context/ curator/
+ canvas/ cli/ config/ context/ crypto/ curator/
  daemon/ dashboard/ delegation/ embedding/ events/ evolution/ examples/
  federation/ forensics/ hands/ heartbeat/ hooks/ i18n/ identity/
- kanban/ learning/ loop/ main/ mcp/
+ kanban/ learning/ lite/ loop/ main/ marketplace/ mcp/
  meet/ memory/ merkle/ messaging/ oauth/ observability/
  paths/ plugins/ plugin_signing/ postmortem/ profiles/ providers/ quality/
- sandbox/ score/ session/ skills/ speculative/
+ report/ rules/ sandbox/ score/ session/ skills/ speculative/
  spotify/ state/ storage/ time/ tools/ tui/
  usage/ vault/ voice/ wakeup/ wave/ webhook/ webhooks/
  watchdog/ (standalone binary — src/watchdog/main.rs)
@@ -126,12 +126,12 @@ src/ module directories (all with mod.rs):
 
 src/ standalone module files (.rs, not directories):
  backup.rs  browser.rs  browser_pwa.rs  channels.rs  checkpoints.rs
- circuit_breaker.rs  cost.rs  docker_isolation.rs  embedding_cache.rs
+ circuit_breaker.rs  cost.rs  crypto.rs  docker_isolation.rs  embedding_cache.rs
  gitclaw.rs  graceful_shutdown.rs  health.rs  hotreload.rs  injection.rs
- leaks.rs  lite.rs  mobile.rs  onchain_reputation.rs  openmolt.rs
+ leaks.rs  mobile.rs  onchain_reputation.rs  openmolt.rs
  personality.rs  pipeline.rs  proactive.rs  process_manager.rs
  rate_limit.rs  rating_improve.rs  report.rs  response_cache.rs  routines.rs
- rrf.rs  rules.rs  runtime_skill.rs  self_update.rs  skill_pack.rs
+ rrf.rs  runtime_skill.rs  self_update.rs  skill_pack.rs
  tool_schema.rs  tracing.rs  trigger.rs  zeptoclaw.rs  zh_channels.rs
 ```
 
