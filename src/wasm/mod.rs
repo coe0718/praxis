@@ -152,25 +152,26 @@ pub struct WasmModule {
 /// Returns output or error message.
 #[cfg(feature = "wasm")]
 pub fn execute(module: WasmModule, args: Vec<String>) -> Result<String> {
-    use wasmtime::{Config, Engine, Extern, Instance, Linker, Module, Store};
+    use wasmtime::{Config, Engine, Linker, Module, Store, Val};
 
     // Create engine with safe defaults
     let mut config = Config::new();
     config.max_wasm_stack(512 * 1024); // 512KB stack limit
-    let engine = Engine::new(&config).context("failed to create WASM engine")?;
+    let engine =
+        Engine::new(&config).map_err(|e| anyhow::anyhow!("failed to create WASM engine: {e}"))?;
 
     let mut store = Store::new(&engine, ());
-    let module =
-        Module::new(&engine, &module.wasm_bytes).context("failed to compile WASM module")?;
+    let module = Module::new(&engine, &module.wasm_bytes)
+        .map_err(|e| anyhow::anyhow!("failed to compile WASM module: {e}"))?;
 
-    let mut linker = Linker::new(&engine);
+    let linker = Linker::new(&engine);
 
     // Host functions would be added here for file/network/credential access
     // based on module.capabilities
 
     let instance = linker
         .instantiate(&mut store, &module)
-        .context("failed to instantiate WASM module")?;
+        .map_err(|e| anyhow::anyhow!("failed to instantiate WASM module: {e}"))?;
 
     // Look for an exported `run` function
     let run = instance
@@ -180,9 +181,10 @@ pub fn execute(module: WasmModule, args: Vec<String>) -> Result<String> {
     // Execute with serialized args
     let args_json = serde_json::to_string(&args)?;
 
-    // Call the run function
+    // Call the run function — pass args as an i32 pointer+length pair
+    // (conventional WASM ABI: string passed as memory offset + length)
     let mut results = vec![];
-    match run.call(&mut store, &[args_json], &mut results) {
+    match run.call(&mut store, &[Val::I32(args_json.len() as i32)], &mut results) {
         Ok(()) => {}
         Err(e) if e.to_string().contains("start") => {
             // For wasm-bindgen style modules, try _start
@@ -190,15 +192,16 @@ pub fn execute(module: WasmModule, args: Vec<String>) -> Result<String> {
                 let _ = start.call(&mut store, &[], &mut []);
             }
         }
-        Err(e) => return Err(e).context("WASM module execution failed"),
+        Err(e) => return Err(anyhow::anyhow!("WASM module execution failed: {e}")),
     }
 
     // Return the result as a string
-    Ok(results
+    let output = results
         .into_iter()
         .next()
-        .map(|v| v.unwrap_string())
-        .unwrap_or_else(|| "WASM module executed successfully (no output)".to_string()))
+        .map(|v| format!("{v:?}"))
+        .unwrap_or_else(|| "WASM module executed successfully (no output)".to_string());
+    Ok(output)
 }
 
 /// Stub when wasm feature is disabled - returns error message.
