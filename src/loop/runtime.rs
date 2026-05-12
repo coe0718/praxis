@@ -141,7 +141,17 @@ where
             }
         }
 
+        // C6 fix: Cap iterations to prevent infinite loops if phase handler doesn't advance state
+        const MAX_PHASE_ITERATIONS: usize = 100;
+        let mut iterations = 0usize;
         while state.current_phase != SessionPhase::Sleep {
+            iterations += 1;
+            if iterations >= MAX_PHASE_ITERATIONS {
+                return Err(anyhow::anyhow!(
+                    "session loop exceeded {} iterations without reaching Sleep phase",
+                    MAX_PHASE_ITERATIONS
+                ));
+            }
             // (#51) Check inactivity timeout before each phase.
             if let Some(inactive_summary) = self.check_inactivity_timeout(&state)? {
                 return Ok(inactive_summary);

@@ -81,12 +81,18 @@ impl CdpClient {
         let text = resp.into_text()?;
 
         // Chrome sends event messages too — skip until we get our id
+        const MAX_WAIT_ITERATIONS: usize = 1000;
+        let mut iterations = 0;
         loop {
             let msg: Value = serde_json::from_str(&text)?;
             if let Some(msg_id) = msg.get("id").and_then(|v| v.as_i64())
                 && msg_id == id
             {
                 return Ok(msg.get("result").cloned().unwrap_or(serde_json::Value::Null));
+            }
+            iterations += 1;
+            if iterations >= MAX_WAIT_ITERATIONS {
+                bail!("browser response timeout: exceeded {} iterations", MAX_WAIT_ITERATIONS);
             }
             // Wait for next message
             let resp = self.socket.read()?;

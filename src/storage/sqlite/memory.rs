@@ -9,6 +9,58 @@ use crate::memory::{
 
 use super::SqliteSessionStore;
 
+impl SqliteSessionStore {
+    /// C9 fix: Atomically promote hot memories to cold and delete the originals.
+    /// All operations happen in a single transaction to prevent partial state.
+    pub fn promote_hot_to_cold_atomic(
+        &self,
+        memory: NewColdMemory,
+        source_ids: &[i64],
+    ) -> Result<i64> {
+        let mut connection = self.connect()?;
+        let tx = connection.transaction().context("failed to begin promotion transaction")?;
+
+        let tags = serde_json::to_string(&memory.tags).context("failed to serialize tags")?;
+        let source_ids_json =
+            serde_json::to_string(&memory.source_ids).context("failed to serialize source ids")?;
+        let contradicts_json = serde_json::to_string(&memory.contradicts)
+            .context("failed to serialize contradiction ids")?;
+
+        tx.execute(
+            "INSERT INTO cold_memories(content, weight, tags, source_ids, contradicts, last_reinforced, memory_type) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                memory.content,
+                memory.weight,
+                tags,
+                source_ids_json,
+                contradicts_json,
+                Utc::now().to_rfc3339(),
+                memory.memory_type.as_str(),
+            ],
+        )
+        .context("failed to insert cold memory")?;
+
+        let id = tx.last_insert_rowid();
+
+        tx.execute(
+            "INSERT INTO cold_fts(rowid, content, tags) VALUES (?1, ?2, ?3)",
+            params![id, memory.content, tags],
+        )
+        .context("failed to index cold memory")?;
+
+        for &hot_id in source_ids {
+            tx.execute("DELETE FROM hot_fts WHERE rowid = ?1", params![hot_id]).ok();
+            tx.execute("DELETE FROM hot_memories WHERE id = ?1", params![hot_id])
+                .with_context(|| format!("failed to delete hot memory {hot_id}"))?;
+        }
+
+        tx.commit().context("failed to commit promotion transaction")?;
+
+        Ok(id)
+    }
+}
+
 impl MemoryStore for SqliteSessionStore {
     fn insert_hot_memory(&self, memory: NewHotMemory) -> Result<StoredMemory> {
         let mut connection = self.connect()?;

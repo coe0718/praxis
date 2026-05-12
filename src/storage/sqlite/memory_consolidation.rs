@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, Duration, Utc};
 use rusqlite::params;
 
-use crate::memory::{ConsolidationSummary, MemoryStore, MemoryType, NewColdMemory};
+use crate::memory::{ConsolidationSummary, MemoryType, NewColdMemory};
 
 use super::SqliteSessionStore;
 
@@ -123,27 +123,20 @@ fn consolidate_hot_memories(store: &SqliteSessionStore, now: DateTime<Utc>) -> R
 
         let content = build_consolidated_content(tag, &members);
 
+        // C9 fix: Use atomic promotion - insert cold + delete hot in single transaction
         store
-            .insert_cold_memory(NewColdMemory {
-                content,
-                weight: cold_weight,
-                tags: all_tags,
-                source_ids: source_ids.clone(),
-                contradicts: Vec::new(),
-                memory_type: dominant_type,
-            })
-            .context("failed to insert consolidated cold memory")?;
-
-        // Delete the promoted hot memories.
-        {
-            let connection = store.connect()?;
-            for &id in &source_ids {
-                connection.execute("DELETE FROM hot_fts WHERE rowid = ?1", params![id]).ok();
-                connection
-                    .execute("DELETE FROM hot_memories WHERE id = ?1", params![id])
-                    .with_context(|| format!("failed to delete consolidated hot memory {id}"))?;
-            }
-        }
+            .promote_hot_to_cold_atomic(
+                NewColdMemory {
+                    content,
+                    weight: cold_weight,
+                    tags: all_tags,
+                    source_ids: source_ids.clone(),
+                    contradicts: Vec::new(),
+                    memory_type: dominant_type,
+                },
+                &source_ids,
+            )
+            .context("failed to promote hot to cold memory")?;
 
         for &id in &source_ids {
             promoted.insert(id);
