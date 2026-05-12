@@ -153,8 +153,12 @@ where
                 ));
             }
             // (#51) Check inactivity timeout before each phase.
-            if let Some(inactive_summary) = self.check_inactivity_timeout(&state)? {
-                return Ok(inactive_summary);
+            if let Some(timeout_summary) = self.check_inactivity_timeout(&state)? {
+                // W11 fix: Save state before returning on inactivity timeout
+                state.last_outcome = Some("timeout".to_string());
+                state.action_summary = Some(timeout_summary.action_summary.clone());
+                state.save(&self.paths.state_file).ok();
+                return Ok(timeout_summary);
             }
             self.run_phase(&mut state).await?;
             // (#51) Update last activity timestamp after each phase completes.
@@ -290,11 +294,15 @@ where
 
         // ── CompactorProcess: trigger context compaction ───────────────────────
         // Wire CompactorProcess into reflect phase for memory consolidation.
-        self.process_manager
+        // W10 fix: Log compaction failures instead of silently dropping them.
+        match self.process_manager
             .compactor()
             .compact(&state.selected_goal_id.clone().unwrap_or_else(|| "default".to_string()), 4096)
             .await
-            .ok();
+        {
+            Ok(_) => {}
+            Err(e) => log::warn!("compact: failed during reflect: {e}"),
+        };
 
         self.emit("agent:reflect_start", "Recording the session outcome.")?;
         write_heartbeat(

@@ -145,17 +145,18 @@ pub struct PidFile {
 }
 
 impl PidFile {
-    /// Write the current process PID to `path`.
+/// Write the current process PID to `path`.
     ///
     /// If `force` is false and the file already exists with a living process,
     /// returns an error.
+    /// W12 fix: Use atomic file creation to prevent TOCTOU race.
     pub fn acquire(path: &Path, force: bool) -> Result<Self> {
         if path.exists() && !force {
             let raw = fs::read_to_string(path).unwrap_or_default();
             let existing_pid: u32 = raw.trim().parse().unwrap_or(0);
             if existing_pid > 0 && process_is_alive(existing_pid) {
                 bail!(
-                    "daemon already running (PID {existing_pid}).  \
+                    "daemon already running (PID {existing_pid}).  \\
                      Kill it first or use --force to override."
                 );
             }
@@ -166,8 +167,26 @@ impl PidFile {
             fs::create_dir_all(parent)
                 .with_context(|| format!("failed to create {}", parent.display()))?;
         }
-        fs::write(path, pid.to_string())
+        // W12 fix: Use create_new for atomic creation (fails if file exists)
+        // For force mode, we delete first then atomically create
+        let file = if force && path.exists() {
+            let _ = fs::remove_file(path);
+            OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(path)
+                .with_context(|| format!("failed to atomically create PID file {}", path.display()))?
+        } else {
+            OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(path)
+                .with_context(|| format!("failed to atomically create PID file {}", path.display()))?
+        };
+        let mut file = file;
+        file.write_all(pid.to_string().as_bytes())
             .with_context(|| format!("failed to write PID file {}", path.display()))?;
+        file.flush().ok();
         Ok(Self { path: path.to_path_buf() })
     }
 }

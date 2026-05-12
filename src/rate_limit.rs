@@ -62,7 +62,7 @@ fn default_tool_burst() -> u32 {
 }
 
 /// Token bucket for rate limiting.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct TokenBucket {
     tokens: f64,
     max_tokens: f64,
@@ -96,6 +96,14 @@ impl TokenBucket {
         } else {
             false
         }
+    }
+
+    /// W5 fix: Check if consumption would succeed without actually consuming.
+    fn would_consume(&self) -> bool {
+        // Clone and peek - refill is cheap
+        let mut clone = self.clone();
+        clone.refill();
+        clone.tokens >= 1.0
     }
 
     /// Time until next token is available.
@@ -135,25 +143,36 @@ impl RateLimiter {
     }
 
     /// Check if a request is allowed for a given tool.
-    /// Returns Ok(()) if allowed, Err with wait time if rate limited.
+    /// W5 fix: Peek both limits first, only consume on success.
+    /// This prevents losing tokens when one limit passes but another fails.
     pub fn check(&self, tool: &str) -> Result<(), Duration> {
-        // Check tool-specific limit first
+        // Peek at global limit (do not consume yet)
         {
-            let mut tools = self.tools.lock().unwrap();
-            if let Some(bucket) = tools.get_mut(tool)
-                && !bucket.try_consume()
-            {
-                let wait = bucket.wait_time();
-                return Err(wait);
+            let global = self.global.lock().unwrap();
+            if !global.would_consume() {
+                return Err(global.wait_time());
             }
         }
 
-        // Check global limit
+        // Peek at tool limit
+        {
+            let tools = self.tools.lock().unwrap();
+            if let Some(bucket) = tools.get(tool)
+                && !bucket.would_consume()
+            {
+                return Err(bucket.wait_time());
+            }
+        }
+
+        // Both passed - now consume
         {
             let mut global = self.global.lock().unwrap();
-            if !global.try_consume() {
-                let wait = global.wait_time();
-                return Err(wait);
+            global.try_consume();
+        }
+        {
+            let mut tools = self.tools.lock().unwrap();
+            if let Some(bucket) = tools.get_mut(tool) {
+                bucket.try_consume();
             }
         }
 

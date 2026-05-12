@@ -50,6 +50,9 @@ Shipped today:
 - Learning runtime that mines opportunities and syncs them into `PROPOSALS.md`
 - Opportunity acceptance that promotes mined work into durable goals in `GOALS.md`
 - Manifest-versioned state export/import plus human-readable audit export
+- MCP (Model Context Protocol) server + client in `src/mcp/` with tool discovery, tool execution, and both stdio and SSE transport
+- Agent-to-agent delegation via `src/delegation/` with concurrency caps, allow/deny task filtering, and A2A protocol fallback
+- Plugin system with `src/plugins/` including discovery, validation, lifecycle hooks, and marketplace queries
 - Optional daily backup snapshots with retention pruning on top of manual export/import
 - `AGENTS.md` pattern capture with CLI support for future-run conventions and gotchas
 - AES-256-GCM at-rest encryption for `vault.toml` and `oauth_tokens.json` via a `master.key` generated on init
@@ -291,18 +294,29 @@ cargo run -- --data-dir ./local-data serve --host 127.0.0.1 --port 8787
 
 - `src/loop/`: session runtime and phase orchestration
 - `src/context/`: budget engine and context assembly
-- `src/anatomy.rs`: file summaries, token estimates, and repeated-read avoidance
+- `src/anatomy/`: file summaries, token estimates, and repeated-read avoidance
 - `src/identity/`: foundation files, goal parsing, and goal promotion
 - `AGENTS.md`: future-run conventions, gotchas, and handoff notes
 - `src/memory/`: memory loading plus operational memory support
 - `src/storage/`: SQLite persistence for runtime state and analytics
 - `src/tools/`: registry, policy, approval flow, and loop guards
 - `src/backend/` and `src/providers/`: model/provider execution and routing
-- `docs/agent_runtime.md`: runtime boundary, adapter ownership, and replacement plan
+- `src/evolution/`: proposal lifecycle, performance scoring, and adaptive behaviour
+- `src/delegation/`: agent-to-agent delegation with A2A protocol fallback
+- `src/mcp/`: Model Context Protocol (server + client)
+- `src/speculative/`: multi-branch speculative execution with trust constraints
+- `src/cli/`: all `praxis <sub>` commands and TUI
+- `src/config/`: `praxis.toml` model, validation, and hot-reload watcher
+- `src/plugins/`: plugin system with marketplace and registry
+- `src/a2a/`: Agent-to-Agent protocol client
+- `src/vault/`: AES-256-GCM encrypted credentials storage
+- `src/kanban/`: built-in kanban task board
 - `src/quality/`: reviewer and eval gates
 - `src/learning/`: learning runtime, opportunity mining, and proposal sync
 - `src/argus/`: drift, failure, repeated-work, and token hotspot analysis
-- `src/messaging/` and `src/dashboard/`: operator surfaces
+- `src/messaging/` and `src/dashboard/`: Telegram/Discord/Slack operator surfaces and SSE web dashboard
+- `docs/agent_runtime.md`: runtime boundary, adapter ownership, and replacement plan
+- [`docs/modules/`](docs/modules/): **92 per-module API reference docs** — every source module has a corresponding doc with public API, configuration, and examples
 - `tests/`: end-to-end CLI coverage
 
 The codebase follows a small-module style and aims to keep Rust source files under 250 lines.
