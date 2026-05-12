@@ -102,12 +102,11 @@ External blockers only:
 
 ```
 Root docs:
- STATUS.md ← this file (supersedes all prior gap/feature docs)
- SHELLDEX_FEATURE_HARVEST.md — reference for 28+ future features
- PRAXIS_GAPS.md → superseded, kept for history
- PRAXIS_DESIGN.md → architecture doc (keep)
- README.md → overview (keep)
- CLAUDE.md → dev guide (keep)
+ STATUS.md ← this file
+ PRAXIS_DESIGN.md — architecture doc (1400 lines)
+ README.md — project overview
+ CLAUDE.md — dev guide for AI assistants
+ CONTRIBUTING.md — contribution guidelines
 
 src/ module directories (74 dirs, all with mod.rs):
  a2a/ anatomy/ anomaly/ archive/ argus/ attachments/
