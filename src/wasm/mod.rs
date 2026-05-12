@@ -5,7 +5,7 @@
 //!
 //! # Architecture
 //!
-//! ```
+//! ```text
 //! LLM selects a tool
 //!   → Load .wasm module (from cache or disk)
 //!   → Validate capabilities.json against policy
