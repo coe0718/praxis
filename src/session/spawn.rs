@@ -107,10 +107,14 @@ impl SessionSpawner {
             created_at: Utc::now(),
         };
 
-        // Write WakeIntent
+        // W17 fix: Atomic write via temp file + rename
         let wake_path = self.paths.data_dir.join("wake_intent.json");
         let json = serde_json::to_string_pretty(&wake).context("serialize wake intent")?;
-        fs::write(&wake_path, json).with_context(|| format!("write {}", wake_path.display()))?;
+        let temp_path = wake_path.with_extension("json.tmp");
+        fs::write(&temp_path, &json)
+            .with_context(|| format!("write temp {}", temp_path.display()))?;
+        fs::rename(&temp_path, &wake_path)
+            .with_context(|| format!("atomic rename to {}", wake_path.display()))?;
 
         // Persist spawn record for tracking
         let record = SessionSpawnResult {

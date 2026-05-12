@@ -71,8 +71,8 @@ impl ResponseCache {
                 *self.hit_count.lock().unwrap() += 1;
                 return Some(resp.clone());
             }
-            // Remove expired
-            entries.remove(&hash);
+            // S5 fix: Opportunistic sweep of all expired entries
+            entries.retain(|_, v| !v.is_expired());
         }
 
         *self.miss_count.lock().unwrap() += 1;

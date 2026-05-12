@@ -5,12 +5,24 @@
 use serde::{Deserialize, Serialize};
 
 /// Chinese platform configuration.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct ChinesePlatformConfig {
     pub platform: Platform,
     pub app_id: String,
+    #[serde(skip)]
     pub app_secret: String,
     pub enabled: bool,
+}
+
+impl std::fmt::Debug for ChinesePlatformConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ChinesePlatformConfig")
+            .field("platform", &self.platform)
+            .field("app_id", &self.app_id)
+            .field("app_secret", &"[REDACTED]")
+            .field("enabled", &self.enabled)
+            .finish()
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
