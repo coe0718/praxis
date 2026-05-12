@@ -82,7 +82,6 @@ pub mod runtime_skill;
 pub mod sandbox;
 pub mod score;
 pub mod self_update;
-pub mod semantic_search;
 pub mod session;
 pub mod skill_pack;
 pub mod skills;
