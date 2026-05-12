@@ -49,6 +49,7 @@
 
 use std::{
     fs,
+    io::Write,
     path::{Path, PathBuf},
     sync::Arc,
     time::Duration,
@@ -171,13 +172,13 @@ impl PidFile {
         // For force mode, we delete first then atomically create
         let file = if force && path.exists() {
             let _ = fs::remove_file(path);
-            OpenOptions::new()
+            fs::OpenOptions::new()
                 .write(true)
                 .create_new(true)
                 .open(path)
                 .with_context(|| format!("failed to atomically create PID file {}", path.display()))?
         } else {
-            OpenOptions::new()
+            fs::OpenOptions::new()
                 .write(true)
                 .create_new(true)
                 .open(path)
