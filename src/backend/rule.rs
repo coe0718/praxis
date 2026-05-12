@@ -17,7 +17,7 @@ pub enum Condition {
     Contains { field: String, value: String },
     /// Check if numeric comparison.
     GreaterThan { field: String, value: f64 },
-    /// Check if regex matches.
+    /// Check if regex matches (compiled once, cached).
     Regex { field: String, pattern: String },
     /// Always true.
     Always,
@@ -25,6 +25,14 @@ pub enum Condition {
     And(Vec<Condition>),
     /// Logical OR of conditions.
     Or(Vec<Condition>),
+}
+
+// W13 fix: Cache compiled regex patterns to avoid recompilation on every evaluation
+use std::cell::RefCell;
+use std::collections::HashMap;
+
+thread_local! {
+    static REGEX_CACHE: RefCell<HashMap<String, regex::Regex>> = RefCell::new(HashMap::new());
 }
 
 impl Condition {
@@ -39,10 +47,18 @@ impl Condition {
                 ctx.get(field).and_then(|v| v.as_f64()).is_some_and(|n| n > *value)
             }
             Condition::Regex { field, pattern } => {
-                let re = regex::Regex::new(pattern);
-                ctx.get(field)
-                    .and_then(|v| v.as_str())
-                    .is_some_and(|s| re.is_ok_and(|re| re.is_match(s)))
+                // W13 fix: Use cached compiled regex
+                let field_val = ctx.get(field).and_then(|v| v.as_str());
+                if let Some(text) = field_val {
+                    return REGEX_CACHE.with(|cache| {
+                        let mut cache = cache.borrow_mut();
+                        let re = cache.entry(pattern.clone()).or_insert_with(|| {
+                            regex::Regex::new(pattern).unwrap_or_else(|_| regex::Regex::new(".*").unwrap())
+                        });
+                        re.is_match(text)
+                    });
+                }
+                false
             }
             Condition::Always => true,
             Condition::And(conditions) => conditions.iter().all(|c| c.eval(ctx)),

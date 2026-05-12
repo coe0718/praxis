@@ -23,18 +23,18 @@ src/
   tools/          — manifest loading, approval queue, execute_request(), policy, cooldowns
   context/        — context assembly, compaction, handoff notes
   messaging/      — Telegram polling/sending, Discord, Slack, bus
-  evolution.rs    — EvolutionStore, EvolutionProposal, append-only JSONL + approval lifecycle
-  score.rs        — SessionScore, four-dimension composite (anticipation/follow-through/reliability/independence)
-  examples.rs     — SyntheticExample training triple (context/action/outcome) → evals/examples.jsonl
-  anomaly.rs      — SystemSnapshot capture → system_anomalies.jsonl
-  anatomy.rs      — refresh_stale_anatomy() — keeps CAPABILITIES.md in sync with identity/tool mtimes
+  evolution/      — EvolutionStore, EvolutionProposal, append-only JSONL + approval lifecycle
+  score/          — SessionScore, four-dimension composite (anticipation/follow-through/reliability/independence)
+  examples/       — SyntheticExample training triple (context/action/outcome) → evals/examples.jsonl
+  anomaly/        — SystemSnapshot capture → system_anomalies.jsonl
+  anatomy/        — refresh_stale_anatomy() — keeps CAPABILITIES.md in sync with identity/tool mtimes
   brief/          — generate_brief() — aggregates goals/memories/approvals/events for Telegram delivery
   learning/       — run_once() — mines argus report for opportunities, daily throttled
-  paths.rs        — PraxisPaths — single struct holds every file path used in the runtime
+  paths/          — PraxisPaths — single struct holds every file path used in the runtime
   config/         — praxis.toml model (AppConfig)
   cli/            — all `praxis <sub>` commands
-  hooks.rs        — HookRunner: interceptor (can abort phase) + observer (fire-and-forget)
-  sandbox.rs      — per-channel filesystem isolation policy
+  hooks/          — HookRunner: interceptor (can abort phase) + observer (fire-and-forget)
+  sandbox/        — per-channel filesystem isolation policy
   delegation/     — agent-to-agent delegation + A2A fallback (wired: orient drain + act delegate)
   speculative/    — multi-branch scoring with trust constraints (wired in act phase via run_speculative)
 tests/            — integration tests; most spin up a tmp data dir and run CLI commands
