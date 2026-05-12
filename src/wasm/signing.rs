@@ -81,10 +81,10 @@ impl SignedWasmManager {
         // Verify signatures
         let mut valid_sigs = 0;
         for signature in &sig.signatures {
-            if let Some(key) = self.trusted_keys.get(&signature.key_id) {
-                if self.verify_signature(&content, &signature.signature, &key.public_key) {
-                    valid_sigs += 1;
-                }
+            if let Some(key) = self.trusted_keys.get(&signature.key_id)
+                && self.verify_signature(&content, &signature.signature, &key.public_key)
+            {
+                valid_sigs += 1;
             }
         }
 

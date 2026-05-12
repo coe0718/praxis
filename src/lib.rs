@@ -100,6 +100,8 @@ pub mod usage;
 pub mod vault;
 pub mod voice;
 pub mod wakeup;
+pub mod wasm;
+pub mod wave;
 pub mod webhook;
 pub mod webhooks;
 pub mod zeptoclaw;

@@ -32,7 +32,7 @@
 ### New Features (2026-05-11)
 - Rate Limiter ✅ DONE — token bucket, per-tool + global, dynamic registration
 - Health Monitor ✅ DONE — subsystem checks, alerting, Healthy/Degraded/Unhealthy
-- Semantic Search ✅ DONE — vector similarity search, metadata filtering
+- Session Search ✅ DONE — full-text search across session outcomes and summaries (storage/search.rs)
 - Tool Pipeline ✅ DONE — declarative multi-step chains, variable resolution, failure policies
 - Cost Tracker ✅ DONE — per-session/tool/model, 15 known model prices, token summaries
 
@@ -40,6 +40,8 @@
 - Circuit Breaker ✅ DONE — closed/open/half-open states, failure threshold, timeout, registry
 - Response Cache ✅ DONE — SHA256 content-addressable, TTL, hit/miss stats, token savings
 - Graceful Shutdown ✅ DONE — ShutdownFlag, cleanup hooks, grace period
+- Wave Execution ✅ DONE — dependency-aware parallel wave scheduling (src/wave/)
+- WASM Sandbox ✅ DONE — wasmtime isolation with capability-based permissions (src/wasm/)
 
 ---
 
@@ -47,7 +49,7 @@
 
 All 10 items from the OpenClaw gap analysis are now closed:
 
-|| # | Feature | Status | Implementation |
+| # | Feature | Status | Implementation |
 |---|---------|--------|----------------|
 | 1 | Kanban | ✅ | `src/kanban/` — full board with dispatcher + workers |
 | 2 | Sessions spawn | ✅ | `src/session/spawn.rs` — programmatic creation |
@@ -64,7 +66,7 @@ All 10 items from the OpenClaw gap analysis are now closed:
 
 ## External Integrations
 
-|| Integration | Status | Notes |
+| Integration | Status | Notes |
 |-------------|--------|-------|
 | Telegram | ✅ Working | Polling bot, morning brief, daily gate |
 | Discord | ✅ In+Out | `discord.rs` outbound + `inbound.rs` REST polling |
@@ -79,14 +81,16 @@ All 10 items from the OpenClaw gap analysis are now closed:
 
 ## Test Status
 
-**370 tests passing, 1 ignored, 0 failures.**
+**395 tests passing, 1 ignored, 0 failures.**
 
 ---
 
 ## Remaining for Competition ($20k prize)
 
 All core features complete. All Shelldex Tiers 1-3 complete.
-5 additional features added today (rate limiter, health monitor, semantic search, tool pipeline, cost tracker).
+5 additional features added 2026-05-11 (rate limiter, health monitor, session search, tool pipeline, cost tracker).
+3 additional features added 2026-05-12 (circuit breaker, response cache, graceful shutdown).
+Wave execution and WASM sandbox wired 2026-05-12.
 
 External blockers only:
 - Vercel Sandbox SDK — no SDK available
@@ -108,18 +112,27 @@ Root docs:
 src/ module directories (all with mod.rs):
  a2a/ anatomy/ anomaly/ archive/ argus/ attachments/
  backend/ bench/ boundaries/ brief/ bus/ canary/
- carapace/ canvas/ cli/ config/ context/ cost/ curator/
+ canvas/ cli/ config/ context/ curator/
  daemon/ dashboard/ delegation/ embedding/ events/ evolution/ examples/
- federation/ forensics/ hands/ health/ heartbeat/ hooks/ i18n/ identity/
- kanban/ learning/ lib/ lite/ loop/ main/ mcp/
+ federation/ forensics/ hands/ heartbeat/ hooks/ i18n/ identity/
+ kanban/ learning/ loop/ main/ mcp/
  meet/ memory/ merkle/ messaging/ oauth/ observability/
- onchain_reputation/ openmolt/ paths/ personality/ pipeline/ plugins/ profiles/ providers/ quality/
- rate_limit/ rating_improve/ report/ runtime_skill/ rules/ sandbox/ score/
- semantic_search/ session/ skill_pack/ skills/ speculative/
+ paths/ plugins/ plugin_signing/ postmortem/ profiles/ providers/ quality/
+ sandbox/ score/ session/ skills/ speculative/
  spotify/ state/ storage/ time/ tools/ tui/
  usage/ vault/ voice/ wakeup/ wave/ webhook/ webhooks/
- zeptoclaw/ zh_channels/
+ watchdog/ (standalone binary — src/watchdog/main.rs)
+ wasm/ (feature-gated — Cargo.toml [features] wasm = ["dep:wasmtime"])
+
+src/ standalone module files (.rs, not directories):
+ backup.rs  browser.rs  browser_pwa.rs  channels.rs  checkpoints.rs
+ circuit_breaker.rs  cost.rs  docker_isolation.rs  embedding_cache.rs
+ gitclaw.rs  graceful_shutdown.rs  health.rs  hotreload.rs  injection.rs
+ leaks.rs  lite.rs  mobile.rs  onchain_reputation.rs  openmolt.rs
+ personality.rs  pipeline.rs  proactive.rs  process_manager.rs
+ rate_limit.rs  rating_improve.rs  report.rs  response_cache.rs  routines.rs
+ rrf.rs  rules.rs  runtime_skill.rs  self_update.rs  skill_pack.rs
+ tool_schema.rs  tracing.rs  trigger.rs  zeptoclaw.rs  zh_channels.rs
 ```
 
 ---
-

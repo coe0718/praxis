@@ -105,8 +105,8 @@ impl WasmSandboxStore {
         let wasm_path = self.modules_dir.join(format!("{}.wasm", name));
         let caps_path = self.modules_dir.join(format!("{}.capabilities.json", name));
 
-        let wasm_bytes = std::fs::read(&wasm_path)
-            .with_context(|| format!("loading WASM module {}", name))?;
+        let wasm_bytes =
+            std::fs::read(&wasm_path).with_context(|| format!("loading WASM module {}", name))?;
 
         let capabilities: WasmCapabilities = if caps_path.exists() {
             let caps_json = std::fs::read_to_string(&caps_path)?;
@@ -160,8 +160,8 @@ pub fn execute(module: WasmModule, args: Vec<String>) -> Result<String> {
     let engine = Engine::new(&config).context("failed to create WASM engine")?;
 
     let mut store = Store::new(&engine, ());
-    let module = Module::new(&engine, &module.wasm_bytes)
-        .context("failed to compile WASM module")?;
+    let module =
+        Module::new(&engine, &module.wasm_bytes).context("failed to compile WASM module")?;
 
     let mut linker = Linker::new(&engine);
 
