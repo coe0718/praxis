@@ -22,7 +22,7 @@ src/
   storage/        — SQLite trait impls (SqliteSessionStore is the concrete type)
   tools/          — manifest loading, approval queue, execute_request(), policy, cooldowns
   context/        — context assembly, compaction, handoff notes
-  messaging/      — Telegram polling/sending, Discord stub, Slack stub, bus
+  messaging/      — Telegram polling/sending, Discord, Slack, bus
   evolution.rs    — EvolutionStore, EvolutionProposal, append-only JSONL + approval lifecycle
   score.rs        — SessionScore, four-dimension composite (anticipation/follow-through/reliability/independence)
   examples.rs     — SyntheticExample training triple (context/action/outcome) → evals/examples.jsonl
@@ -35,11 +35,11 @@ src/
   cli/            — all `praxis <sub>` commands
   hooks.rs        — HookRunner: interceptor (can abort phase) + observer (fire-and-forget)
   sandbox.rs      — per-channel filesystem isolation policy
-  delegation.rs   — agent-to-agent delegation links (store only; Act phase does not use them yet)
-  speculative/    — trial execution records (store only; Act phase does not use them yet)
+  delegation/     — agent-to-agent delegation + A2A fallback (wired: orient drain + act delegate)
+  speculative/    — multi-branch scoring with trust constraints (wired in act phase via run_speculative)
 tests/            — integration tests; most spin up a tmp data dir and run CLI commands
-NEEDS_FINISHED.md — authoritative list of STUB / PARTIAL / WIRED-but-disconnected features
-PRAXIS_DESIGN.md  — canonical architecture and philosophy document (1400 lines)
+ STATUS.md        — master status document (features, wiring, test count)
+ PRAXIS_DESIGN.md  — canonical architecture and philosophy document (1400 lines)
 ```
 
 ---
@@ -137,9 +137,9 @@ All 5 previously-listed features are now wired:
 Tier 3 Shelldex:
 - Zod-typed Tool Outputs ✅ (tool_schema.rs)
 - Local Embedding Caching ✅ (wired in orient())
-- Local STT/TTS — stubs exist, impl not done
-- Embedding Provider System — not started
-- Scheduled Event Triggers — basic version exists
+- Voice I/O (STT/TTS) ✅ — wired in act() phase, multiple provider support
+- Embedding Provider System ✅ — OpenAI + local hash, cosine similarity
+- Scheduled Event Triggers ✅ — cron evaluation, composite conditions, chains
 
 ---
 

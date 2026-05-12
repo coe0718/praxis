@@ -10,7 +10,7 @@ Links are persisted in a JSON file (`delegation_links.json`) and consulted durin
 
 The security model is straightforward: each link carries optional glob-pattern `allow_tasks` and `deny_tasks` lists. An empty allow list means "all tasks permitted" (subject to the deny list). Inbound links that don't pass the allow/deny check are rejected before reaching the approval queue.
 
-**Current status:** The store, link management, queue I/O, and security filtering are fully implemented. The Act phase does not yet automatically delegate work over links; this is a store-and-infrastructure layer awaiting Act-phase integration.
+**Current status:** Fully implemented and wired. The store, link management, queue I/O, security filtering are complete. The Act phase delegates work over links via `try_delegate()` and falls back to A2A protocol for remote agents. Inbound tasks are drained during `orient()` and queued for operator approval.
 
 ## Architecture
 
@@ -65,7 +65,7 @@ pub fn send_over_link(link: &mut DelegationLink, task: &str, from: &str, now: Da
 pub fn drain_inbound_delegation(queue_path: &Path) -> Result<Vec<DelegatedTask>>
 ```
 
-- **`send_over_link`** — Write a `DelegatedTask` to a remote agent's `delegation_queue.jsonl`. Only file-based endpoints (absolute or `~/` paths) are currently supported; HTTP endpoints are not yet implemented.
+- **`send_over_link`** — Write a `DelegatedTask` to a remote agent's `delegation_queue.jsonl`. Only file-based endpoints (absolute or `~/` paths) are currently supported; HTTP endpoints remain a future extension.
 - **`drain_inbound_delegation`** — Read and clear the local `delegation_queue.jsonl`. The queue is truncated after reading so entries are processed exactly once.
 
 ### `LinkDirection`

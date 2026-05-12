@@ -3,6 +3,14 @@
 **Reviewed:** `/mnt/docker/code/praxis/src/`
 **Date:** 2026-05-07
 **Focus:** Unwired (unused) functions and modules
+**Status:** ⚠️ SUPERSEDED — All 6 modules listed below have been wired as of 2026-05-12.
+  - a2a → wired in phases.rs try_delegate() A2A fallback
+  - federation → wired in phases.rs act() via try_federation()
+  - channels → wired in phases.rs act() via notify_event()
+  - wave → wired in lib.rs + phases.rs act() via execute_waves()
+  - openmolt → wired in phases.rs orient() via register_integrations()
+  - hotreload → wired in runtime.rs via ConfigWatcher
+  See STATUS.md for current feature status.
 
 ---
 

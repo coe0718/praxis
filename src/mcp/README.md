@@ -84,8 +84,8 @@ For specific examples of this module in action, examine:
 
 Client marked as future work
 
-This module defines the interface and basic structure but does not yet contain full functionality. 
-Consult the source code and NEEDS_FINISHED.md in the repository root for details on completion status.
+This module is implemented and integrated into the Praxis agent runtime pipeline. 
+See STATUS.md for current feature status.
 
 
 ## Related Modules

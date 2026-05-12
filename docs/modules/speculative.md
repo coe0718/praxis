@@ -10,7 +10,7 @@ This is especially valuable when the cheapest safe strategy is "try two narrow a
 
 The scoring model is intentionally simple — keyword and phrase matching against plan text — and is designed as a first-class primitive that a future evaluator backend can replace with semantic scoring.
 
-**Current status:** The store and scoring logic are fully implemented. The Act phase does not yet invoke branching logic automatically; this module is wired but not called from the main loop.
+**Current status:** Fully implemented and wired into the Act phase. `run_speculative()` in `phases.rs` generates a conservative alternative branch, scores both branches against success criteria and trust constraints, and commits to the higher-scoring approach. Gated by `LiteCapability::Speculative`.
 
 ## Architecture
 
