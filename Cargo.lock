@@ -2250,6 +2250,7 @@ dependencies = [
  "tungstenite",
  "url",
  "urlencoding",
+ "uuid",
  "wasmtime",
  "zeroize",
 ]

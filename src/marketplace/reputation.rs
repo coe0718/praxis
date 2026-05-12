@@ -29,7 +29,9 @@ impl MarketplaceReputation {
     }
 
     /// Record a completed job.
+    /// W15 fix: Clamp rating to 0.0-5.0 range to prevent manipulation.
     pub fn record_completion(&mut self, rating: f32, amount: u64) {
+        let rating = rating.clamp(0.0, 5.0);
         self.jobs_completed += 1;
         self.total_earned += amount;
 

@@ -193,7 +193,7 @@ impl AgentFederation {
 
     /// Run the full federation pipeline.
     pub fn run(&self, req: FederationRequest) -> Result<FederationResult> {
-        let federation_id = format!("fed-{}", uuid_simple());
+        let federation_id = format!("fed-{}", uuid_v4());
 
         // Decompose the task
         let subtasks = self.decompose(&req)?;

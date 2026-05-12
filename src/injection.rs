@@ -55,12 +55,15 @@ pub enum Severity {
     Critical,
 }
 
-/// Sanitize input by removing injection patterns.
+/// W4 fix: Rename to `strip_delimiter_markers()` to be accurate about what it does.
+/// The function only removes `<| |>` and `<? ?>` delimiters, not full injection sanitization.
 pub fn sanitize_input(text: &str) -> Result<String> {
-    // Remove common injection markers
-    let sanitized = text.replace("<|", "").replace("|>", "").replace("<?", "").replace("?>", "");
+    strip_delimiter_markers(text)
+}
 
-    Ok(sanitized)
+/// Strip delimiter markers used for prompt injection.
+pub fn strip_delimiter_markers(text: &str) -> Result<String> {
+    Ok(text.replace("<|", "").replace("|>", "").replace("<?", "").replace("?>", ""))
 }
 
 /// Policy action for detected injections.
