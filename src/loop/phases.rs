@@ -565,9 +565,9 @@ where
             );
         }
 
-        // IronClaw Docker isolation — sandbox tool execution in containers.
-        if !self.lite.skip_capability(crate::lite::LiteCapability::IronClaw) {
-            log::debug!("act: IronClaw container isolation available for shell tools");
+        // Docker isolation — sandbox tool execution in containers.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::DockerIsolation) {
+            log::debug!("act: docker container isolation available for shell tools");
         }
 
         // Sandbox enforcement is applied in execute_tool_request() where it can
@@ -912,19 +912,19 @@ where
             return Ok(());
         }
 
-        // ── IronClaw Docker isolation ──────────────────────────────────────
+        // ── DockerIsolation Docker isolation ──────────────────────────────────────
         // For shell-type tools, route execution through Docker containers
-        // when IronClaw is enabled and Docker is available.
-        if !self.lite.skip_capability(crate::lite::LiteCapability::IronClaw)
+        // when DockerIsolation is enabled and Docker is available.
+        if !self.lite.skip_capability(crate::lite::LiteCapability::DockerIsolation)
             && matches!(manifest.kind, crate::tools::ToolKind::Shell)
         {
-            // Use block_in_place to call async IronClaw from sync function
+            // Use block_in_place to call async DockerIsolation from sync function
             let result = tokio::task::block_in_place(|| {
                 let rt = tokio::runtime::Handle::try_current().ok();
                 if let Some(h) = rt {
                     h.block_on(async {
-                        let mut ironclaw = crate::ironclaw::IronClaw::new()?;
-                        let config = crate::ironclaw::presets::shell_config();
+                        let mut docker_isolation = crate::docker_isolation::DockerIsolation::new()?;
+                        let config = crate::docker_isolation::presets::shell_config();
                         let args: Vec<String> = request
                             .payload_json
                             .as_deref()
@@ -932,10 +932,10 @@ where
                             .split_whitespace()
                             .map(String::from)
                             .collect();
-                        ironclaw.execute_isolated(&manifest.name, &config, &args).await
+                        docker_isolation.execute_isolated(&manifest.name, &config, &args).await
                     })
                 } else {
-                    // No tokio runtime available — skip IronClaw
+                    // No tokio runtime available — skip DockerIsolation
                     Err(anyhow::anyhow!("No tokio runtime"))
                 }
             });
@@ -948,7 +948,10 @@ where
                 state.updated_at = self.clock.now_utc();
                 return Ok(());
             } else {
-                log::debug!("ironclaw: skipping container execution for '{}'", manifest.name);
+                log::debug!(
+                    "docker_isolation: skipping container execution for '{}'",
+                    manifest.name
+                );
             }
         }
 

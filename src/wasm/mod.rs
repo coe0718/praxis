@@ -1,7 +1,7 @@
 //! WASM Sandbox — Tool-level isolation with capability-based permissions.
 //!
-//! IronClaw's signature innovation: Every tool runs in an isolated WebAssembly
-//! container with capability-based permissions (filesystem, network, credentials).
+//! Every tool runs in an isolated WebAssembly container with capability-based
+//! permissions (filesystem, network, credentials).
 //!
 //! # Architecture
 //!

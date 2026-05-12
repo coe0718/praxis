@@ -1,6 +1,6 @@
 //! Credential leak detection — Scan tool outputs for secret exfiltration.
 //!
-//! IronClaw scans both requests AND responses for secret exfiltration.
+//! Scans both requests AND responses for secret exfiltration.
 //! Credentials are injected at host boundary — WASM module never sees raw values.
 
 use anyhow::Result;

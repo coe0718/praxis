@@ -60,8 +60,8 @@ pub struct LiteMode {
     pub disable_leaks: bool,
     #[serde(default = "default_disable_tracing")]
     pub disable_tracing: bool,
-    #[serde(default = "default_disable_ironclaw")]
-    pub disable_ironclaw: bool,
+    #[serde(default = "default_disable_docker_isolation")]
+    pub disable_docker_isolation: bool,
     #[serde(default = "default_disable_sandbox_enforcement")]
     pub disable_sandbox_enforcement: bool,
     #[serde(default = "default_disable_checkpoints")]
@@ -145,7 +145,7 @@ impl Default for LiteMode {
             disable_injection: default_disable_injection(),
             disable_leaks: default_disable_leaks(),
             disable_tracing: default_disable_tracing(),
-            disable_ironclaw: default_disable_ironclaw(),
+            disable_docker_isolation: default_disable_docker_isolation(),
             disable_sandbox_enforcement: default_disable_sandbox_enforcement(),
             disable_checkpoints: default_disable_checkpoints(),
             disable_rules: default_disable_rules(),
@@ -235,7 +235,7 @@ fn default_disable_leaks() -> bool {
 fn default_disable_tracing() -> bool {
     false
 }
-fn default_disable_ironclaw() -> bool {
+fn default_disable_docker_isolation() -> bool {
     true
 }
 fn default_disable_sandbox_enforcement() -> bool {
@@ -398,8 +398,8 @@ impl LiteMode {
             if let Some(v) = t.get("lite_disable_tracing").and_then(toml::Value::as_bool) {
                 lite.disable_tracing = v;
             }
-            if let Some(v) = t.get("lite_disable_ironclaw").and_then(toml::Value::as_bool) {
-                lite.disable_ironclaw = v;
+            if let Some(v) = t.get("lite_disable_docker_isolation").and_then(toml::Value::as_bool) {
+                lite.disable_docker_isolation = v;
             }
             if let Some(v) =
                 t.get("lite_disable_sandbox_enforcement").and_then(toml::Value::as_bool)
@@ -517,7 +517,7 @@ impl LiteMode {
             LiteCapability::Injection => self.disable_injection,
             LiteCapability::Leaks => self.disable_leaks,
             LiteCapability::Tracing => self.disable_tracing,
-            LiteCapability::IronClaw => self.disable_ironclaw,
+            LiteCapability::DockerIsolation => self.disable_docker_isolation,
             LiteCapability::SandboxEnforcement => self.disable_sandbox_enforcement,
             LiteCapability::Checkpoints => self.disable_checkpoints,
             LiteCapability::Rules => self.disable_rules,
@@ -581,8 +581,8 @@ pub enum LiteCapability {
     Leaks,
     /// Structured tracing — JSON logging + Prometheus metrics.
     Tracing,
-    /// IronClaw Docker isolation — per-tool container execution.
-    IronClaw,
+    /// DockerIsolation Docker isolation — per-tool container execution.
+    DockerIsolation,
     /// Sandbox enforcement — per-channel filesystem isolation.
     SandboxEnforcement,
     /// Auto-checkpoints — snapshot before file-modifying tools.
@@ -699,7 +699,7 @@ impl LiteMode {
             disable_injection: true,
             disable_leaks: true,
             disable_tracing: true,
-            disable_ironclaw: true,
+            disable_docker_isolation: true,
             disable_sandbox_enforcement: true,
             disable_checkpoints: true,
             disable_rules: true,

@@ -1,6 +1,6 @@
 //! Reciprocal Rank Fusion — Better hybrid search ranking.
 //!
-//! IronClaw uses RRF to combine vector + full-text search results.
+//! RRF combines vector + full-text search results.
 //! This improves search quality by blending multiple ranking algorithms.
 
 use std::collections::HashMap;
@@ -41,9 +41,4 @@ pub fn combine_rrf(results: Vec<(String, Vec<(String, usize)>)>, k: usize) -> Ve
 
     results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
     results
-}
-
-/// Perform hybrid search with RRF.
-pub fn hybrid_search(_query: &str) -> Vec<RrfResult> {
-    vec![]
 }
