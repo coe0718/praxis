@@ -53,15 +53,19 @@ impl EmbeddingCache {
     }
 
     /// Get cached embedding if not expired.
-    pub fn get(&self, key: &str) -> Option<&EmbeddingCacheEntry> {
-        self.entries.get(key).and_then(|e| {
-            let now: chrono::DateTime<chrono::Utc> = chrono::Utc::now();
+    pub fn get(&mut self, key: &str) -> Option<EmbeddingCacheEntry> {
+        let now: chrono::DateTime<chrono::Utc> = chrono::Utc::now();
+        // S5 fix: Return a clone and remove expired entries
+        if let Some(e) = self.entries.get(key) {
             if (now - e.cached_at).num_seconds() < e.ttl_seconds as i64 {
-                Some(e)
+                Some(e.clone())
             } else {
+                self.entries.remove(key);
                 None
             }
-        })
+        } else {
+            None
+        }
     }
 
     /// Store an embedding in cache.
