@@ -153,12 +153,12 @@ fn is_locked_path(path: &Path) -> bool {
 /// (#48) The check is case-insensitive and matches substrings in the payload.
 /// Patterns are loaded from `security.hardline_blocklist` in `praxis.toml`.
 /// These are **unrecoverable** — no approval level can override them.
+/// W3 fix: Use fnmatch-style glob matching for `*` patterns.
+/// `curl * | sh` should match `curl https://... | sh`.
 fn check_hardline_blocklist(config: &AppConfig, request: &StoredApprovalRequest) -> Option<String> {
     if config.security.hardline_blocklist.is_empty() {
         return None;
     }
-    // Build a combined haystack from all available text fields so we catch
-    // dangerous commands regardless of which field the payload uses.
     let mut haystack = String::new();
     if let Some(ref payload) = request.payload_json {
         haystack.push_str(payload);
@@ -170,7 +170,18 @@ fn check_hardline_blocklist(config: &AppConfig, request: &StoredApprovalRequest)
     let haystack = haystack.to_lowercase();
 
     for pattern in &config.security.hardline_blocklist {
-        if haystack.contains(&pattern.to_lowercase()) {
+        let lower_pattern = pattern.to_lowercase();
+        // Convert glob-style pattern (* matches anything) to regex
+        let regex_str = regex::escape(&lower_pattern).replace("\\*", ".*");
+        if let Ok(re) = regex::RegexBuilder::new(&regex_str)
+            .case_insensitive(true)
+            .build()
+        {
+            if re.is_match(&haystack) {
+                return Some(pattern.clone());
+            }
+        } else if haystack.contains(&lower_pattern) {
+            // Fallback to substring if regex fails
             return Some(pattern.clone());
         }
     }

@@ -253,6 +253,7 @@ fn run_shell(
     let timeout_secs = manifest.timeout_secs.unwrap_or(DEFAULT_TIMEOUT_SECS).clamp(1, 300);
 
     // Parse any extra arguments from the structured payload.
+    // W2 fix: Use JSON array for args to preserve quoting, fall back to shlex for append_text.
     let payload = parse_payload(request.payload_json.as_deref())?;
     let extra_args: Vec<String> = payload
         .params

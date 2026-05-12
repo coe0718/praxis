@@ -261,10 +261,8 @@ impl AgentFederation {
     }
 }
 
-fn uuid_simple() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let nanos = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
-    format!("{:x}", nanos)
+fn uuid_v4() -> String {
+    uuid::Uuid::new_v4().to_string()
 }
 
 #[cfg(test)]
