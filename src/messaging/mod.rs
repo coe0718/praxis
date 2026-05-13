@@ -3,6 +3,8 @@ pub mod auto_reply;
 pub mod context_group;
 #[cfg(feature = "discord")]
 pub mod discord;
+#[cfg(feature = "discord")]
+mod discord_gateway;
 pub mod inbound;
 pub mod pairing;
 pub mod platform;
@@ -18,6 +20,8 @@ pub use auto_reply::{AutoReplyConfig, AutoReplyEngine};
 pub use discord::{
     DiscordClient, DiscordPollMessage, parse_allowed_user_ids as discord_allowed_user_ids,
 };
+#[cfg(feature = "discord")]
+pub use discord_gateway::run_gateway;
 pub use inbound::{InboundPollConfig, poll_discord_messages, poll_slack_messages};
 pub use platform::{Platform, PlatformRegistry};
 pub use router::{
