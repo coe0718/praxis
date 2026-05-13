@@ -43,13 +43,13 @@ pub struct SqliteSessionStore {
 
 impl SqliteSessionStore {
     pub fn new(path: PathBuf) -> Self {
-        Self { 
-            path, 
+        Self {
+            path,
             pool: None,
             pool_max_size: 5,
         }
     }
-    
+
     /// S7 fix: Initialize connection pool for concurrent database access
     pub fn with_pool(path: PathBuf, max_connections: usize) -> Result<Self> {
         let mut pool = Vec::new();
@@ -57,13 +57,13 @@ impl SqliteSessionStore {
             let conn = Self::create_connection(&path)?;
             pool.push(conn);
         }
-        Ok(Self { 
-            path, 
+        Ok(Self {
+            path,
             pool: Some(Arc::new(parking_lot::Mutex::new(pool))),
             pool_max_size: max_connections,
         })
     }
-    
+
     /// S7 fix: Get a pooled connection, or create a new one if pool not initialized
     pub fn get_connection(&self) -> Result<Connection> {
         if let Some(ref pool) = self.pool {
@@ -78,7 +78,7 @@ impl SqliteSessionStore {
             Self::create_connection(&self.path)
         }
     }
-    
+
     /// S7 fix: Return a connection to the pool
     pub fn return_connection(&self, conn: Connection) {
         if let Some(ref pool) = self.pool {
@@ -89,7 +89,7 @@ impl SqliteSessionStore {
             // If pool is full, just drop the connection
         }
     }
-    
+
     fn create_connection(path: &PathBuf) -> Result<Connection> {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)
@@ -129,7 +129,8 @@ impl SqliteSessionStore {
 
     pub fn count_hot_memories(&self) -> Result<i64> {
         let conn = self.get_connection()?;
-        let result = conn.query_row("SELECT COUNT(*) FROM hot_memories", [], |row| row.get(0))
+        let result = conn
+            .query_row("SELECT COUNT(*) FROM hot_memories", [], |row| row.get(0))
             .context("failed to count hot memories")?;
         self.return_connection(conn);
         Ok(result)
@@ -137,7 +138,8 @@ impl SqliteSessionStore {
 
     pub fn count_cold_memories(&self) -> Result<i64> {
         let conn = self.get_connection()?;
-        let result = conn.query_row("SELECT COUNT(*) FROM cold_memories", [], |row| row.get(0))
+        let result = conn
+            .query_row("SELECT COUNT(*) FROM cold_memories", [], |row| row.get(0))
             .context("failed to count cold memories")?;
         self.return_connection(conn);
         Ok(result)
