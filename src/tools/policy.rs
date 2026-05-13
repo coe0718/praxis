@@ -173,10 +173,7 @@ fn check_hardline_blocklist(config: &AppConfig, request: &StoredApprovalRequest)
         let lower_pattern = pattern.to_lowercase();
         // Convert glob-style pattern (* matches anything) to regex
         let regex_str = regex::escape(&lower_pattern).replace("\\*", ".*");
-        if let Ok(re) = regex::RegexBuilder::new(&regex_str)
-            .case_insensitive(true)
-            .build()
-        {
+        if let Ok(re) = regex::RegexBuilder::new(&regex_str).case_insensitive(true).build() {
             if re.is_match(&haystack) {
                 return Some(pattern.clone());
             }

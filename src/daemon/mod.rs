@@ -146,7 +146,7 @@ pub struct PidFile {
 }
 
 impl PidFile {
-/// Write the current process PID to `path`.
+    /// Write the current process PID to `path`.
     ///
     /// If `force` is false and the file already exists with a living process,
     /// returns an error.
@@ -170,20 +170,17 @@ impl PidFile {
         }
         // W12 fix: Use create_new for atomic creation (fails if file exists)
         // For force mode, we delete first then atomically create
-        let file = if force && path.exists() {
-            let _ = fs::remove_file(path);
-            fs::OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(path)
-                .with_context(|| format!("failed to atomically create PID file {}", path.display()))?
-        } else {
-            fs::OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(path)
-                .with_context(|| format!("failed to atomically create PID file {}", path.display()))?
-        };
+        let file =
+            if force && path.exists() {
+                let _ = fs::remove_file(path);
+                fs::OpenOptions::new().write(true).create_new(true).open(path).with_context(
+                    || format!("failed to atomically create PID file {}", path.display()),
+                )?
+            } else {
+                fs::OpenOptions::new().write(true).create_new(true).open(path).with_context(
+                    || format!("failed to atomically create PID file {}", path.display()),
+                )?
+            };
         let mut file = file;
         file.write_all(pid.to_string().as_bytes())
             .with_context(|| format!("failed to write PID file {}", path.display()))?;

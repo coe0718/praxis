@@ -53,7 +53,8 @@ impl Condition {
                     return REGEX_CACHE.with(|cache| {
                         let mut cache = cache.borrow_mut();
                         let re = cache.entry(pattern.clone()).or_insert_with(|| {
-                            regex::Regex::new(pattern).unwrap_or_else(|_| regex::Regex::new(".*").unwrap())
+                            regex::Regex::new(pattern)
+                                .unwrap_or_else(|_| regex::Regex::new(".*").unwrap())
                         });
                         re.is_match(text)
                     });

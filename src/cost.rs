@@ -3,7 +3,7 @@
 //! Records token usage and estimated costs for LLM and API calls.
 //! Provides session-level and aggregate cost reporting.
 
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::LazyLock};
 
 use serde::{Deserialize, Serialize};
 
@@ -25,7 +25,8 @@ impl ModelPricing {
 }
 
 /// Known model pricing (per million tokens, USD).
-pub fn known_pricing() -> HashMap<String, ModelPricing> {
+/// S6 fix: Lazy-initialized once to avoid HashMap allocation on every call.
+static KNOWN_PRICING: LazyLock<HashMap<String, ModelPricing>> = LazyLock::new(|| {
     let mut m = HashMap::new();
     // OpenAI
     m.insert(
@@ -138,6 +139,11 @@ pub fn known_pricing() -> HashMap<String, ModelPricing> {
         },
     );
     m
+});
+
+/// Get a reference to the known pricing map.
+pub fn known_pricing() -> &'static HashMap<String, ModelPricing> {
+    &KNOWN_PRICING
 }
 
 /// A single cost entry.

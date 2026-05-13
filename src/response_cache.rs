@@ -35,27 +35,31 @@ impl CachedResponse {
 }
 
 /// Response cache with TTL support.
+/// S4 fix: Consolidated three Mutex types into single Mutex<InnerState>.
 pub struct ResponseCache {
-    entries: Mutex<HashMap<String, CachedResponse>>,
-    hit_count: Mutex<u64>,
-    miss_count: Mutex<u64>,
-    default_ttl: u64,
+    inner: Mutex<ResponseCacheInner>,
+}
+
+struct ResponseCacheInner {
+    entries: HashMap<String, CachedResponse>,
+    hit_count: u64,
+    miss_count: u64,
 }
 
 impl ResponseCache {
-    pub fn new(default_ttl_seconds: u64) -> Self {
+    pub fn new(_default_ttl_seconds: u64) -> Self {
         Self {
-            entries: Mutex::new(HashMap::new()),
-            hit_count: Mutex::new(0),
-            miss_count: Mutex::new(0),
-            default_ttl: default_ttl_seconds,
+            inner: Mutex::new(ResponseCacheInner {
+                entries: HashMap::new(),
+                hit_count: 0,
+                miss_count: 0,
+            }),
         }
     }
 
     /// Compute hash of input text + model.
     pub fn compute_hash(input: &str, model: &str) -> String {
         let mut hasher = Sha256::new();
-        // Use Digest::update which works with any input that implements AsRef<[u8]>
         hasher.update(input.as_bytes());
         hasher.update(model.as_bytes());
         hex::encode(hasher.finalize())
@@ -64,18 +68,19 @@ impl ResponseCache {
     /// Get a cached response if available and not expired.
     pub fn get(&self, input: &str, model: &str) -> Option<CachedResponse> {
         let hash = Self::compute_hash(input, model);
-        let mut entries = self.entries.lock().unwrap();
+        let mut inner = self.inner.lock().unwrap();
 
-        if let Some(resp) = entries.get(&hash) {
+        if let Some(resp) = inner.entries.get(&hash) {
             if !resp.is_expired() {
-                *self.hit_count.lock().unwrap() += 1;
-                return Some(resp.clone());
+                let clone = resp.clone();
+                inner.hit_count += 1;
+                return Some(clone);
             }
             // S5 fix: Opportunistic sweep of all expired entries
-            entries.retain(|_, v| !v.is_expired());
+            inner.entries.retain(|_, v| !v.is_expired());
         }
 
-        *self.miss_count.lock().unwrap() += 1;
+        inner.miss_count += 1;
         None
     }
 
@@ -96,45 +101,44 @@ impl ResponseCache {
             input_tokens,
             output_tokens,
             cached_at: chrono::Utc::now(),
-            ttl_seconds: self.default_ttl,
+            ttl_seconds: 3600, // default TTL
         };
 
-        self.entries.lock().unwrap().insert(hash, entry);
+        self.inner.lock().unwrap().entries.insert(hash, entry);
     }
 
     /// Remove a specific entry.
     pub fn invalidate(&self, input: &str, model: &str) -> bool {
         let hash = Self::compute_hash(input, model);
-        self.entries.lock().unwrap().remove(&hash).is_some()
+        self.inner.lock().unwrap().entries.remove(&hash).is_some()
     }
 
     /// Clear all entries.
     pub fn clear(&self) {
-        self.entries.lock().unwrap().clear();
+        self.inner.lock().unwrap().entries.clear();
     }
 
     /// Remove expired entries.
     pub fn cleanup(&self) {
-        let mut entries = self.entries.lock().unwrap();
-        entries.retain(|_, v| !v.is_expired());
+        let mut inner = self.inner.lock().unwrap();
+        inner.entries.retain(|_, v| !v.is_expired());
     }
 
     /// Number of cached entries.
     pub fn len(&self) -> usize {
-        self.entries.lock().unwrap().len()
+        self.inner.lock().unwrap().entries.len()
     }
 
     /// Whether cache is empty.
     pub fn is_empty(&self) -> bool {
-        self.entries.lock().unwrap().is_empty()
+        self.inner.lock().unwrap().entries.is_empty()
     }
 
     /// Cache hit rate.
     pub fn hit_rate(&self) -> f64 {
-        let hits = *self.hit_count.lock().unwrap();
-        let misses = *self.miss_count.lock().unwrap();
-        let total = hits + misses;
-        if total == 0 { 0.0 } else { hits as f64 / total as f64 }
+        let inner = self.inner.lock().unwrap();
+        let total = inner.hit_count + inner.miss_count;
+        if total == 0 { 0.0 } else { inner.hit_count as f64 / total as f64 }
     }
 
     /// Store a raw HTTP response body keyed by a pre-computed SHA256 hash.
@@ -149,18 +153,19 @@ impl ResponseCache {
             cached_at: chrono::Utc::now(),
             ttl_seconds: ttl_secs,
         };
-        self.entries.lock().unwrap().insert(key.to_string(), entry);
+        self.inner.lock().unwrap().entries.insert(key.to_string(), entry);
     }
 
     /// Get hit/miss counts.
     pub fn stats(&self) -> (u64, u64) {
-        (*self.hit_count.lock().unwrap(), *self.miss_count.lock().unwrap())
+        let inner = self.inner.lock().unwrap();
+        (inner.hit_count, inner.miss_count)
     }
 
     /// Estimated token savings.
     pub fn tokens_saved(&self) -> u64 {
-        let entries = self.entries.lock().unwrap();
-        entries.values().map(|e| e.output_tokens).sum()
+        let inner = self.inner.lock().unwrap();
+        inner.entries.values().map(|e| e.output_tokens).sum()
     }
 }
 
@@ -177,12 +182,12 @@ static HTTP_CACHE: Lazy<Mutex<ResponseCache>> = Lazy::new(|| {
 /// Returns `None` if absent or expired.
 pub fn get_cached(key: &str, _ttl_secs: u64) -> Option<String> {
     let cache = HTTP_CACHE.lock().unwrap();
-    let mut entries = cache.entries.lock().unwrap();
-    if let Some(resp) = entries.get(key) {
+    let mut inner = cache.inner.lock().unwrap();
+    if let Some(resp) = inner.entries.get(key) {
         if !resp.is_expired() {
             return Some(resp.output.clone());
         }
-        entries.remove(key);
+        inner.entries.remove(key);
     }
     None
 }
@@ -195,7 +200,8 @@ pub fn put_cached(key: &str, body: String, ttl_secs: u64) {
 /// Get hit/miss counts from the global cache.
 pub fn http_cache_stats() -> (u64, u64) {
     let cache = HTTP_CACHE.lock().unwrap();
-    (*cache.hit_count.lock().unwrap(), *cache.miss_count.lock().unwrap())
+    let inner = cache.inner.lock().unwrap();
+    (inner.hit_count, inner.miss_count)
 }
 
 #[cfg(test)]

@@ -123,21 +123,19 @@ impl PluginRegistry {
             let entry = entry?;
             if entry.path().is_dir() {
                 match SignedPlugin::load(&entry.path()) {
-                    Ok(mut plugin) => {
-                        match plugin.verify() {
-                            Ok(true) => {
-                                verified.push(entry.file_name().to_string_lossy().to_string());
-                                self.plugins
-                                    .insert(entry.file_name().to_string_lossy().to_string(), plugin);
-                            }
-                            Ok(false) => {
-                                log::warn!("Plugin signature verification failed: {:?}", entry.path());
-                            }
-                            Err(e) => {
-                                log::error!("Plugin verification error for {:?}: {}", entry.path(), e);
-                            }
+                    Ok(mut plugin) => match plugin.verify() {
+                        Ok(true) => {
+                            verified.push(entry.file_name().to_string_lossy().to_string());
+                            self.plugins
+                                .insert(entry.file_name().to_string_lossy().to_string(), plugin);
                         }
-                    }
+                        Ok(false) => {
+                            log::warn!("Plugin signature verification failed: {:?}", entry.path());
+                        }
+                        Err(e) => {
+                            log::error!("Plugin verification error for {:?}: {}", entry.path(), e);
+                        }
+                    },
                     Err(e) => {
                         log::warn!("Failed to load plugin {:?}: {}", entry.path(), e);
                     }

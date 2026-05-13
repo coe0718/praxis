@@ -43,11 +43,10 @@ pub fn execute_request(
     request: &StoredApprovalRequest,
     redact_secrets: bool,
 ) -> Result<ToolExecutionResult> {
-    let vault = Vault::load(&paths.vault_file)
-        .unwrap_or_else(|e| {
-            log::warn!("Failed to load vault file, using empty vault: {e}");
-            Vault::default()
-        });
+    let vault = Vault::load(&paths.vault_file).unwrap_or_else(|e| {
+        log::warn!("Failed to load vault file, using empty vault: {e}");
+        Vault::default()
+    });
     let tool_name = manifest.name.clone();
     let start = std::time::Instant::now();
 

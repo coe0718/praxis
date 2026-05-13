@@ -145,13 +145,35 @@ fn read_events(path: &Path) -> Result<Vec<BusEvent>> {
     let raw =
         fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))?;
     let mut events = Vec::new();
-    for line in raw.lines() {
+    // S10 fix: Track malformed lines for dead-letter logging
+    let mut malformed_count = 0;
+    for (line_num, line) in raw.lines().enumerate() {
         let line = line.trim();
         if line.is_empty() {
             continue;
         }
         if let Ok(event) = serde_json::from_str::<BusEvent>(line) {
             events.push(event);
+        } else {
+            // Log malformed event and count for dead-letter file
+            log::warn!("bus: malformed event at line {}: {}", line_num + 1, line);
+            malformed_count += 1;
+        }
+    }
+    // S10 fix: Write malformed events to dead-letter file
+    if malformed_count > 0 {
+        let dead_path = path.with_extension("dead.jsonl");
+        let mut dead_file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&dead_path)
+            .with_context(|| format!("failed to open dead-letter file {}", dead_path.display()))?;
+        for line in raw.lines() {
+            let line = line.trim();
+            if !line.is_empty() && serde_json::from_str::<BusEvent>(line).is_err() {
+                writeln!(dead_file, "{}", line)
+                    .with_context(|| "failed to write to dead-letter file".to_string())?;
+            }
         }
     }
     Ok(events)
