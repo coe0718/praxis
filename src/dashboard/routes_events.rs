@@ -261,7 +261,7 @@ pub(super) async fn webhook_discord(
     let discord_event = BusEvent::new(
         "message",
         "discord-webhook",
-        &channel_id,
+        channel_id.clone(),
         "interaction".to_string(),
         &text,
     );
@@ -310,7 +310,7 @@ pub(super) async fn webhook_telegram(
             let event = BusEvent::new(
                 "message",
                 "telegram",
-                &format!("callback:{}", from.id),
+                format!("callback:{}", from.id),
                 from.id.to_string(),
                 data,
             );
@@ -331,11 +331,11 @@ pub(super) async fn webhook_telegram(
         let event = BusEvent::new(
             "message",
             "telegram-webhook",
-            &msg.chat.id.to_string(),
-            sender_id.clone(),
+            msg.chat.id.to_string(),
+            sender_id,
             text,
         );
-        
+
         if let Err(e) = bus.publish(&event) {
             log::warn!("telegram webhook bus publish failed: {e}");
         } else {

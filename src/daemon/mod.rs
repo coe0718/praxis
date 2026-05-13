@@ -375,7 +375,7 @@ async fn async_daemon_loop(
 };
     // ── Discord Gateway WebSocket (real-time push) ────────────────────────
     #[cfg(feature = "discord")]
-    let discord_gateway_handle = {
+    let _discord_gateway_handle = {
         let token = std::env::var("PRAXIS_DISCORD_BOT_TOKEN").ok();
         if let Some(token) = token {
             let bus = crate::bus::FileBus::new(paths.bus_file.clone());
