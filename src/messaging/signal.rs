@@ -4,17 +4,15 @@
 /// Set `PRAXIS_SIGNAL_PHONE_NUMBER` for the account's phone number.
 use anyhow::{Context, Result, bail};
 use reqwest::blocking::Client;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 #[derive(Debug)]
-#[allow(dead_code)]
 pub struct SignalClient {
     client: Client,
-    phone_number: String,
+    _phone_number: String,
 }
 
 #[derive(Debug, Serialize)]
-#[allow(dead_code)]
 struct SignalMessageRequest {
     message: String,
     recipient: String,
@@ -29,7 +27,7 @@ impl SignalClient {
 
         Ok(Self {
             client: Client::new(),
-            phone_number,
+            _phone_number: phone_number,
         })
     }
 
@@ -99,21 +97,4 @@ impl crate::messaging::Platform for SignalClient {
     fn send_typing(&self, _target: &str) -> Result<()> {
         Ok(())
     }
-}
-
-/// Inbound message from Signal (via webhook or polling).
-#[derive(Debug, Clone, Deserialize)]
-pub struct SignalUpdate {
-    pub envelope: SignalEnvelope,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct SignalEnvelope {
-    pub source: String,
-    pub data_message: Option<SignalDataMessage>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct SignalDataMessage {
-    pub body: Option<String>,
 }

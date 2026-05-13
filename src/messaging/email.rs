@@ -4,24 +4,13 @@
 /// Set `PRAXIS_EMAIL_HOST`, `PRAXIS_EMAIL_USERNAME`, `PRAXIS_EMAIL_PASSWORD`.
 use anyhow::{Result, bail};
 use reqwest::blocking::Client;
-use serde::Serialize;
 
 #[derive(Debug)]
-#[allow(dead_code)]
 pub struct EmailClient {
-    client: Client,
+    _client: Client,
     smtp_host: String,
-    imap_host: String,
-    username: String,
-}
-
-#[derive(Debug, Serialize)]
-#[allow(dead_code)]
-struct EmailMessage {
-    from: String,
-    to: String,
-    subject: String,
-    body: String,
+    _imap_host: String,
+    _username: String,
 }
 
 impl EmailClient {
@@ -30,14 +19,13 @@ impl EmailClient {
             .unwrap_or_else(|_| "smtp.gmail.com".to_string());
         let imap_host = std::env::var("PRAXIS_EMAIL_IMAP_HOST")
             .unwrap_or_else(|_| "imap.gmail.com".to_string());
-        let username = std::env::var("PRAXIS_EMAIL_USERNAME")
-            .unwrap_or_default();
+        let username = std::env::var("PRAXIS_EMAIL_USERNAME").unwrap_or_default();
 
         Ok(Self {
-            client: Client::new(),
+            _client: Client::new(),
             smtp_host,
-            imap_host,
-            username,
+            _imap_host: imap_host,
+            _username: username,
         })
     }
 
