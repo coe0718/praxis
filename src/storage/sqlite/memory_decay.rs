@@ -11,7 +11,7 @@ const COLD_MEMORY_FLOOR: f32 = 0.25;
 const HOT_MEMORY_TTL_DAYS: i64 = 30;
 
 pub(super) fn decay_cold_memories(store: &SqliteSessionStore, now: DateTime<Utc>) -> Result<usize> {
-    let mut connection = store.connect()?;
+    let mut connection = store.get_connection()?;
     // Pull id, weight, and memory_type together so each type uses its own threshold.
     let candidates = {
         let mut statement = connection.prepare(
@@ -62,7 +62,7 @@ pub(super) fn decay_cold_memories(store: &SqliteSessionStore, now: DateTime<Utc>
 /// Delete hot memories past their TTL (default 30 days without access).
 pub(super) fn expire_hot_memories(store: &SqliteSessionStore, now: DateTime<Utc>) -> Result<usize> {
     let cutoff = (now - Duration::days(HOT_MEMORY_TTL_DAYS)).to_rfc3339();
-    let connection = store.connect()?;
+    let connection = store.get_connection()?;
 
     let deleted = connection
         .execute(
@@ -83,13 +83,13 @@ pub(super) fn expire_hot_memories(store: &SqliteSessionStore, now: DateTime<Utc>
         log::info!("memory decay: expired {deleted} hot memories (last accessed before {cutoff})");
     }
 
-    Ok(deleted as usize)
+    Ok(deleted)
 }
 
 /// Demote cold memories below the floor weight back to hot.
 pub(super) fn demote_cold_to_hot(store: &SqliteSessionStore, now: DateTime<Utc>) -> Result<usize> {
     let ninety_days_ago = (now - Duration::days(90)).to_rfc3339();
-    let mut connection = store.connect()?;
+    let mut connection = store.get_connection()?;
 
     let candidates: Vec<(i64, String, String)> = {
         let mut stmt = connection

@@ -5,7 +5,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use super::{SqliteSessionStore, schema_data};
 
 pub(super) fn initialize(store: &SqliteSessionStore) -> Result<()> {
-    let connection = store.connect()?;
+    let connection = store.get_connection()?;
     connection
         .execute_batch(schema_data::BASE_SCHEMA)
         .context("failed to initialize SQLite schema")?;
@@ -45,7 +45,7 @@ pub(super) fn validate(store: &SqliteSessionStore) -> Result<()> {
         bail!("database file {} does not exist", store.path.display());
     }
 
-    let connection = store.connect()?;
+    let connection = store.get_connection()?;
     let version: Option<i64> = connection
         .query_row("SELECT MAX(version) FROM schema_migrations", [], |row| row.get(0))
         .optional()

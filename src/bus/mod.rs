@@ -163,11 +163,10 @@ fn read_events(path: &Path) -> Result<Vec<BusEvent>> {
     // S10 fix: Write malformed events to dead-letter file
     if malformed_count > 0 {
         let dead_path = path.with_extension("dead.jsonl");
-        let mut dead_file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&dead_path)
-            .with_context(|| format!("failed to open dead-letter file {}", dead_path.display()))?;
+        let mut dead_file =
+            OpenOptions::new().create(true).append(true).open(&dead_path).with_context(|| {
+                format!("failed to open dead-letter file {}", dead_path.display())
+            })?;
         for line in raw.lines() {
             let line = line.trim();
             if !line.is_empty() && serde_json::from_str::<BusEvent>(line).is_err() {

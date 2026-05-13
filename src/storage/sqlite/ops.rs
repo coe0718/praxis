@@ -24,7 +24,7 @@ fn escape_like(input: &str) -> String {
 
 impl OperationalMemoryStore for SqliteSessionStore {
     fn record_do_not_repeat(&self, entry: NewDoNotRepeat) -> Result<StoredDoNotRepeat> {
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
         let tags = serde_json::to_string(&entry.tags).context("failed to serialize note tags")?;
         connection
             .execute(
@@ -50,7 +50,7 @@ impl OperationalMemoryStore for SqliteSessionStore {
     }
 
     fn recent_do_not_repeat(&self, limit: usize) -> Result<Vec<StoredDoNotRepeat>> {
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
         load_do_not_repeat(
             &connection,
             "
@@ -64,7 +64,7 @@ impl OperationalMemoryStore for SqliteSessionStore {
     }
 
     fn search_do_not_repeat(&self, query: &str, limit: usize) -> Result<Vec<StoredDoNotRepeat>> {
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
         let needle = format!("%{}%", escape_like(&query.to_lowercase()));
         load_do_not_repeat(
             &connection,
@@ -80,7 +80,7 @@ impl OperationalMemoryStore for SqliteSessionStore {
     }
 
     fn record_known_bug(&self, entry: NewKnownBug) -> Result<StoredKnownBug> {
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
         let tags = serde_json::to_string(&entry.tags).context("failed to serialize bug tags")?;
         connection
             .execute(
@@ -107,7 +107,7 @@ impl OperationalMemoryStore for SqliteSessionStore {
     }
 
     fn recent_known_bugs(&self, limit: usize) -> Result<Vec<StoredKnownBug>> {
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
         load_known_bugs(
             &connection,
             "
@@ -121,7 +121,7 @@ impl OperationalMemoryStore for SqliteSessionStore {
     }
 
     fn search_known_bugs(&self, query: &str, limit: usize) -> Result<Vec<StoredKnownBug>> {
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
         let needle = format!("%{}%", escape_like(&query.to_lowercase()));
         load_known_bugs(
             &connection,
@@ -140,7 +140,7 @@ impl OperationalMemoryStore for SqliteSessionStore {
     }
 
     fn operational_memory_counts(&self) -> Result<OperationalMemoryCounts> {
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
         Ok(OperationalMemoryCounts {
             do_not_repeat: connection
                 .query_row("SELECT COUNT(*) FROM do_not_repeat", [], |row| row.get(0))

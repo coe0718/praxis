@@ -9,7 +9,7 @@ use super::SqliteSessionStore;
 
 impl SqliteSessionStore {
     pub fn list_learning_sources(&self) -> Result<Vec<StoredLearningSource>> {
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
         let mut statement = connection
             .prepare(
                 "
@@ -35,7 +35,7 @@ impl SqliteSessionStore {
     }
 
     pub fn upsert_learning_source(&self, state: NewLearningSourceState) -> Result<()> {
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
         connection
             .execute(
                 "
@@ -60,7 +60,7 @@ impl SqliteSessionStore {
     }
 
     pub fn record_learning_run(&self, run: NewLearningRun) -> Result<StoredLearningRun> {
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
         let notes_json =
             serde_json::to_string(&run.notes).context("failed to serialize learning notes")?;
         let completed_at = run.completed_at.to_rfc3339();
@@ -92,7 +92,7 @@ impl SqliteSessionStore {
     }
 
     pub fn latest_learning_run(&self) -> Result<Option<StoredLearningRun>> {
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
         connection
             .query_row(
                 "

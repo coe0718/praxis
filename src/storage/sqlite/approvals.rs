@@ -10,7 +10,7 @@ pub(super) fn queue_approval(
     store: &SqliteSessionStore,
     request: &NewApprovalRequest,
 ) -> Result<StoredApprovalRequest> {
-    let connection = store.connect()?;
+    let connection = store.get_connection()?;
     let now = Utc::now().to_rfc3339();
     let write_paths =
         serde_json::to_string(&request.write_paths).context("failed to serialize write paths")?;
@@ -44,7 +44,7 @@ pub(super) fn search_approvals(
     tool: Option<&str>,
     status: Option<ApprovalStatus>,
 ) -> Result<Vec<StoredApprovalRequest>> {
-    let connection = store.connect()?;
+    let connection = store.get_connection()?;
 
     let mut conditions: Vec<String> = Vec::new();
     let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
@@ -96,7 +96,7 @@ pub(super) fn list_approvals(
     store: &SqliteSessionStore,
     status: Option<ApprovalStatus>,
 ) -> Result<Vec<StoredApprovalRequest>> {
-    let connection = store.connect()?;
+    let connection = store.get_connection()?;
     if let Some(value) = status {
         let mut statement = connection.prepare(
             "
@@ -130,7 +130,7 @@ pub(super) fn get_approval(
     store: &SqliteSessionStore,
     id: i64,
 ) -> Result<Option<StoredApprovalRequest>> {
-    let connection = store.connect()?;
+    let connection = store.get_connection()?;
     connection
         .query_row(
             "
@@ -151,7 +151,7 @@ pub(super) fn set_approval_status(
     status: ApprovalStatus,
     note: Option<&str>,
 ) -> Result<Option<StoredApprovalRequest>> {
-    let connection = store.connect()?;
+    let connection = store.get_connection()?;
     connection
         .execute(
             "
@@ -181,7 +181,7 @@ pub(super) fn set_approval_status(
 pub(super) fn next_approved_request(
     store: &SqliteSessionStore,
 ) -> Result<Option<StoredApprovalRequest>> {
-    let mut connection = store.connect()?;
+    let mut connection = store.get_connection()?;
     // Use an IMMEDIATE transaction so concurrent callers cannot read the same
     // approved row — the second caller blocks until this transaction commits,
     // at which point the row is already 'claiming' and no longer matches.
@@ -214,7 +214,7 @@ pub(super) fn next_approved_request(
 }
 
 pub(super) fn mark_approval_consumed(store: &SqliteSessionStore, id: i64) -> Result<()> {
-    let connection = store.connect()?;
+    let connection = store.get_connection()?;
     connection
         .execute(
             "

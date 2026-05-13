@@ -8,7 +8,7 @@ use super::SqliteSessionStore;
 
 impl DecisionReceiptStore for SqliteSessionStore {
     fn record_decision(&self, receipt: &NewDecisionReceipt) -> Result<()> {
-        let conn = self.connect()?;
+        let conn = self.get_connection()?;
         let sources_json = serde_json::to_string(&receipt.context_sources)
             .context("failed to serialize context sources")?;
         conn.execute(
@@ -34,7 +34,7 @@ impl DecisionReceiptStore for SqliteSessionStore {
     }
 
     fn recent_decisions(&self, limit: usize) -> Result<Vec<StoredDecisionReceipt>> {
-        let conn = self.connect()?;
+        let conn = self.get_connection()?;
         let mut stmt = conn
             .prepare(
                 "

@@ -13,7 +13,7 @@ pub(super) fn update_session_quality(
     session_id: i64,
     update: &SessionQualityUpdate,
 ) -> Result<()> {
-    let connection = store.connect()?;
+    let connection = store.get_connection()?;
     connection
         .execute(
             "
@@ -44,7 +44,7 @@ pub(super) fn record_review(
     store: &SqliteSessionStore,
     record: &ReviewRecord,
 ) -> Result<StoredReview> {
-    let connection = store.connect()?;
+    let connection = store.get_connection()?;
     let reviewed_at = record.reviewed_at.to_rfc3339();
     connection
         .execute(
@@ -75,7 +75,7 @@ pub(super) fn record_review(
 }
 
 pub(super) fn last_review(store: &SqliteSessionStore) -> Result<Option<StoredReview>> {
-    let connection = store.connect()?;
+    let connection = store.get_connection()?;
     connection
         .query_row(
             "
@@ -109,7 +109,7 @@ pub(super) fn last_review(store: &SqliteSessionStore) -> Result<Option<StoredRev
 }
 
 pub(super) fn record_eval_run(store: &SqliteSessionStore, record: &EvalRunRecord) -> Result<()> {
-    let connection = store.connect()?;
+    let connection = store.get_connection()?;
     connection
         .execute(
             "
@@ -131,7 +131,7 @@ pub(super) fn record_eval_run(store: &SqliteSessionStore, record: &EvalRunRecord
 }
 
 pub(super) fn latest_eval_summary(store: &SqliteSessionStore) -> Result<Option<StoredEvalSummary>> {
-    let connection = store.connect()?;
+    let connection = store.get_connection()?;
     connection
         .query_row(
             "

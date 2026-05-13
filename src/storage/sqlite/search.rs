@@ -9,7 +9,7 @@ use super::SqliteSessionStore;
 
 impl SessionSearchStore for SqliteSessionStore {
     fn search_sessions(&self, query: &str, limit: usize) -> Result<Vec<SessionSearchResult>> {
-        let conn = self.connect()?;
+        let conn = self.get_connection()?;
         let pattern = format!("%{}%", query);
         let limit_i64 = limit.min(50) as i64;
 

@@ -96,8 +96,10 @@ where
         }
     };
 
-    let mut summary = ExtractionSummary::default();
-    summary.memories_extracted = extracted.len();
+    let mut summary = ExtractionSummary {
+        memories_extracted: extracted.len(),
+        ..Default::default()
+    };
 
     for memory in &extracted {
         if memory.importance < 0.5 || memory.content.trim().is_empty() {
@@ -203,8 +205,8 @@ fn parse_extraction_result(raw: &str) -> Result<Vec<ExtractedMemory>> {
     };
 
     // Find the JSON array — look for '[' or '{'
-    let start = json_str.find(|c| c == '[' || c == '{');
-    let end = json_str.rfind(|c| c == ']' || c == '}');
+    let start = json_str.find(['[', '{']);
+    let end = json_str.rfind([']', '}']);
 
     let extracted = match (start, end) {
         (Some(s), Some(e)) if s < e => {

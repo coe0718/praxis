@@ -17,7 +17,7 @@ impl SqliteSessionStore {
         memory: NewColdMemory,
         source_ids: &[i64],
     ) -> Result<i64> {
-        let mut connection = self.connect()?;
+        let mut connection = self.get_connection()?;
         let tx = connection.transaction().context("failed to begin promotion transaction")?;
 
         let tags = serde_json::to_string(&memory.tags).context("failed to serialize tags")?;
@@ -63,7 +63,7 @@ impl SqliteSessionStore {
 
 impl MemoryStore for SqliteSessionStore {
     fn insert_hot_memory(&self, memory: NewHotMemory) -> Result<StoredMemory> {
-        let mut connection = self.connect()?;
+        let mut connection = self.get_connection()?;
         let tags = serde_json::to_string(&memory.tags).context("failed to serialize tags")?;
 
         let tx = connection.transaction().context("failed to begin hot memory transaction")?;
@@ -104,7 +104,7 @@ impl MemoryStore for SqliteSessionStore {
     }
 
     fn insert_cold_memory(&self, memory: NewColdMemory) -> Result<StoredMemory> {
-        let mut connection = self.connect()?;
+        let mut connection = self.get_connection()?;
         let tags = serde_json::to_string(&memory.tags).context("failed to serialize tags")?;
         let source_ids =
             serde_json::to_string(&memory.source_ids).context("failed to serialize source ids")?;
@@ -149,7 +149,7 @@ impl MemoryStore for SqliteSessionStore {
     }
 
     fn recent_hot_memories(&self, limit: usize) -> Result<Vec<StoredMemory>> {
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
         let mut statement = connection.prepare(
             "
             SELECT id, content, summary, tags, importance, COALESCE(memory_type, 'episodic')
@@ -177,7 +177,7 @@ impl MemoryStore for SqliteSessionStore {
     }
 
     fn strongest_cold_memories(&self, limit: usize) -> Result<Vec<StoredMemory>> {
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
         let mut statement = connection.prepare(
             "
             SELECT id, content, tags, weight, COALESCE(memory_type, 'episodic')
@@ -209,7 +209,7 @@ impl MemoryStore for SqliteSessionStore {
             return Ok(Vec::new());
         };
 
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
         let half = limit.div_ceil(2);
         let hot = search_hot_memories(&connection, &query, half)?;
         let cold = search_cold_memories(&connection, &query, half)?;
@@ -236,7 +236,7 @@ impl MemoryStore for SqliteSessionStore {
     }
 
     fn get_memory(&self, id: i64) -> Result<Option<StoredMemory>> {
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
 
         // Try hot first.
         let hot: Option<StoredMemory> = connection
@@ -288,7 +288,7 @@ impl MemoryStore for SqliteSessionStore {
     }
 
     fn boost_memory(&self, id: i64) -> Result<bool> {
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
 
         // Try hot first.
         let hot_rows = connection
@@ -319,7 +319,7 @@ impl MemoryStore for SqliteSessionStore {
     }
 
     fn forget_memory(&self, id: i64) -> Result<bool> {
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
 
         let hot_rows = connection
             .execute("DELETE FROM hot_memories WHERE id = ?1", params![id])
@@ -350,7 +350,7 @@ impl MemoryStore for SqliteSessionStore {
     fn search_memories_semantic(&self, query: &str, limit: usize) -> Result<Vec<StoredMemory>> {
         let query_embedding = vector::generate_embedding(query);
 
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
 
         // Load all memories with embeddings from both tiers.
         let mut candidates: Vec<(StoredMemory, f32)> = Vec::new();

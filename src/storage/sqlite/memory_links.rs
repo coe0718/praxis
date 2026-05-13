@@ -12,7 +12,7 @@ pub(crate) trait ContradictionQuery {
 
 impl ContradictionQuery for SqliteSessionStore {
     fn all_contradiction_pairs(&self) -> Result<Vec<(i64, String, i64, String)>> {
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
         let mut statement = connection.prepare(
             "SELECT from_memory_id, to_memory_id FROM memory_links WHERE link_type = 'contradicts'",
         )?;
@@ -45,7 +45,7 @@ impl MemoryLinkStore for SqliteSessionStore {
             bail!("memory {to_id} does not exist");
         }
 
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
         connection
             .execute(
                 "INSERT OR IGNORE INTO memory_links(from_memory_id, to_memory_id, link_type)
@@ -58,7 +58,7 @@ impl MemoryLinkStore for SqliteSessionStore {
     }
 
     fn links_for(&self, memory_id: i64) -> Result<Vec<MemoryLink>> {
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
         let mut statement = connection.prepare(
             "SELECT id, from_memory_id, to_memory_id, link_type
              FROM memory_links

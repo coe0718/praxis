@@ -44,7 +44,7 @@ fn consolidate_hot_memories(store: &SqliteSessionStore, now: DateTime<Utc>) -> R
 
     // Load all eligible hot memories upfront so we don't hold a prepared statement open.
     let candidates: Vec<HotCandidate> = {
-        let connection = store.connect()?;
+        let connection = store.get_connection()?;
         let mut stmt = connection.prepare(
             "
             SELECT id, content, summary, tags, importance, COALESCE(memory_type, 'episodic')
@@ -150,7 +150,7 @@ fn consolidate_hot_memories(store: &SqliteSessionStore, now: DateTime<Utc>) -> R
 /// Delete cold memories that have been at the weight floor long past their decay window.
 fn prune_cold_memories(store: &SqliteSessionStore, now: DateTime<Utc>) -> Result<usize> {
     let candidates: Vec<(i64, String, String)> = {
-        let connection = store.connect()?;
+        let connection = store.get_connection()?;
         let mut stmt = connection.prepare(
             "
             SELECT id, last_reinforced, COALESCE(memory_type, 'episodic')
@@ -176,7 +176,7 @@ fn prune_cold_memories(store: &SqliteSessionStore, now: DateTime<Utc>) -> Result
             .unwrap_or(false);
 
         if is_dead {
-            let connection = store.connect()?;
+            let connection = store.get_connection()?;
             connection.execute("DELETE FROM cold_fts WHERE rowid = ?1", params![id]).ok();
             connection
                 .execute("DELETE FROM cold_memories WHERE id = ?1", params![id])

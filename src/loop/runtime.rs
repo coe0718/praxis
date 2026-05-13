@@ -319,13 +319,13 @@ where
         let decayed = self.store.decay_cold_memories(self.clock.now_utc())?;
         let expired = self.store.expire_hot_memories(self.clock.now_utc())?;
         let demoted = self.store.demote_cold_to_hot(self.clock.now_utc())?;
-        if expired > 0 || demoted > 0 {
-            if let Err(e) = self.emit(
+        if (expired > 0 || demoted > 0) 
+            && let Err(e) = self.emit(
                 "agent:memory_decay",
                 &format!("{expired} hot memories expired, {demoted} cold memories demoted"),
-            ) {
-                log::warn!("failed to emit memory decay event: {e}");
-            }
+            ) 
+        {
+            log::warn!("failed to emit memory decay event: {e}");
         }
         let consolidation = self.store.consolidate_memories(self.clock.now_utc());
         match consolidation {

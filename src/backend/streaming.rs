@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::providers::ProviderRoute;
 
-use super::openai::{resolve_api_key, resolve_endpoint, ChatMessageContent, ChatContentBlock};
+use super::openai::{ChatContentBlock, ChatMessageContent, resolve_api_key, resolve_endpoint};
 use super::{ContentBlock, InputContent, ProviderRequest};
 
 /// A single streamed token (or the final usage block).

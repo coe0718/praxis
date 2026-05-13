@@ -2224,6 +2224,7 @@ dependencies = [
  "log",
  "notify",
  "once_cell",
+ "parking_lot",
  "predicates",
  "rand 0.8.6",
  "ratatui",

@@ -23,7 +23,7 @@ mod insights_tests;
 #[cfg(test)]
 mod tests;
 
-use std::{fs, path::PathBuf};
+use std::{fs, path::PathBuf, sync::Arc};
 
 use anyhow::{Context, Result};
 use rusqlite::Connection;
@@ -36,11 +36,71 @@ use crate::storage::{
 #[derive(Debug, Clone)]
 pub struct SqliteSessionStore {
     path: PathBuf,
+    // S7 fix: Connection pool for concurrent database access
+    pool: Option<Arc<parking_lot::Mutex<Vec<Connection>>>>,
+    pool_max_size: usize,
 }
 
 impl SqliteSessionStore {
     pub fn new(path: PathBuf) -> Self {
-        Self { path }
+        Self { 
+            path, 
+            pool: None,
+            pool_max_size: 5,
+        }
+    }
+    
+    /// S7 fix: Initialize connection pool for concurrent database access
+    pub fn with_pool(path: PathBuf, max_connections: usize) -> Result<Self> {
+        let mut pool = Vec::new();
+        for _ in 0..max_connections {
+            let conn = Self::create_connection(&path)?;
+            pool.push(conn);
+        }
+        Ok(Self { 
+            path, 
+            pool: Some(Arc::new(parking_lot::Mutex::new(pool))),
+            pool_max_size: max_connections,
+        })
+    }
+    
+    /// S7 fix: Get a pooled connection, or create a new one if pool not initialized
+    pub fn get_connection(&self) -> Result<Connection> {
+        if let Some(ref pool) = self.pool {
+            let mut pool_guard = pool.lock();
+            // Take a connection from the pool, or create a new one if empty
+            if let Some(conn) = pool_guard.pop() {
+                Ok(conn)
+            } else {
+                Self::create_connection(&self.path)
+            }
+        } else {
+            Self::create_connection(&self.path)
+        }
+    }
+    
+    /// S7 fix: Return a connection to the pool
+    pub fn return_connection(&self, conn: Connection) {
+        if let Some(ref pool) = self.pool {
+            let mut pool_guard = pool.lock();
+            if pool_guard.len() < self.pool_max_size {
+                pool_guard.push(conn);
+            }
+            // If pool is full, just drop the connection
+        }
+    }
+    
+    fn create_connection(path: &PathBuf) -> Result<Connection> {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)
+                .with_context(|| format!("failed to create {}", parent.display()))?;
+        }
+
+        let conn = Connection::open(path)
+            .with_context(|| format!("failed to open SQLite database {}", path.display()))?;
+        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;")
+            .context("failed to configure SQLite WAL mode")?;
+        Ok(conn)
     }
 
     pub fn search_approvals(
@@ -68,30 +128,37 @@ impl SqliteSessionStore {
     }
 
     pub fn count_hot_memories(&self) -> Result<i64> {
-        let conn = self.connect()?;
-        conn.query_row("SELECT COUNT(*) FROM hot_memories", [], |row| row.get(0))
-            .context("failed to count hot memories")
+        let conn = self.get_connection()?;
+        let result = conn.query_row("SELECT COUNT(*) FROM hot_memories", [], |row| row.get(0))
+            .context("failed to count hot memories")?;
+        self.return_connection(conn);
+        Ok(result)
     }
 
     pub fn count_cold_memories(&self) -> Result<i64> {
-        let conn = self.connect()?;
-        conn.query_row("SELECT COUNT(*) FROM cold_memories", [], |row| row.get(0))
-            .context("failed to count cold memories")
+        let conn = self.get_connection()?;
+        let result = conn.query_row("SELECT COUNT(*) FROM cold_memories", [], |row| row.get(0))
+            .context("failed to count cold memories")?;
+        self.return_connection(conn);
+        Ok(result)
     }
 
     pub fn count_pending_approvals(&self) -> Result<i64> {
-        let conn = self.connect()?;
-        conn.query_row(
-            "SELECT COUNT(*) FROM approval_requests WHERE status = 'pending'",
-            [],
-            |row| row.get(0),
-        )
-        .context("failed to count pending approvals")
+        let conn = self.get_connection()?;
+        let result = conn
+            .query_row(
+                "SELECT COUNT(*) FROM approval_requests WHERE status = 'pending'",
+                [],
+                |row| row.get(0),
+            )
+            .context("failed to count pending approvals")?;
+        self.return_connection(conn);
+        Ok(result)
     }
 
     /// Batch COUNT queries on a single connection for health checks.
     pub fn health_counts(&self) -> Result<(i64, i64, i64)> {
-        let conn = self.connect()?;
+        let conn = self.get_connection()?;
         let pending = conn
             .query_row(
                 "SELECT COUNT(*) FROM approval_requests WHERE status = 'pending'",
@@ -105,6 +172,7 @@ impl SqliteSessionStore {
         let cold = conn
             .query_row("SELECT COUNT(*) FROM cold_memories", [], |row| row.get(0))
             .context("failed to count cold memories")?;
+        self.return_connection(conn);
         Ok((pending, hot, cold))
     }
 
@@ -115,19 +183,6 @@ impl SqliteSessionStore {
     ) -> Result<Vec<crate::storage::SessionSearchResult>> {
         use crate::storage::search::SessionSearchStore;
         SessionSearchStore::search_sessions(self, query, limit)
-    }
-
-    fn connect(&self) -> Result<Connection> {
-        if let Some(parent) = self.path.parent() {
-            fs::create_dir_all(parent)
-                .with_context(|| format!("failed to create {}", parent.display()))?;
-        }
-
-        let conn = Connection::open(&self.path)
-            .with_context(|| format!("failed to open SQLite database {}", self.path.display()))?;
-        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;")
-            .context("failed to configure SQLite WAL mode")?;
-        Ok(conn)
     }
 }
 

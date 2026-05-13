@@ -9,7 +9,7 @@ pub(super) fn record_session(
     store: &SqliteSessionStore,
     record: &SessionRecord,
 ) -> Result<StoredSession> {
-    let mut connection = store.connect()?;
+    let mut connection = store.get_connection()?;
     let tx = connection
         .transaction()
         .context("failed to begin session recording transaction")?;
@@ -64,7 +64,7 @@ pub(super) fn last_session(store: &SqliteSessionStore) -> Result<Option<StoredSe
         return Ok(None);
     }
 
-    let connection = store.connect()?;
+    let connection = store.get_connection()?;
     connection
         .query_row(
             "

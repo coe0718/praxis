@@ -9,7 +9,7 @@ use super::SqliteSessionStore;
 
 impl AnatomyStore for SqliteSessionStore {
     fn upsert_anatomy_entry(&self, entry: &NewAnatomyEntry) -> Result<()> {
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
         let tags =
             serde_json::to_string(&entry.tags).context("failed to serialize anatomy tags")?;
         connection
@@ -36,14 +36,14 @@ impl AnatomyStore for SqliteSessionStore {
     }
 
     fn anatomy_entry_count(&self) -> Result<i64> {
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
         connection
             .query_row("SELECT COUNT(*) FROM anatomy_index", [], |row| row.get(0))
             .context("failed to count anatomy entries")
     }
 
     fn anatomy_last_modified(&self, path: &Path) -> Result<Option<String>> {
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
         connection
             .query_row(
                 "SELECT last_modified_at FROM anatomy_index WHERE path = ?1",

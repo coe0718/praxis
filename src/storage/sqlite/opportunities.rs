@@ -12,7 +12,7 @@ impl SqliteSessionStore {
         candidate: &OpportunityCandidate,
         now: DateTime<Utc>,
     ) -> Result<StoredOpportunity> {
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
         let created_at = now.to_rfc3339();
         connection
             .execute(
@@ -51,7 +51,7 @@ impl SqliteSessionStore {
         status: OpportunityStatus,
         limit: usize,
     ) -> Result<Vec<StoredOpportunity>> {
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
         let mut statement = connection
             .prepare(
                 "
@@ -83,7 +83,7 @@ impl SqliteSessionStore {
     }
 
     pub fn pending_opportunity_count(&self) -> Result<i64> {
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
         connection
             .query_row(
                 "SELECT COUNT(*) FROM opportunities WHERE status = ?1",
@@ -94,7 +94,7 @@ impl SqliteSessionStore {
     }
 
     pub fn has_opportunity_signature(&self, signature: &str) -> Result<bool> {
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
         let found: Option<i64> = connection
             .query_row(
                 "SELECT id FROM opportunities WHERE signature = ?1 LIMIT 1",
@@ -107,7 +107,7 @@ impl SqliteSessionStore {
     }
 
     pub fn count_opportunities_since(&self, since: DateTime<Utc>) -> Result<i64> {
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
         connection
             .query_row(
                 "SELECT COUNT(*) FROM opportunities WHERE created_at >= ?1",
@@ -123,7 +123,7 @@ impl SqliteSessionStore {
         status: OpportunityStatus,
         now: DateTime<Utc>,
     ) -> Result<Option<StoredOpportunity>> {
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
         let changed = connection
             .execute(
                 "
@@ -165,7 +165,7 @@ impl SqliteSessionStore {
     }
 
     pub fn get_opportunity(&self, id: i64) -> Result<Option<StoredOpportunity>> {
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
         connection
             .query_row(
                 "
@@ -198,7 +198,7 @@ impl SqliteSessionStore {
         goal_id: Option<&str>,
         now: DateTime<Utc>,
     ) -> Result<()> {
-        let connection = self.connect()?;
+        let connection = self.get_connection()?;
         connection
             .execute(
                 "

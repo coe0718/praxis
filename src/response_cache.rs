@@ -138,7 +138,11 @@ impl ResponseCache {
     pub fn hit_rate(&self) -> f64 {
         let inner = self.inner.lock().unwrap();
         let total = inner.hit_count + inner.miss_count;
-        if total == 0 { 0.0 } else { inner.hit_count as f64 / total as f64 }
+        if total == 0 {
+            0.0
+        } else {
+            inner.hit_count as f64 / total as f64
+        }
     }
 
     /// Store a raw HTTP response body keyed by a pre-computed SHA256 hash.

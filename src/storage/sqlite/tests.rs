@@ -90,7 +90,7 @@ fn decays_stale_cold_memories_in_place() {
             memory_type: Default::default(),
         })
         .unwrap();
-    let connection = store.connect().unwrap();
+    let connection = store.get_connection().unwrap();
     connection
         .execute(
             "UPDATE cold_memories SET last_reinforced = ?1 WHERE id = ?2",

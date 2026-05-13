@@ -16,7 +16,7 @@ pub(super) fn record_attempts(
     session_id: i64,
     attempts: &[ProviderAttempt],
 ) -> Result<()> {
-    let mut connection = store.connect()?;
+    let mut connection = store.get_connection()?;
     let tx = connection
         .transaction()
         .context("failed to begin provider recording transaction")?;
@@ -67,7 +67,7 @@ pub(super) fn record_attempts(
 }
 
 pub(super) fn latest_usage(store: &SqliteSessionStore) -> Result<Option<ProviderUsageSummary>> {
-    let connection = store.connect()?;
+    let connection = store.get_connection()?;
     connection
         .query_row(
             "
@@ -117,7 +117,7 @@ pub(super) fn latest_usage(store: &SqliteSessionStore) -> Result<Option<Provider
 pub(super) fn latest_token_summary(
     store: &SqliteSessionStore,
 ) -> Result<Option<TokenLedgerSummary>> {
-    let connection = store.connect()?;
+    let connection = store.get_connection()?;
     connection
         .query_row(
             "
@@ -145,7 +145,7 @@ pub(super) fn latest_phase_usage(
     store: &SqliteSessionStore,
     limit: usize,
 ) -> Result<Vec<PhaseTokenUsage>> {
-    let connection = store.connect()?;
+    let connection = store.get_connection()?;
     let mut statement = connection
         .prepare(
             "
@@ -176,7 +176,7 @@ pub(super) fn latest_phase_usage(
 }
 
 pub(super) fn token_summary_all_time(store: &SqliteSessionStore) -> Result<TokenSummaryAllTime> {
-    let connection = store.connect()?;
+    let connection = store.get_connection()?;
     connection
         .query_row(
             "
@@ -202,7 +202,7 @@ pub(super) fn token_usage_by_session(
     store: &SqliteSessionStore,
     limit: usize,
 ) -> Result<Vec<SessionTokenUsage>> {
-    let connection = store.connect()?;
+    let connection = store.get_connection()?;
     let mut statement = connection
         .prepare(
             "
@@ -236,7 +236,7 @@ pub(super) fn token_usage_by_session(
 pub(super) fn token_usage_by_provider(
     store: &SqliteSessionStore,
 ) -> Result<Vec<ProviderTokenSummary>> {
-    let connection = store.connect()?;
+    let connection = store.get_connection()?;
     let mut statement = connection
         .prepare(
             "
