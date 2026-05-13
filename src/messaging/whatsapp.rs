@@ -34,16 +34,19 @@ struct WhatsAppMediaRequest {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct WhatsAppResponse {
     messages: Option<Vec<WhatsAppMessage>>,
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct WhatsAppMessage {
     id: String,
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct WhatsAppError {
     message: String,
     #[serde(rename = "error_user_title")]

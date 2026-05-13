@@ -53,6 +53,7 @@ pub fn check_for_update() -> Result<String> {
 }
 
 /// Current version string.
+#[allow(dead_code)]
 pub fn current_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }

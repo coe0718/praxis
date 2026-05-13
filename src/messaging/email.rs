@@ -2,7 +2,7 @@
 ///
 /// SMTP for sending, IMAP for receiving with IDLE push.
 /// Set `PRAXIS_EMAIL_HOST`, `PRAXIS_EMAIL_USERNAME`, `PRAXIS_EMAIL_PASSWORD`.
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use reqwest::blocking::Client;
 use serde::Serialize;
 
@@ -16,6 +16,7 @@ pub struct EmailClient {
 }
 
 #[derive(Debug, Serialize)]
+#[allow(dead_code)]
 struct EmailMessage {
     from: String,
     to: String,
@@ -30,7 +31,7 @@ impl EmailClient {
         let imap_host = std::env::var("PRAXIS_EMAIL_IMAP_HOST")
             .unwrap_or_else(|_| "imap.gmail.com".to_string());
         let username = std::env::var("PRAXIS_EMAIL_USERNAME")
-            .context("PRAXIS_EMAIL_USERNAME is required for Email")?;
+            .unwrap_or_default();
 
         Ok(Self {
             client: Client::new(),
@@ -41,9 +42,10 @@ impl EmailClient {
     }
 
     pub fn validate_environment() -> Result<()> {
+        let has_host = std::env::var("PRAXIS_EMAIL_SMTP_HOST").is_ok();
         let has_user = std::env::var("PRAXIS_EMAIL_USERNAME").is_ok();
-        if !has_user {
-            bail!("PRAXIS_EMAIL_USERNAME is required for Email");
+        if !has_host || !has_user {
+            bail!("PRAXIS_EMAIL_SMTP_HOST and PRAXIS_EMAIL_USERNAME are required for Email");
         }
         Ok(())
     }
@@ -65,9 +67,9 @@ impl crate::messaging::Platform for EmailClient {
         Ok(())
     }
 
-    fn send_file(&self, target: &str, file_path: &str, caption: Option<&str>) -> Result<()> {
+    fn send_file(&self, target: &str, _file_path: &str, caption: Option<&str>) -> Result<()> {
         let content = caption.unwrap_or("File attached");
-        let text = format!("{}: {}", content, file_path);
+        let text = format!("{}: {}", content, _file_path);
         self.send_message(target, &text)
     }
 
@@ -76,4 +78,3 @@ impl crate::messaging::Platform for EmailClient {
         Ok(())
     }
 }
-

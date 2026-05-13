@@ -16,12 +16,14 @@ pub struct MatrixClient {
 }
 
 #[derive(Debug, Serialize)]
+#[allow(dead_code)]
 struct MatrixMessageContent {
     msgtype: String,
     body: String,
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct MatrixResponse {
     event_id: Option<String>,
 }

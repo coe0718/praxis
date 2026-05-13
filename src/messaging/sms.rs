@@ -15,6 +15,7 @@ pub struct SmsClient {
 }
 
 #[derive(Debug, Serialize)]
+#[allow(dead_code)]
 struct SmsMessage {
     to: String,
     from: String,

@@ -339,13 +339,14 @@ pub(crate) fn handle_doctor(data_dir_override: Option<PathBuf>) -> Result<String
     let eval_count = LocalEvalSuite.validate(&paths)?;
 
     // Check messaging platform environment variables
-    let mut platform_checks = Vec::new();
-    platform_checks.push(check_platform_env("Telegram", std::env::var("PRAXIS_TELEGRAM_BOT_TOKEN").is_ok()));
-    platform_checks.push(check_platform_env("Discord", std::env::var("PRAXIS_DISCORD_BOT_TOKEN").is_ok()));
-    platform_checks.push(check_platform_env("Slack", std::env::var("PRAXIS_SLACK_BOT_TOKEN").is_ok()));
-    platform_checks.push(check_platform_env("Signal", std::env::var("PRAXIS_SIGNAL_PHONE_NUMBER").is_ok()));
-    platform_checks.push(check_platform_env("WhatsApp", std::env::var("PRAXIS_WHATSAPP_PHONE_ID").is_ok()));
-    platform_checks.push(check_platform_env("Matrix", std::env::var("PRAXIS_MATRIX_HOMESERVER").is_ok()));
+    let platform_checks = vec![
+        check_platform_env("Telegram", std::env::var("PRAXIS_TELEGRAM_BOT_TOKEN").is_ok()),
+        check_platform_env("Discord", std::env::var("PRAXIS_DISCORD_BOT_TOKEN").is_ok()),
+        check_platform_env("Slack", std::env::var("PRAXIS_SLACK_BOT_TOKEN").is_ok()),
+        check_platform_env("Signal", std::env::var("PRAXIS_SIGNAL_PHONE_NUMBER").is_ok()),
+        check_platform_env("WhatsApp", std::env::var("PRAXIS_WHATSAPP_PHONE_ID").is_ok()),
+        check_platform_env("Matrix", std::env::var("PRAXIS_MATRIX_HOMESERVER").is_ok()),
+    ];
 
     // Check paths writable
     let paths_ok = paths.data_dir.exists() || std::fs::create_dir_all(&paths.data_dir).is_ok();
@@ -376,7 +377,11 @@ pub(crate) fn handle_doctor(data_dir_override: Option<PathBuf>) -> Result<String
 }
 
 fn check_platform_env(name: &str, connected: bool) -> String {
-    if connected { format!("{name}=ok") } else { format!("{name}=not_configured") }
+    if connected {
+        format!("{name}=ok")
+    } else {
+        format!("{name}=not_configured")
+    }
 }
 
 fn count_skills(skills_dir: &std::path::Path) -> Result<usize> {
