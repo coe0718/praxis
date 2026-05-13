@@ -7,6 +7,7 @@ use reqwest::blocking::Client;
 use serde::Serialize;
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct EmailClient {
     client: Client,
     smtp_host: String,
@@ -57,7 +58,7 @@ impl crate::messaging::Platform for EmailClient {
         true
     }
 
-    fn send_message(&self, target: &str, text: &str) -> Result<()> {
+    fn send_message(&self, target: &str, _text: &str) -> Result<()> {
         // For email, target is the recipient email address
         // Using a simple SMTP relay or HTTP API approach
         log::info!("Would send email to {} via {}", target, self.smtp_host);

@@ -40,6 +40,7 @@ mod telegram;
 mod tools;
 #[cfg(feature = "tui")]
 mod tui;
+mod update;
 mod vault;
 mod vscode;
 mod watchdog;
@@ -70,6 +71,7 @@ pub enum Commands {
     Run(RunArgs),
     Status,
     Doctor,
+    Update(update::UpdateArgs),
     Agents(agents::AgentsArgs),
     Boundaries(boundaries::BoundariesArgs),
     Export(archive::ExportArgs),
@@ -521,6 +523,13 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::Profile(args) => profile::handle_profile(cli.data_dir, args),
         Commands::Models(args) => models::handle_models(cli.data_dir, args),
         Commands::Kanban(args) => kanban::handle_kanban(cli.data_dir, args),
+        Commands::Update(args) => {
+            if args.check {
+                update::check_for_update()
+            } else {
+                update::check_for_update()
+            }
+        }
     }
 }
 

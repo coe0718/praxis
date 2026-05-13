@@ -114,7 +114,7 @@ impl crate::messaging::Platform for WhatsAppClient {
         Ok(())
     }
 
-    fn send_file(&self, target: &str, file_path: &str, caption: Option<&str>) -> Result<()> {
+    fn send_file(&self, target: &str, _file_path: &str, caption: Option<&str>) -> Result<()> {
         let request = WhatsAppMediaRequest {
             messaging_product: "whatsapp".to_string(),
             to: target.to_string(),
