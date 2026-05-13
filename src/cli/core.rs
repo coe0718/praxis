@@ -338,14 +338,53 @@ pub(crate) fn handle_doctor(data_dir_override: Option<PathBuf>) -> Result<String
     let criteria_count = LocalReviewer.validate(&paths)?;
     let eval_count = LocalEvalSuite.validate(&paths)?;
 
+    // Check messaging platform environment variables
+    let mut platform_checks = Vec::new();
+    platform_checks.push(check_platform_env("Telegram", std::env::var("PRAXIS_TELEGRAM_BOT_TOKEN").is_ok()));
+    platform_checks.push(check_platform_env("Discord", std::env::var("PRAXIS_DISCORD_BOT_TOKEN").is_ok()));
+    platform_checks.push(check_platform_env("Slack", std::env::var("PRAXIS_SLACK_BOT_TOKEN").is_ok()));
+    platform_checks.push(check_platform_env("Signal", std::env::var("PRAXIS_SIGNAL_PHONE_NUMBER").is_ok()));
+    platform_checks.push(check_platform_env("WhatsApp", std::env::var("PRAXIS_WHATSAPP_PHONE_ID").is_ok()));
+    platform_checks.push(check_platform_env("Matrix", std::env::var("PRAXIS_MATRIX_HOMESERVER").is_ok()));
+
+    // Check paths writable
+    let paths_ok = paths.data_dir.exists() || std::fs::create_dir_all(&paths.data_dir).is_ok();
+
     let store = SqliteSessionStore::new(paths.database_file.clone());
     store.initialize()?;
     store.validate_schema()?;
 
-    Ok(format!(
-        "doctor: ok\nconfig: ok\nidentity: ok\ndatabase: ok\ntools: ok\nproviders: ok\nbudgets: ok\nheartbeat: ok\nquality: ok\ngoal_criteria: {criteria_count}\nevals: {eval_count}\nbackend: {}",
-        config.agent.backend
-    ))
+    let mut output = String::new();
+    writeln!(output, "doctor: ok")?;
+    writeln!(output, "config: ok")?;
+    writeln!(output, "identity: ok")?;
+    writeln!(output, "database: ok")?;
+    writeln!(output, "tools: ok")?;
+    writeln!(output, "providers: ok")?;
+    writeln!(output, "budgets: ok")?;
+    writeln!(output, "heartbeat: ok")?;
+    writeln!(output, "quality: ok")?;
+    writeln!(output, "goal_criteria: {criteria_count}")?;
+    writeln!(output, "evals: {eval_count}")?;
+    writeln!(output, "backend: {}", config.agent.backend)?;
+    for check in platform_checks {
+        writeln!(output, "platform: {check}")?;
+    }
+    writeln!(output, "paths: {}", if paths_ok { "ok" } else { "missing" })?;
+    writeln!(output, "skills: {} available", count_skills(&paths.skills_dir)?)?;
+    Ok(output)
+}
+
+fn check_platform_env(name: &str, connected: bool) -> String {
+    if connected { format!("{name}=ok") } else { format!("{name}=not_configured") }
+}
+
+fn count_skills(skills_dir: &std::path::Path) -> Result<usize> {
+    if skills_dir.exists() {
+        Ok(std::fs::read_dir(skills_dir)?.filter_map(|e| e.ok()).filter(|e| e.path().is_dir() && e.path().join("SKILL.md").exists()).count())
+    } else {
+        Ok(0)
+    }
 }
 
 pub(crate) fn load_initialized_config(
