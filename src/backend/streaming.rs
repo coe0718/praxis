@@ -12,8 +12,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::providers::ProviderRoute;
 
-use super::openai::{resolve_api_key, resolve_endpoint};
-use super::{InputContent, ProviderRequest};
+use super::openai::{resolve_api_key, resolve_endpoint, ChatMessageContent, ChatContentBlock};
+use super::{ContentBlock, InputContent, ProviderRequest};
 
 /// A single streamed token (or the final usage block).
 #[derive(Debug, Clone)]
@@ -24,6 +24,19 @@ pub enum StreamEvent {
         output_tokens: i64,
     },
     Done,
+}
+
+/// Convert ContentBlock (public API) to ChatContentBlock (OpenAI internal).
+fn convert_block(block: &ContentBlock) -> ChatContentBlock {
+    match block {
+        ContentBlock::Text { text } => ChatContentBlock::Text { text: text.clone() },
+        ContentBlock::ImageUrl { image_url } => ChatContentBlock::ImageUrl {
+            image_url: crate::backend::openai::ChatImageUrl {
+                url: image_url.url.clone(),
+                detail: image_url.detail.clone(),
+            },
+        },
+    }
 }
 
 /// Async streaming backend for OpenAI-compatible providers.
@@ -54,11 +67,11 @@ impl StreamingBackend {
             let api_key = resolve_api_key(&route.provider)?;
             let endpoint = resolve_endpoint(route);
 
-            // Convert InputContent to proper multi-modal format for streaming
+            // S1 fix: Convert InputContent to proper multi-modal format for streaming
             let user_content = match &request.input {
-                InputContent::Text(text) => text.clone(),
+                InputContent::Text(text) => ChatMessageContent::Text(text.clone()),
                 InputContent::Blocks(blocks) => {
-                    serde_json::to_string(blocks).context("failed to serialize content blocks")?
+                    ChatMessageContent::Blocks(blocks.iter().map(convert_block).collect())
                 }
             };
 
@@ -67,7 +80,7 @@ impl StreamingBackend {
                 messages: vec![
                     StreamChatMessage {
                         role: "system".to_string(),
-                        content: request.system.to_string(),
+                        content: ChatMessageContent::Text(request.system.to_string()),
                     },
                     StreamChatMessage {
                         role: "user".to_string(),
@@ -141,10 +154,11 @@ struct StreamChatRequest {
     stream: bool,
 }
 
+/// S1 fix: Multi-modal support for streaming — content can be text or blocks.
 #[derive(Debug, Serialize)]
 struct StreamChatMessage {
     role: String,
-    content: String,
+    content: ChatMessageContent,
 }
 
 #[derive(Debug, Deserialize)]

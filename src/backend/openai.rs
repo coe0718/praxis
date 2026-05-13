@@ -234,23 +234,23 @@ struct ChatRequest {
 /// blocks (text + image_url) for multi-modal requests.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
-enum ChatMessageContent {
+pub enum ChatMessageContent {
     Text(String),
     Blocks(Vec<ChatContentBlock>),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
-enum ChatContentBlock {
+pub enum ChatContentBlock {
     Text { text: String },
     ImageUrl { image_url: ChatImageUrl },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct ChatImageUrl {
-    url: String,
+pub struct ChatImageUrl {
+    pub url: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    detail: Option<String>,
+    pub detail: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

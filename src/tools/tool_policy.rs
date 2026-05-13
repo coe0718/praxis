@@ -78,6 +78,26 @@ pub struct ChannelPolicy {
     pub ephemeral_prompt: Option<String>,
 }
 
+impl ChannelPolicy {
+    /// S8 fix: Validate ephemeral_prompt to prevent prompt injection.
+    /// Rejects prompts longer than 500 chars or containing suspicious patterns.
+    pub fn validate_ephemeral_prompt(&self) -> Result<()> {
+        if let Some(ref prompt) = self.ephemeral_prompt {
+            if prompt.len() > 500 {
+                anyhow::bail!("ephemeral_prompt exceeds 500 character limit");
+            }
+            // Check for common prompt injection patterns
+            let lower = prompt.to_lowercase();
+            for pattern in &["ignore previous", "disregard", "pretend", "you are now"] {
+                if lower.contains(pattern) {
+                    anyhow::bail!("ephemeral_prompt contains suspicious pattern: {}", pattern);
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
 impl ToolPolicy {
     /// Load from a TOML file, returning default if absent.
     pub fn load_or_default(path: &Path) -> Result<Self> {
