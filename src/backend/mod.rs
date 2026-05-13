@@ -2,6 +2,7 @@ mod attempts;
 mod claude;
 mod configured;
 mod credential_pool;
+mod gemini;
 mod gating;
 mod health;
 pub mod model_override;

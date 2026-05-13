@@ -112,6 +112,12 @@ pub fn validate_provider(route: &ProviderRoute) -> Result<()> {
         ProviderProtocol::Ollama => {
             // Ollama is local; no key required.
         }
+        ProviderProtocol::Gemini => {
+            if std::env::var("PRAXIS_GEMINI_STUB_RESPONSE").is_err() {
+                let _ = std::env::var("PRAXIS_GEMINI_API_KEY")
+                    .context("PRAXIS_GEMINI_API_KEY is required for the Gemini provider")?;
+            }
+        }
     }
     Ok(())
 }

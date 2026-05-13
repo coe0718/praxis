@@ -12,6 +12,7 @@ pub enum ProviderProtocol {
     Anthropic,
     OpenAiCompat,
     Ollama,
+    Gemini,
 }
 
 /// Routing class for rule-based selection.
@@ -65,6 +66,7 @@ impl Default for ProviderSettings {
                 ProviderRoute::new("kimi", "moonshot-v1-8k", Some("https://api.moonshot.cn")),
                 ProviderRoute::new("minimax", "abab6.5s-chat", Some("https://api.minimax.chat")),
                 ProviderRoute::new("glm", "glm-4", Some("https://open.bigmodel.cn/api/paas/v4")),
+                ProviderRoute::new("gemini", "gemini-1.5-flash", None),
                 // #38: Additional inference providers (stubs)
                 ProviderRoute::new(
                     "azure",
@@ -197,7 +199,7 @@ impl ProviderRoute {
             bail!("provider {} must define a model", self.provider);
         }
         match self.provider.as_str() {
-            "claude" | "openai" | "ollama" | "copilot" | "kimi" | "minimax" | "glm" => {}
+            "claude" | "openai" | "ollama" | "copilot" | "kimi" | "minimax" | "glm" | "gemini" => {}
             custom if self.base_url.is_some() => {
                 // Custom provider names are valid when a base_url is set.
                 // They are dispatched through the OpenAI-compatible adapter.
@@ -218,6 +220,7 @@ impl ProviderRoute {
         match self.provider.as_str() {
             "claude" => ProviderProtocol::Anthropic,
             "ollama" => ProviderProtocol::Ollama,
+            "gemini" => ProviderProtocol::Gemini,
             _ => ProviderProtocol::OpenAiCompat,
         }
     }

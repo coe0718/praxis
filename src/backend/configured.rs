@@ -13,6 +13,7 @@ use super::{
     attempts::failed_attempt,
     claude,
     gating::CanaryGate,
+    gemini,
     ollama, openai,
     prompts::{request_for_ask, request_for_finalize, request_for_plan},
     provider_routes::{default_route, route_for, route_for_with_override, validate_provider},
@@ -327,6 +328,7 @@ fn execute_single(
     let response = match route.resolved_protocol() {
         ProviderProtocol::Anthropic => claude::execute(route, request, prompt_caching),
         ProviderProtocol::Ollama => ollama::execute(route, request),
+        ProviderProtocol::Gemini => gemini::execute(route, request),
         ProviderProtocol::OpenAiCompat => openai::execute(route, request),
     }?;
     Ok(BackendOutput {
