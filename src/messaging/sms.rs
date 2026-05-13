@@ -4,7 +4,6 @@
 /// Set `PRAXIS_SMS_ACCOUNT_SID` and `PRAXIS_SMS_AUTH_TOKEN`.
 use anyhow::{Context, Result, bail};
 use reqwest::blocking::Client;
-use serde::Serialize;
 
 #[derive(Debug)]
 pub struct SmsClient {
@@ -14,14 +13,6 @@ pub struct SmsClient {
     from_number: String,
 }
 
-#[derive(Debug, Serialize)]
-#[allow(dead_code)]
-struct SmsMessage {
-    to: String,
-    from: String,
-    body: String,
-}
-
 impl SmsClient {
     pub fn from_env() -> Result<Self> {
         let account_sid = std::env::var("PRAXIS_SMS_ACCOUNT_SID")
@@ -29,7 +20,7 @@ impl SmsClient {
         let auth_token = std::env::var("PRAXIS_SMS_AUTH_TOKEN")
             .context("PRAXIS_SMS_AUTH_TOKEN is required for SMS")?;
         let from_number = std::env::var("PRAXIS_SMS_FROM_NUMBER")
-            .unwrap_or_else(|_| "+14155238886".to_string()); // Twilio default
+            .unwrap_or_else(|_| "+141****8886".to_string()); // Twilio default
 
         Ok(Self {
             client: Client::new(),

@@ -4,7 +4,7 @@
 /// Set `PRAXIS_WHATSAPP_PHONE_ID` and `PRAXIS_WHATSAPP_ACCESS_TOKEN`.
 use anyhow::{Context, Result, bail};
 use reqwest::blocking::Client;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 #[derive(Debug)]
 pub struct WhatsAppClient {
@@ -14,7 +14,6 @@ pub struct WhatsAppClient {
 }
 
 #[derive(Debug, Serialize)]
-#[allow(dead_code)]
 struct WhatsAppMessageRequest {
     messaging_product: String,
     to: String,
@@ -22,38 +21,16 @@ struct WhatsAppMessageRequest {
 }
 
 #[derive(Debug, Serialize)]
-#[allow(dead_code)]
 struct WhatsAppText {
     body: String,
 }
 
 #[derive(Debug, Serialize)]
-#[allow(dead_code)]
 struct WhatsAppMediaRequest {
     messaging_product: String,
     to: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     caption: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-struct WhatsAppResponse {
-    messages: Option<Vec<WhatsAppMessage>>,
-}
-
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-struct WhatsAppMessage {
-    id: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-struct WhatsAppError {
-    message: String,
-    #[serde(rename = "error_user_title")]
-    error_user_title: Option<String>,
 }
 
 impl WhatsAppClient {
