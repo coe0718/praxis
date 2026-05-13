@@ -523,13 +523,10 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::Profile(args) => profile::handle_profile(cli.data_dir, args),
         Commands::Models(args) => models::handle_models(cli.data_dir, args),
         Commands::Kanban(args) => kanban::handle_kanban(cli.data_dir, args),
-        Commands::Update(args) => {
-            if args.check {
-                update::check_for_update()
-            } else {
-                update::check_for_update()
-            }
-        }
+        Commands::Update(args) => match args.command {
+            update::UpdateCommand::Check => update::check_for_update(),
+            update::UpdateCommand::Install => update::check_for_update(),
+        },
     }
 }
 

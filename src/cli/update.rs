@@ -6,9 +6,16 @@ use std::env;
 /// Arguments for the update command.
 #[derive(Debug, Clone, clap::Args)]
 pub struct UpdateArgs {
-    /// Check for available updates.
-    #[arg(long)]
-    pub check: bool,
+    #[command(subcommand)]
+    pub command: UpdateCommand,
+}
+
+#[derive(Debug, Clone, clap::Subcommand)]
+pub enum UpdateCommand {
+    /// Check for available updates from GitHub.
+    Check,
+    /// Install the latest update (downloads binary and replaces current).
+    Install,
 }
 
 /// Check for updates by comparing the current version with the latest GitHub release.
@@ -46,7 +53,6 @@ pub fn check_for_update() -> Result<String> {
 }
 
 /// Current version string.
-#[allow(dead_code)]
 pub fn current_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
