@@ -431,14 +431,17 @@ pub(super) async fn webhook_slack(
         let slack_event = BusEvent::new(
             "message",
             "slack-webhook",
-            &event.channel.clone().unwrap_or_else(|| "unknown".to_string()),
+            event.channel.clone().unwrap_or_else(|| "unknown".to_string()),
             event.user.clone().unwrap_or_else(|| "unknown".to_string()),
             &text,
         );
         if let Err(e) = bus.publish(&slack_event) {
             log::warn!("slack webhook bus publish: {e}");
         } else {
-            log::info!("slack webhook: instant message from channel {}", event.channel.as_ref().map(|s| s.as_str()).unwrap_or("unknown"));
+            log::info!(
+                "slack webhook: instant message from channel {}",
+                event.channel.as_deref().unwrap_or("unknown")
+            );
         }
     }
     (StatusCode::OK, Json(json!({ "ok": true }))).into_response()
