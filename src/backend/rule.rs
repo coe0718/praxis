@@ -3,7 +3,11 @@
 //! Zero-LLM mode where agents execute pure logic rules,
 //! conditional trees, and deterministic workflows.
 
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
+
+use super::{AgentBackend, BackendOutput};
+use crate::identity::Goal;
 
 /// Rule condition for execution.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -149,6 +153,45 @@ impl RuleEngine {
 
 /// Stub backend for zero-LLM mode.
 pub struct RuleBackend;
+
+/// S3 fix: RuleBackend implements AgentBackend for zero-LLM mode.
+impl AgentBackend for RuleBackend {
+    fn name(&self) -> &'static str {
+        "rule"
+    }
+
+    fn answer_prompt(&self, prompt: &str) -> Result<BackendOutput> {
+        Ok(BackendOutput {
+            summary: Self::process(prompt),
+            attempts: vec![],
+        })
+    }
+
+    fn plan_action(
+        &self,
+        _goal: Option<&Goal>,
+        _task: Option<&str>,
+        _context: Option<&str>,
+    ) -> Result<BackendOutput> {
+        Ok(BackendOutput {
+            summary: "Zero-LLM mode: no external planning available".to_string(),
+            attempts: vec![],
+        })
+    }
+
+    fn finalize_action(
+        &self,
+        summary: &str,
+        _goal: Option<&Goal>,
+        _task: Option<&str>,
+        _context: Option<&str>,
+    ) -> Result<BackendOutput> {
+        Ok(BackendOutput {
+            summary: summary.to_string(),
+            attempts: vec![],
+        })
+    }
+}
 
 impl RuleBackend {
     /// Process input using rule engine.
