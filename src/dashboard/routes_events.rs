@@ -248,38 +248,42 @@ pub(super) async fn webhook_discord(
         }
     };
 
-    use crate::wakeup::{WakeIntent, request_wake};
+    use crate::bus::{BusEvent, FileBus, MessageBus};
     if body.interaction_type == 1 {
         return (StatusCode::OK, Json(json!({ "type": 1 }))).into_response();
     }
     let task = body.data.as_ref().and_then(|d| d.name.as_deref()).map(str::to_string);
-    let reason = task.clone().unwrap_or_else(|| "discord interaction".to_string());
-    let mut intent = WakeIntent::new(&reason, "discord");
-    if let Some(t) = task {
-        intent = intent.with_task(t);
-    }
-    if let Err(e) = request_wake(&state.data_dir, &intent) {
-        log::warn!("discord webhook: {e}");
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({ "type": 4, "data": { "content": "internal error" } })),
-        )
-            .into_response();
+    let text = task.clone().unwrap_or_else(|| "discord interaction".to_string());
+    
+    // Publish directly to bus for instant session trigger
+    let bus = FileBus::new(state.data_dir.join("bus.jsonl"));
+    let channel_id = body.channel_id.clone().unwrap_or_else(|| "unknown".to_string());
+    let discord_event = BusEvent::new(
+        "message",
+        "discord-webhook",
+        &channel_id,
+        "interaction".to_string(),
+        &text,
+    );
+    if let Err(e) = bus.publish(&discord_event) {
+        log::warn!("discord webhook bus publish: {e}");
+    } else {
+        log::info!("discord webhook: instant interaction in channel {}", channel_id);
     }
     (StatusCode::OK, Json(json!({ "type": 5 }))).into_response()
 }
 
 /// Telegram webhook handler — validates via PRAXIS_TELEGRAM_BOT_TOKEN and
-/// triggers an agent session on incoming messages.
+/// publishes messages directly to the bus for instant agent response.
 pub(super) async fn webhook_telegram(
     State(state): State<DashboardState>,
     body: Bytes,
 ) -> impl IntoResponse {
+    use crate::bus::{BusEvent, FileBus, MessageBus};
     use crate::messaging::TelegramUpdate;
-    use crate::wakeup::{WakeIntent, request_wake};
 
     // Fail closed: require the bot token to be configured.
-    let bot_token = match state.telegram_token.as_deref() {
+    let _bot_token = match state.telegram_token.as_deref() {
         Some(token) => token,
         None => {
             log::error!("telegram webhook rejected: PRAXIS_TELEGRAM_BOT_TOKEN not configured");
@@ -296,32 +300,50 @@ pub(super) async fn webhook_telegram(
         }
     };
 
-    // Handle callback queries (button presses).
+    // Create a bus for direct message publishing (instant agent response).
+    let bus = FileBus::new(state.data_dir.join("bus.jsonl"));
+
+    // Handle callback queries (button presses) - publish as message.
     if let Some(cb) = &update.callback_query {
-        let data = cb.data.as_deref().unwrap_or("callback");
-        let reason = format!("telegram callback: {}", data);
-        let intent = WakeIntent::new(&reason, "telegram").with_task(data.to_string());
-        if let Err(e) = request_wake(&state.data_dir, &intent) {
-            log::warn!("telegram webhook callback: {e}");
+        if let Some(from) = &cb.from {
+            let data = cb.data.as_deref().unwrap_or("callback");
+            let event = BusEvent::new(
+                "message",
+                "telegram",
+                &format!("callback:{}", from.id),
+                from.id.to_string(),
+                data,
+            );
+            if let Err(e) = bus.publish(&event) {
+                log::warn!("telegram webhook callback bus publish: {e}");
+            } else {
+                log::info!("telegram webhook: callback from user {}", from.id);
+            }
         }
-        // Respond to acknowledge the callback.
         return (StatusCode::OK, Json(json!({ "ok": true }))).into_response();
     }
 
-    // Handle messages.
+    // Handle messages - publish directly to bus for instant session trigger.
     if let Some(msg) = &update.message {
-        let text = msg.text.as_deref().unwrap_or("telegram message");
-        let reason = format!("telegram message: {}", text);
-        let intent = WakeIntent::new(&reason, "telegram").with_task(text.to_string());
-        if let Err(e) = request_wake(&state.data_dir, &intent) {
-            log::warn!("telegram webhook message: {e}");
+        let text = msg.text.as_deref().unwrap_or("");
+        let sender_id = msg.from.as_ref().map(|f| f.id.to_string()).unwrap_or_else(|| "unknown".to_string());
+        
+        let event = BusEvent::new(
+            "message",
+            "telegram-webhook",
+            &msg.chat.id.to_string(),
+            sender_id.clone(),
+            text,
+        );
+        
+        if let Err(e) = bus.publish(&event) {
+            log::warn!("telegram webhook bus publish failed: {e}");
+        } else {
+            log::info!("telegram webhook: instant message from chat {}: {}", msg.chat.id, text);
         }
-        log::info!("telegram webhook: message from chat {}: {}", msg.chat.id, text);
     }
 
-    // Respond with the bot token for Telegram to verify ownership during setWebhook.
-    // Telegram expects the response to include the token when verifying webhook URL.
-    (StatusCode::OK, Json(json!({ "ok": true, "token": bot_token }))).into_response()
+    (StatusCode::OK, Json(json!({ "ok": true }))).into_response()
 }
 
 #[cfg(feature = "slack")]
@@ -396,7 +418,7 @@ pub(super) async fn webhook_slack(
         }
     };
 
-    use crate::wakeup::{WakeIntent, request_wake};
+    use crate::bus::{BusEvent, FileBus, MessageBus};
     if body.event_type == "url_verification" {
         let challenge = body.challenge.as_deref().unwrap_or("");
         return (StatusCode::OK, Json(json!({ "challenge": challenge }))).into_response();
@@ -405,9 +427,18 @@ pub(super) async fn webhook_slack(
         && let Some(event) = &body.event
     {
         let text = event.text.as_deref().unwrap_or("slack event").to_string();
-        let intent = WakeIntent::new(&text, "slack").with_task(text.clone());
-        if let Err(e) = request_wake(&state.data_dir, &intent) {
-            log::warn!("slack webhook: {e}");
+        let bus = FileBus::new(state.data_dir.join("bus.jsonl"));
+        let slack_event = BusEvent::new(
+            "message",
+            "slack-webhook",
+            &event.channel.clone().unwrap_or_else(|| "unknown".to_string()),
+            event.user.clone().unwrap_or_else(|| "unknown".to_string()),
+            &text,
+        );
+        if let Err(e) = bus.publish(&slack_event) {
+            log::warn!("slack webhook bus publish: {e}");
+        } else {
+            log::info!("slack webhook: instant message from channel {}", event.channel.as_ref().map(|s| s.as_str()).unwrap_or("unknown"));
         }
     }
     (StatusCode::OK, Json(json!({ "ok": true }))).into_response()
