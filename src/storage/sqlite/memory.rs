@@ -223,6 +223,14 @@ impl MemoryStore for SqliteSessionStore {
         super::memory_decay::decay_cold_memories(self, now)
     }
 
+    fn expire_hot_memories(&self, now: DateTime<Utc>) -> Result<usize> {
+        super::memory_decay::expire_hot_memories(self, now)
+    }
+
+    fn demote_cold_to_hot(&self, now: DateTime<Utc>) -> Result<usize> {
+        super::memory_decay::demote_cold_to_hot(self, now)
+    }
+
     fn consolidate_memories(&self, now: DateTime<Utc>) -> Result<ConsolidationSummary> {
         super::memory_consolidation::consolidate_memories(self, now)
     }

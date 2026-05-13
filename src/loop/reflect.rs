@@ -8,7 +8,7 @@ use crate::{
     examples::{SyntheticExample, build_context, examples_file, is_useful_outcome, record_example},
     forensics::attach_session_id,
     identity::Goal,
-    memory::{MemoryLinkStore, MemoryStore, NewDoNotRepeat, NewHotMemory, NewKnownBug},
+    memory::{MemoryLinkStore, MemoryStore, NewDoNotRepeat, NewKnownBug},
     paths::PraxisPaths,
     postmortem::append_postmortem,
     quality::{EvalRunner, LocalEvalSuite, LocalReviewer, Reviewer, summarize},
@@ -255,17 +255,34 @@ where
         stored: &crate::storage::StoredSession,
         outcome: &str,
     ) -> Result<()> {
-        let memory_summary =
-            format!("Session outcome {} with summary: {}", outcome, stored.action_summary);
-        self.store.insert_hot_memory(NewHotMemory {
-            content: memory_summary,
-            summary: Some(outcome.to_string()),
-            importance: 0.7,
-            tags: vec!["session".to_string(), "foundation".to_string()],
-            expires_at: None,
-            memory_type: Default::default(),
-        })?;
-        Ok(())
+        // LLM-powered extraction pipeline: calls a lightweight model to extract
+        // structured memories from the full session context.
+        // Gracefully degrades to stub behavior if extraction fails.
+        match crate::memory::capture::extract(self.store, self.backend, stored, outcome) {
+            Ok(summary) => {
+                if summary.memories_persisted == 0 {
+                    // Fall back to stub if extraction returned nothing valuable
+                    log::debug!("memory capture: no memories >=0.5, writing session summary stub");
+                    stub_session_memory(self.store, stored, outcome)?;
+                }
+                // Run observation pass (second-pass extraction) regardless
+                // Capture catches session-level facts; observer catches durable patterns
+                let ckpt_path = self.paths.data_dir.join("memory_observer_checkpoint.json");
+                if let Err(e) = crate::memory::observer::observe_session(
+                    self.store,
+                    self.backend,
+                    stored,
+                    &ckpt_path,
+                ) {
+                    log::warn!("memory observer pass failed: {e}");
+                }
+                Ok(())
+            }
+            Err(e) => {
+                log::warn!("memory capture: extraction failed, using stub: {e}");
+                stub_session_memory(self.store, stored, outcome)
+            }
+        }
     }
 
     fn capture_operational_memory(
@@ -464,4 +481,24 @@ pub(super) fn selected_goal(state: &SessionState) -> Option<Goal> {
         blocked_by: Vec::new(),
         wake_when: None,
     })
+}
+
+/// Fallback memory capture when LLM extraction fails or returns nothing useful.
+/// Creates a single stub hot memory summarizing the session outcome.
+fn stub_session_memory(
+    store: &impl crate::memory::MemoryStore,
+    stored: &crate::storage::StoredSession,
+    outcome: &str,
+) -> anyhow::Result<()> {
+    let memory_summary =
+        format!("Session outcome {} with summary: {}", outcome, stored.action_summary);
+    store.insert_hot_memory(crate::memory::NewHotMemory {
+        content: memory_summary,
+        summary: Some(outcome.to_string()),
+        importance: 0.5,
+        tags: vec!["session".to_string(), "foundation".to_string()],
+        expires_at: None,
+        memory_type: Default::default(),
+    })?;
+    Ok(())
 }

@@ -164,6 +164,12 @@ pub trait MemoryStore {
 
     fn decay_cold_memories(&self, now: DateTime<Utc>) -> Result<usize>;
 
+    /// Delete hot memories past their TTL (default 30 days without access).
+    fn expire_hot_memories(&self, now: DateTime<Utc>) -> Result<usize>;
+
+    /// Demote cold memories below the weight floor back to hot for one last chance.
+    fn demote_cold_to_hot(&self, now: DateTime<Utc>) -> Result<usize>;
+
     /// Cluster related hot memories into cold memories and prune dead cold memories.
     /// Returns counts of clusters promoted and cold memories pruned.
     fn consolidate_memories(&self, now: DateTime<Utc>) -> Result<ConsolidationSummary>;

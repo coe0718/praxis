@@ -1,10 +1,13 @@
+pub(crate) mod capture;
 pub mod lance;
 mod loader;
+pub(crate) mod observer;
 mod ops;
 mod query;
 mod types;
 pub mod vector;
 
+pub use capture::ExtractionSummary;
 pub use loader::{LoadedMemoryContext, MemoryLoader};
 pub use ops::{
     LoadedOperationalContext, NewDoNotRepeat, NewKnownBug, OperationalMemoryLoader,

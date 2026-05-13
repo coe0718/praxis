@@ -295,7 +295,8 @@ where
         // ── CompactorProcess: trigger context compaction ───────────────────────
         // Wire CompactorProcess into reflect phase for memory consolidation.
         // W10 fix: Log compaction failures instead of silently dropping them.
-        match self.process_manager
+        match self
+            .process_manager
             .compactor()
             .compact(&state.selected_goal_id.clone().unwrap_or_else(|| "default".to_string()), 4096)
             .await
@@ -316,6 +317,16 @@ where
         record_snapshot(&self.paths.database_file, state, "agent:reflect_start")?;
         self.reflect(state)?;
         let decayed = self.store.decay_cold_memories(self.clock.now_utc())?;
+        let expired = self.store.expire_hot_memories(self.clock.now_utc())?;
+        let demoted = self.store.demote_cold_to_hot(self.clock.now_utc())?;
+        if expired > 0 || demoted > 0 {
+            if let Err(e) = self.emit(
+                "agent:memory_decay",
+                &format!("{expired} hot memories expired, {demoted} cold memories demoted"),
+            ) {
+                log::warn!("failed to emit memory decay event: {e}");
+            }
+        }
         let consolidation = self.store.consolidate_memories(self.clock.now_utc());
         match consolidation {
             Ok(ref summary) if summary.consolidated > 0 || summary.pruned > 0 => {
