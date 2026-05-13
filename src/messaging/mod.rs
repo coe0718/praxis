@@ -6,6 +6,7 @@ pub mod discord;
 #[cfg(feature = "discord")]
 mod discord_gateway;
 pub mod inbound;
+pub mod matrix;
 pub mod pairing;
 pub mod platform;
 mod router;
@@ -14,6 +15,7 @@ pub mod slack;
 pub mod signal;
 mod telegram;
 pub mod typing;
+pub mod whatsapp;
 
 pub use activation::{ActivationMode, ActivationStore};
 pub use auto_reply::{AutoReplyConfig, AutoReplyEngine};
@@ -24,6 +26,7 @@ pub use discord::{
 #[cfg(feature = "discord")]
 pub use discord_gateway::run_gateway;
 pub use inbound::{InboundPollConfig, poll_discord_messages, poll_slack_messages};
+pub use matrix::MatrixClient;
 pub use platform::{Platform, PlatformRegistry};
 pub use router::{
     handle_discord_command, handle_slack_command, handle_telegram_command, parse_telegram_command,
@@ -33,3 +36,4 @@ pub use slack::{SlackClient, SlackPollMessage, parse_allowed_user_ids as slack_a
 pub use signal::SignalClient;
 pub use telegram::{MessageGating, TelegramBot, TelegramMessage, TelegramUpdate};
 pub use typing::{NoopTypingIndicator, TypingIndicator};
+pub use whatsapp::WhatsAppClient;
