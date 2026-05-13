@@ -14,6 +14,7 @@ pub struct WhatsAppClient {
 }
 
 #[derive(Debug, Serialize)]
+#[allow(dead_code)]
 struct WhatsAppMessageRequest {
     messaging_product: String,
     to: String,
@@ -21,11 +22,13 @@ struct WhatsAppMessageRequest {
 }
 
 #[derive(Debug, Serialize)]
+#[allow(dead_code)]
 struct WhatsAppText {
     body: String,
 }
 
 #[derive(Debug, Serialize)]
+#[allow(dead_code)]
 struct WhatsAppMediaRequest {
     messaging_product: String,
     to: String,
@@ -146,7 +149,6 @@ impl crate::messaging::Platform for WhatsAppClient {
     }
 
     fn send_typing(&self, _target: &str) -> Result<()> {
-        // WhatsApp doesn't have a typing indicator API - no-op
         Ok(())
     }
 }

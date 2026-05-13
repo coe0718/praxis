@@ -7,13 +7,14 @@ use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct SignalClient {
     client: Client,
-    #[allow(dead_code)]
     phone_number: String,
 }
 
 #[derive(Debug, Serialize)]
+#[allow(dead_code)]
 struct SignalMessageRequest {
     message: String,
     recipient: String,
@@ -96,7 +97,6 @@ impl crate::messaging::Platform for SignalClient {
     }
 
     fn send_typing(&self, _target: &str) -> Result<()> {
-        // Signal doesn't have a typing indicator API - no-op
         Ok(())
     }
 }

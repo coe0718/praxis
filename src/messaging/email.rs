@@ -61,8 +61,6 @@ impl crate::messaging::Platform for EmailClient {
     }
 
     fn send_message(&self, target: &str, _text: &str) -> Result<()> {
-        // For email, target is the recipient email address
-        // Using a simple SMTP relay or HTTP API approach
         log::info!("Would send email to {} via {}", target, self.smtp_host);
         Ok(())
     }
@@ -74,7 +72,6 @@ impl crate::messaging::Platform for EmailClient {
     }
 
     fn send_typing(&self, _target: &str) -> Result<()> {
-        // Email doesn't have typing indicators
         Ok(())
     }
 }
