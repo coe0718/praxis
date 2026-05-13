@@ -31,6 +31,8 @@ pub struct DashboardState {
     /// Slack signing secret — required to verify HMAC-SHA256 signatures
     /// on incoming Events API webhooks.
     pub slack_signing_secret: Option<String>,
+    /// Telegram bot token — used for webhook validation and bot username lookup.
+    pub telegram_token: Option<String>,
 }
 
 // ── Auth middleware ───────────────────────────────────────────────────────────
@@ -82,6 +84,7 @@ pub async fn serve_dashboard(data_dir: PathBuf, host: String, port: u16) -> Resu
     }
     let discord_public_key = std::env::var("PRAXIS_DISCORD_PUBLIC_KEY").ok();
     let slack_signing_secret = std::env::var("PRAXIS_SLACK_SIGNING_SECRET").ok();
+    let telegram_token = std::env::var("PRAXIS_TELEGRAM_BOT_TOKEN").ok();
 
     #[cfg(feature = "discord")]
     if discord_public_key.is_none() {
@@ -95,12 +98,18 @@ pub async fn serve_dashboard(data_dir: PathBuf, host: String, port: u16) -> Resu
             "dashboard: PRAXIS_SLACK_SIGNING_SECRET not set — Slack webhooks will be rejected"
         );
     }
+    if telegram_token.is_none() {
+        log::warn!(
+            "dashboard: PRAXIS_TELEGRAM_BOT_TOKEN not set — Telegram webhooks will be rejected"
+        );
+    }
 
     let state = DashboardState {
         data_dir,
         token,
         discord_public_key,
         slack_signing_secret,
+        telegram_token,
     };
 
     // SSE stream is read-only and exempt from auth — EventSource API cannot send headers.
@@ -116,6 +125,8 @@ pub async fn serve_dashboard(data_dir: PathBuf, host: String, port: u16) -> Resu
         {
             routes = routes.route("/webhook/slack", post(routes_events::webhook_slack));
         }
+        // Telegram webhook — validates via PRAXIS_TELEGRAM_BOT_TOKEN
+        routes = routes.route("/webhook/telegram", post(routes_events::webhook_telegram));
         // Dynamic webhook subscriptions — /webhook/{name}
         routes = routes.route("/webhook/:name", post(routes_events::webhook_dynamic));
         routes.with_state(state.clone())

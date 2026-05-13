@@ -269,6 +269,61 @@ pub(super) async fn webhook_discord(
     (StatusCode::OK, Json(json!({ "type": 5 }))).into_response()
 }
 
+/// Telegram webhook handler — validates via PRAXIS_TELEGRAM_BOT_TOKEN and
+/// triggers an agent session on incoming messages.
+pub(super) async fn webhook_telegram(
+    State(state): State<DashboardState>,
+    body: Bytes,
+) -> impl IntoResponse {
+    use crate::messaging::TelegramUpdate;
+    use crate::wakeup::{WakeIntent, request_wake};
+
+    // Fail closed: require the bot token to be configured.
+    let bot_token = match state.telegram_token.as_deref() {
+        Some(token) => token,
+        None => {
+            log::error!("telegram webhook rejected: PRAXIS_TELEGRAM_BOT_TOKEN not configured");
+            return StatusCode::UNAUTHORIZED.into_response();
+        }
+    };
+
+    // Parse the incoming Telegram update.
+    let update: TelegramUpdate = match serde_json::from_slice(&body) {
+        Ok(u) => u,
+        Err(e) => {
+            log::warn!("telegram webhook: invalid JSON body: {e}");
+            return StatusCode::BAD_REQUEST.into_response();
+        }
+    };
+
+    // Handle callback queries (button presses).
+    if let Some(cb) = &update.callback_query {
+        let data = cb.data.as_deref().unwrap_or("callback");
+        let reason = format!("telegram callback: {}", data);
+        let intent = WakeIntent::new(&reason, "telegram").with_task(data.to_string());
+        if let Err(e) = request_wake(&state.data_dir, &intent) {
+            log::warn!("telegram webhook callback: {e}");
+        }
+        // Respond to acknowledge the callback.
+        return (StatusCode::OK, Json(json!({ "ok": true }))).into_response();
+    }
+
+    // Handle messages.
+    if let Some(msg) = &update.message {
+        let text = msg.text.as_deref().unwrap_or("telegram message");
+        let reason = format!("telegram message: {}", text);
+        let intent = WakeIntent::new(&reason, "telegram").with_task(text.to_string());
+        if let Err(e) = request_wake(&state.data_dir, &intent) {
+            log::warn!("telegram webhook message: {e}");
+        }
+        log::info!("telegram webhook: message from chat {}: {}", msg.chat.id, text);
+    }
+
+    // Respond with the bot token for Telegram to verify ownership during setWebhook.
+    // Telegram expects the response to include the token when verifying webhook URL.
+    (StatusCode::OK, Json(json!({ "ok": true, "token": bot_token }))).into_response()
+}
+
 #[cfg(feature = "slack")]
 pub(super) async fn webhook_slack(
     State(state): State<DashboardState>,
