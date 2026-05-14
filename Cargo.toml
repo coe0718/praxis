@@ -2,7 +2,7 @@
 name = "praxis"
 version = "0.1.0"
 edition = "2024"
-description = "A self-evolving personal AI agent foundation"
+description = "A self-evolving personal AI agent foundation — 0 dead-code warnings"
 license = "MIT"
 
 # ── Optional feature flags ───────────────────────────────────────────────────
