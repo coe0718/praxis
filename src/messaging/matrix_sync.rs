@@ -102,6 +102,19 @@ impl MatrixSync {
         Ok(())
     }
 
+    /// Add a room to sync.
+    pub fn add_room(&mut self, room_id: impl Into<String>, display_name: Option<String>) {
+        let room = MatrixRoom {
+            room_id: room_id.into(),
+            display_name,
+        };
+        log::info!(
+            "matrix: added room '{}' ({})",
+            room.room_id,
+            room.display_name.as_deref().unwrap_or("no name")
+        );
+    }
+
     /// Attempt WebSocket-based real-time sync.
     async fn try_websocket_sync(&mut self, bus: &crate::bus::FileBus) -> Result<()> {
         // First, make an initial sync to get the filter and obtain a sync token.
@@ -290,6 +303,9 @@ impl MatrixSync {
             if let Some(rooms) = sync.rooms {
                 for (room_id, room_data) in rooms.join {
                     for event in room_data.timeline.events {
+                        if event.event_type != "m.room.message" {
+                            continue;
+                        }
                         if event.sender.as_deref() == Some(&self.config.user_id) {
                             continue;
                         }

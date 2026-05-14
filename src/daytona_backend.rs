@@ -113,6 +113,18 @@ impl DaytonaBackend {
             serde_json::from_str(&body).context("failed to parse Daytona project response")?;
 
         let project_id = project.id.context("Daytona response missing project ID")?;
+        if let Some(ref name) = project.name {
+            log::info!("Daytona: created project '{name}' ({project_id})");
+        }
+        if let Some(ref repo) = project.repo {
+            log::info!(
+                "Daytona: repo {}/{} @ {} ({})",
+                repo.owner.as_deref().unwrap_or("?"),
+                repo.repo.as_deref().unwrap_or("?"),
+                repo.branch.as_deref().unwrap_or("HEAD"),
+                repo.commit.as_deref().unwrap_or("?")
+            );
+        }
 
         // Step 2: Execute a command in the running project.
         let exec_body = serde_json::json!({

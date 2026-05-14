@@ -119,8 +119,11 @@ impl ModalBackend {
             return Ok(combined);
         }
 
-        // If we got a container ID, try to fetch logs from it.
-        if let Some(id) = container.id {
+        // If we got a container ID, check status before fetching logs.
+        if let Some(ref id) = container.id {
+            if let Some(ref status) = container.status {
+                log::info!("Modal container {id}: status={status}");
+            }
             let log_url = format!("{}/v2/containers/{}/logs", self.config.api_url, id);
             let log_response = self
                 .client

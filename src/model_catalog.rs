@@ -51,6 +51,12 @@ pub struct ModelCatalog {
     entries: Vec<CatalogEntry>,
 }
 
+impl Default for ModelCatalog {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ModelCatalog {
     /// Create an empty model catalog.
     pub fn new() -> Self {

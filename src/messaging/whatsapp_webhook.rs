@@ -90,15 +90,40 @@ pub async fn whatsapp_inbound(
         }
     };
 
+    // Validate this is a WhatsApp Business Account webhook.
+    if payload.object != "whatsapp_business_account" {
+        log::warn!("whatsapp webhook: unexpected object type '{}'", payload.object);
+        return StatusCode::BAD_REQUEST.into_response();
+    }
+
     let bus = FileBus::new(state.data_dir.join("bus.jsonl"));
 
     for entry in &payload.entry {
+        let entry_id = entry.id.clone();
         for change in &entry.changes {
             if change.field != "messages" {
                 continue;
             }
 
             let value = &change.value;
+
+            // Validate this is a WhatsApp messaging product event.
+            if value.messaging_product != "whatsapp" {
+                log::warn!(
+                    "whatsapp webhook: unexpected messaging_product '{}' in entry {}",
+                    value.messaging_product,
+                    entry_id
+                );
+                continue;
+            }
+
+            // Only process inbound text messages.
+            let message_type = value.message_type.as_deref().unwrap_or("text");
+            if message_type != "text" {
+                log::debug!("whatsapp webhook: skipping non-{message_type} message in {entry_id}");
+                continue;
+            }
+
             let sender = value.sender_id.clone().unwrap_or_else(|| "unknown".to_string());
             let text = value.text.as_ref().map(|t| t.body.clone()).unwrap_or_default();
 
@@ -107,6 +132,7 @@ pub async fn whatsapp_inbound(
             }
 
             let phone_id = value.phone_number_id.clone().unwrap_or_default();
+            let message_id = value.message_id.clone().unwrap_or_default();
 
             let event =
                 BusEvent::new("message", "whatsapp-webhook", &phone_id, sender.clone(), &text);
@@ -114,7 +140,9 @@ pub async fn whatsapp_inbound(
             if let Err(e) = bus.publish(&event) {
                 log::warn!("whatsapp webhook: bus publish failed for {}: {e}", sender);
             } else {
-                log::info!("whatsapp webhook: inbound message from {} in {}", sender, phone_id);
+                log::info!(
+                    "whatsapp webhook: inbound message {message_id} from {sender} in {phone_id} (entry {entry_id})"
+                );
             }
         }
     }
