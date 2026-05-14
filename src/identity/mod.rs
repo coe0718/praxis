@@ -10,6 +10,7 @@ mod git;
 mod goals;
 
 pub use files::LocalIdentityPolicy;
+pub use files::{DriftReport, FileTier, FileTierPolicy, WritePermission};
 pub use git::{AgentManifest, GitIdentity, PersonalityTraits};
 pub use goals::{MarkdownGoalParser, ensure_goal};
 
@@ -40,4 +41,18 @@ pub trait IdentityPolicy {
     fn append_journal(&self, paths: &PraxisPaths, session: &StoredSession) -> Result<()>;
     fn append_metrics(&self, paths: &PraxisPaths, session: &StoredSession) -> Result<()>;
     fn read_day_count(&self, paths: &PraxisPaths) -> Result<i64>;
+    /// Check whether writing to the given path is allowed.
+    fn check_write_permission(
+        &self,
+        paths: &PraxisPaths,
+        relative_path: &str,
+    ) -> Result<WritePermission> {
+        let _ = (paths, relative_path);
+        Ok(WritePermission::Allowed)
+    }
+    /// Detect identity drift (locked file modifications).
+    fn detect_drift(&self, paths: &PraxisPaths) -> Result<crate::identity::DriftReport> {
+        let _ = paths;
+        Ok(crate::identity::DriftReport::default())
+    }
 }

@@ -27,6 +27,8 @@ pub(crate) struct ContextLoadRequest<'a> {
     pub tool_summary: &'a str,
     pub requested_task: Option<&'a str>,
     pub open_goals: &'a [Goal],
+    /// Pending context request from a previous act phase.
+    pub context_request: Option<&'a crate::context::ContextRequest>,
 }
 
 impl LocalContextLoader {
@@ -48,6 +50,7 @@ impl LocalContextLoader {
             tool_summary,
             requested_task,
             open_goals,
+            context_request,
         } = request;
         let config = adapt_config(config, &paths.context_adaptation_file)?;
         let memory = MemoryLoader.load(store, requested_task, open_goals)?;
@@ -85,6 +88,33 @@ impl LocalContextLoader {
             source("decision_receipts", render_receipts(&recent_decisions)),
             source("task", requested_task.unwrap_or_default().to_string()),
         ];
+
+        // Inject context request sources: requested files + memory query results.
+        let mut inputs = inputs;
+        if let Some(req) = context_request {
+            for file_path in &req.include_files {
+                let full_path = paths.data_dir.join(file_path);
+                let content = reader
+                    .read(store, state, &full_path, file_path)
+                    .unwrap_or_else(|_| format!("[context_request: file not found: {file_path}]"));
+                inputs.push(source(&format!("ctx_req:{file_path}"), content));
+            }
+            for query in &req.memory_queries {
+                let results = match store.search_memories(query, 5) {
+                    Ok(memories) => {
+                        let lines: Vec<String> =
+                            memories.iter().map(|m| format!("[{}] {}", m.id, m.content)).collect();
+                        if lines.is_empty() {
+                            format!("[context_request: no memories found for '{query}']")
+                        } else {
+                            lines.join("\n")
+                        }
+                    }
+                    Err(_) => format!("[context_request: memory search failed for '{query}']"),
+                };
+                inputs.push(source(&format!("ctx_req_mem:{query}"), results));
+            }
+        }
 
         Ok(ContextBudgeter.allocate(&config, inputs))
     }
@@ -339,6 +369,7 @@ mod tests {
                         blocked_by: Vec::new(),
                         wake_when: None,
                     }],
+                    context_request: None,
                 },
             )
             .unwrap();
@@ -375,6 +406,7 @@ mod tests {
                     tool_summary: "tools",
                     requested_task: None,
                     open_goals: &[],
+                    context_request: None,
                 },
             )
             .unwrap();
@@ -388,6 +420,7 @@ mod tests {
                     tool_summary: "tools",
                     requested_task: None,
                     open_goals: &[],
+                    context_request: None,
                 },
             )
             .unwrap();

@@ -436,34 +436,29 @@ async fn async_daemon_loop(
                             match reqwest::get(receive_url).await {
                                 Ok(resp) => {
                                     if let Ok(json) = resp.json::<serde_json::Value>().await
-                                        && let Some(messages) =
-                                            json.as_array().or_else(|| json.get("messages").and_then(|m| m.as_array()))
+                                        && let Some(messages) = json.as_array().or_else(|| {
+                                            json.get("messages").and_then(|m| m.as_array())
+                                        })
                                     {
-                                            for msg in messages {
-                                                let sender = msg
-                                                    .get("source")
-                                                    .and_then(|s| s.as_str())
-                                                    .unwrap_or("unknown");
-                                                let text = msg
-                                                    .get("message")
-                                                    .and_then(|m| m.as_str())
-                                                    .unwrap_or("");
-                                                if text.is_empty() {
-                                                    continue;
-                                                }
-                                                let event = crate::bus::BusEvent::new(
-                                                    "message",
-                                                    "signal",
-                                                    sender,
-                                                    sender,
-                                                    text,
-                                                );
-                                                if let Err(e) = bus.publish(&event) {
-                                                    log::warn!(
-                                                        "daemon: signal bus publish: {e}"
-                                                    );
-                                                }
+                                        for msg in messages {
+                                            let sender = msg
+                                                .get("source")
+                                                .and_then(|s| s.as_str())
+                                                .unwrap_or("unknown");
+                                            let text = msg
+                                                .get("message")
+                                                .and_then(|m| m.as_str())
+                                                .unwrap_or("");
+                                            if text.is_empty() {
+                                                continue;
                                             }
+                                            let event = crate::bus::BusEvent::new(
+                                                "message", "signal", sender, sender, text,
+                                            );
+                                            if let Err(e) = bus.publish(&event) {
+                                                log::warn!("daemon: signal bus publish: {e}");
+                                            }
+                                        }
                                     }
                                 }
                                 Err(e) => {

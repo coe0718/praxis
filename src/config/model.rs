@@ -29,6 +29,10 @@ pub struct AppConfig {
     /// message from the corresponding channel but don't persist across sessions.
     #[serde(default)]
     pub ephemeral_prompts: HashMap<String, String>,
+    /// External tools defined in config — HTTP or shell tools registered
+    /// at startup without writing TOML manifests by hand.
+    #[serde(default)]
+    pub external_tools: Vec<ExternalToolConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -164,6 +168,56 @@ pub struct ContextSourceConfig {
     pub max_pct: f32,
 }
 
+/// An external tool defined in praxis.toml — registered as a tool manifest
+/// at startup without requiring a hand-written TOML file in `tools/`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ExternalToolConfig {
+    /// Tool name (used as the manifest name and TOML filename slug).
+    pub name: String,
+    /// Short description for the tool catalog.
+    pub description: String,
+    /// Tool kind — `internal`, `shell`, or `http`.
+    pub kind: String,
+    /// Security level required (1-4). Default 2.
+    #[serde(default = "default_external_tool_level")]
+    pub required_level: u8,
+    /// Whether operator approval is required. Default true.
+    #[serde(default = "default_true")]
+    pub requires_approval: bool,
+    /// For `shell` tools: the executable path.
+    #[serde(default)]
+    pub path: Option<String>,
+    /// For `shell` tools: fixed arguments prepended before request args.
+    #[serde(default)]
+    pub args: Vec<String>,
+    /// For `http` tools: URL template with `{param}` placeholders.
+    #[serde(default)]
+    pub endpoint: Option<String>,
+    /// For `http` tools: HTTP method (GET, POST, etc). Default GET.
+    #[serde(default)]
+    pub method: Option<String>,
+    /// For `http` tools: extra headers as `"Key: Value"` strings.
+    #[serde(default)]
+    pub headers: Vec<String>,
+    /// Timeout in seconds. Default 30.
+    #[serde(default = "default_external_tool_timeout")]
+    pub timeout_secs: Option<u64>,
+    /// Allowed write paths for shell tools.
+    #[serde(default)]
+    pub allowed_paths: Vec<String>,
+    /// Allowed read paths for file-read tools.
+    #[serde(default)]
+    pub allowed_read_paths: Vec<String>,
+}
+
+fn default_external_tool_level() -> u8 {
+    2
+}
+
+fn default_external_tool_timeout() -> Option<u64> {
+    Some(30)
+}
+
 impl Default for ContextConfig {
     fn default() -> Self {
         Self {
@@ -235,6 +289,7 @@ impl AppConfig {
             context: ContextConfig::default(),
             features: FeatureFlags::default(),
             ephemeral_prompts: HashMap::new(),
+            external_tools: Vec::new(),
         }
     }
 

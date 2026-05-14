@@ -14,6 +14,10 @@ use super::IdentityPolicy;
 mod foundation;
 #[cfg(test)]
 mod tests;
+mod tier;
+
+use tier::record_original_hash;
+pub use tier::{DriftReport, FileTier, FileTierPolicy, WritePermission, detect_identity_drift};
 
 use foundation::foundation_documents;
 
@@ -38,6 +42,15 @@ impl IdentityPolicy for LocalIdentityPolicy {
             write_if_missing(&path, contents)?;
         }
 
+        // Record original hashes of locked files for drift detection.
+        let policy = FileTierPolicy::new();
+        for locked_path in policy.locked_files() {
+            let full_path = paths.data_dir.join(locked_path);
+            if full_path.exists() {
+                record_original_hash(&full_path)?;
+            }
+        }
+
         Ok(())
     }
 
@@ -50,6 +63,18 @@ impl IdentityPolicy for LocalIdentityPolicy {
 
         if self.read_day_count(paths)? < 0 {
             bail!("DAY_COUNT must not be negative");
+        }
+
+        // Drift detection: warn if locked files have been modified.
+        let drift = detect_identity_drift(paths)?;
+        if drift.locked_files_modified {
+            log::warn!(
+                "identity drift detected: locked files modified: {}",
+                drift.modified_locked_files.join(", ")
+            );
+        }
+        if drift.soul_drifted {
+            log::warn!("identity drift: SOUL.md has changed since initialization");
         }
 
         Ok(())
@@ -94,6 +119,19 @@ impl IdentityPolicy for LocalIdentityPolicy {
         raw.trim().parse::<i64>().with_context(|| {
             format!("invalid DAY_COUNT value in {}", paths.day_count_file.display())
         })
+    }
+
+    fn check_write_permission(
+        &self,
+        _paths: &PraxisPaths,
+        relative_path: &str,
+    ) -> Result<WritePermission> {
+        let policy = FileTierPolicy::new();
+        Ok(policy.check_write_permission(relative_path))
+    }
+
+    fn detect_drift(&self, paths: &PraxisPaths) -> Result<DriftReport> {
+        detect_identity_drift(paths)
     }
 }
 

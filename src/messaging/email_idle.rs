@@ -1,3 +1,4 @@
+use crate::bus::MessageBus;
 /// Email IMAP IDLE push adapter.
 ///
 /// Connects to an IMAP server and uses the IDLE command to receive
@@ -7,7 +8,6 @@
 /// Requires: `PRAXIS_EMAIL_IMAP_HOST`, `PRAXIS_EMAIL_USERNAME`, `PRAXIS_EMAIL_PASSWORD`
 /// Optional: `PRAXIS_EMAIL_IMAP_PORT` (default 993), `PRAXIS_EMAIL_IMAP_MAILBOX` (default INBOX)
 use anyhow::{Context, Result};
-use crate::bus::MessageBus;
 use std::time::Duration;
 
 /// IMAP IDLE client configuration.
@@ -45,8 +45,8 @@ impl ImapIdleConfig {
     }
 
     pub fn validate_environment() -> Result<()> {
-        let _ =
-            std::env::var("PRAXIS_EMAIL_IMAP_HOST").context("PRAXIS_EMAIL_IMAP_HOST is required")?;
+        let _ = std::env::var("PRAXIS_EMAIL_IMAP_HOST")
+            .context("PRAXIS_EMAIL_IMAP_HOST is required")?;
         let _ =
             std::env::var("PRAXIS_EMAIL_USERNAME").context("PRAXIS_EMAIL_USERNAME is required")?;
         let _ =
@@ -84,9 +84,7 @@ fn imap_idle_connect_and_listen(config: &ImapIdleConfig, bus: &crate::bus::FileB
         .login(&config.username, &config.password)
         .map_err(|e| anyhow::anyhow!("IMAP login failed: {e:?}"))?;
 
-    session
-        .select(&config.mailbox)
-        .context("failed to select mailbox")?;
+    session.select(&config.mailbox).context("failed to select mailbox")?;
 
     log::info!(
         "imap: connected to {}:{} — listening for new emails in {}",

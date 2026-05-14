@@ -26,7 +26,9 @@ pub use execute::{ToolExecutionResult, discover_mcp_tools, execute_request};
 pub use guard::{DEFAULT_LOOP_GUARD_LIMIT, GuardDecision, LoopGuard};
 pub use manifest::{ToolKind, ToolManifest};
 pub use policy::{SecurityPolicy, default_hardline_blocklist};
-pub use registry::{FileToolRegistry, ToolRegistry};
+pub use registry::{
+    FileToolRegistry, ToolRegistry, discover_external_tools, external_config_to_manifest,
+};
 pub use request::build_payload;
 pub use request::parse_payload;
 pub use todo::{TodoItem, TodoList, TodoStatus};

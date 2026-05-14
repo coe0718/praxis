@@ -66,6 +66,9 @@ pub struct SessionState {
     pub context_sources: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rendered_context: Option<String>,
+    /// Pending context request from the previous act phase.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pending_context_request: Option<crate::context::ContextRequest>,
 }
 
 impl SessionState {
@@ -90,6 +93,7 @@ impl SessionState {
             repeated_reads_avoided: 0,
             context_sources: Vec::new(),
             rendered_context: None,
+            pending_context_request: None,
         }
     }
 

@@ -9,6 +9,7 @@ use anyhow::{Context, Result, bail};
 use crate::paths::PraxisPaths;
 
 use super::{ToolKind, ToolManifest};
+use crate::config::ExternalToolConfig;
 
 pub trait ToolRegistry {
     fn ensure_foundation(&self, paths: &PraxisPaths) -> Result<()>;
@@ -425,4 +426,61 @@ fn default_manifests() -> Vec<ToolManifest> {
             cache_ttl_secs: None,
         },
     ]
+}
+
+/// Convert an `ExternalToolConfig` into a `ToolManifest`.
+pub fn external_config_to_manifest(cfg: &ExternalToolConfig) -> Result<ToolManifest> {
+    let kind = match cfg.kind.as_str() {
+        "internal" => ToolKind::Internal,
+        "shell" => ToolKind::Shell,
+        "http" => ToolKind::Http,
+        other => bail!("unknown tool kind '{other}' for tool '{}'", cfg.name),
+    };
+
+    Ok(ToolManifest {
+        name: cfg.name.clone(),
+        description: cfg.description.clone(),
+        kind,
+        required_level: cfg.required_level,
+        requires_approval: cfg.requires_approval,
+        rehearsal_required: false,
+        allowed_paths: cfg.allowed_paths.clone(),
+        allowed_read_paths: cfg.allowed_read_paths.clone(),
+        path: cfg.path.clone(),
+        args: cfg.args.clone(),
+        timeout_secs: cfg.timeout_secs,
+        endpoint: cfg.endpoint.clone(),
+        method: cfg.method.clone(),
+        headers: cfg.headers.clone(),
+        body: None,
+        allowed_vault_keys: None,
+        allowed_oauth_providers: None,
+        cache_ttl_secs: None,
+    })
+}
+
+/// Discover and register external tools from the config.
+///
+/// For each `ExternalToolConfig` in the config, this function:
+/// 1. Converts it to a `ToolManifest`.
+/// 2. Validates the manifest.
+/// 3. Writes it as a TOML file in the tools directory.
+/// 4. Returns the number of tools registered.
+pub fn discover_external_tools<T: ToolRegistry>(
+    paths: &PraxisPaths,
+    registry: &T,
+    external_configs: &[ExternalToolConfig],
+) -> Result<usize> {
+    let mut count = 0;
+    for cfg in external_configs {
+        let manifest = external_config_to_manifest(cfg)?;
+        manifest.validate()?;
+
+        // Only register if not already present (don't overwrite user customizations).
+        if registry.get(paths, &manifest.name)?.is_none() {
+            registry.register(paths, &manifest)?;
+            count += 1;
+        }
+    }
+    Ok(count)
 }

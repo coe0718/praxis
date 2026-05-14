@@ -7,6 +7,7 @@ pub mod handoff;
 pub(crate) mod injection;
 mod loader;
 pub mod progressive;
+mod request;
 mod summarize;
 
 pub(crate) use adaptive::{adapt_config, record_context_feedback};
@@ -20,3 +21,4 @@ pub use compaction::{
 };
 pub use files::TrackedContextReader;
 pub(crate) use loader::{ContextLoadRequest, LocalContextLoader};
+pub use request::ContextRequest;

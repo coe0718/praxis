@@ -61,6 +61,35 @@ where
         self.identity.validate(self.paths)?;
         self.tools.validate(self.paths)?;
 
+        // Context request: consume any pending request from the previous act phase.
+        if let Some(req) = crate::context::ContextRequest::load(self.paths)? {
+            if !req.is_empty() {
+                log::info!(
+                    "orient: honouring context request ({} files, {} queries) — {}",
+                    req.include_files.len(),
+                    req.memory_queries.len(),
+                    req.reason
+                );
+                state.pending_context_request = Some(req);
+            }
+            crate::context::ContextRequest::clear(self.paths)?;
+        }
+
+        // External tool discovery — register config-driven tools from praxis.toml.
+        if !self.config.external_tools.is_empty() {
+            match crate::tools::discover_external_tools(
+                self.paths,
+                self.tools,
+                &self.config.external_tools,
+            ) {
+                Ok(count) if count > 0 => {
+                    log::info!("orient: registered {count} external tool(s) from config");
+                }
+                Ok(_) => {}
+                Err(e) => log::warn!("orient: external tool discovery failed: {e}"),
+            }
+        }
+
         // Structured tracing initialization — set up JSON logging + metrics.
         if !self.lite.skip_capability(crate::lite::LiteCapability::Tracing)
             && let Err(e) = crate::tracing::init_tracing()
@@ -166,6 +195,7 @@ where
         let open_goals = goals.into_iter().filter(|goal| !goal.completed).collect::<Vec<_>>();
         let tool_summary = self.tools.summary(self.paths)?;
         let requested_task = state.requested_task.clone();
+        let context_request = state.pending_context_request.clone();
         let context = LocalContextLoader.load(
             self.store,
             ContextLoadRequest {
@@ -175,6 +205,7 @@ where
                 tool_summary: &tool_summary,
                 requested_task: requested_task.as_deref(),
                 open_goals: &open_goals,
+                context_request: context_request.as_ref(),
             },
         )?;
         state.context_sources = context.included_sources.iter().map(|s| s.source.clone()).collect();
