@@ -121,7 +121,10 @@ pub fn poll_slack_messages(
     let mut events = Vec::new();
     for msg in body.messages.unwrap_or_default() {
         if let Some(ref ts) = msg.ts {
-            log::debug!("slack inbound: message ts={ts} from {}", msg.user.as_deref().unwrap_or("unknown"));
+            log::debug!(
+                "slack inbound: message ts={ts} from {}",
+                msg.user.as_deref().unwrap_or("unknown")
+            );
         }
         events.push(BusEvent {
             kind: "message".to_string(),

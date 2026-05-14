@@ -32,10 +32,7 @@ impl MarketplaceClient {
     /// Query available work items matching agent capabilities.
     pub fn query_work(&self, _max_price: Option<u64>) -> Vec<WorkItem> {
         // Would query actual marketplace APIs
-        log::debug!(
-            "marketplace: querying {} endpoints for work",
-            self.endpoints.len()
-        );
+        log::debug!("marketplace: querying {} endpoints for work", self.endpoints.len());
         vec![]
     }
 

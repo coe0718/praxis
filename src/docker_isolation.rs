@@ -90,11 +90,7 @@ impl DockerIsolation {
         config: &ContainerConfig,
         args: &[String],
     ) -> Result<String, anyhow::Error> {
-        log::debug!(
-            "docker isolation: executing '{}' via host '{}'",
-            tool_name,
-            self.docker_host
-        );
+        log::debug!("docker isolation: executing '{}' via host '{}'", tool_name, self.docker_host);
 
         // C12 fix: Add random suffix to prevent collision in same nanosecond
         let rand_suffix: u32 = rand::random();

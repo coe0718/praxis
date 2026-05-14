@@ -222,7 +222,9 @@ pub(super) async fn api_chat_completions(
 
     let max_tokens = body.max_completion_tokens.unwrap_or(1024);
     if body.stream.unwrap_or(false) {
-        log::debug!("chat_completions: streaming requested but not yet supported; returning full response");
+        log::debug!(
+            "chat_completions: streaming requested but not yet supported; returning full response"
+        );
     }
     let decision = budgets
         .ask
