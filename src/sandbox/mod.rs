@@ -285,7 +285,6 @@ mod tests {
     use super::*;
     use crate::tools::ToolKind;
 
-    #[allow(dead_code)]
     fn tool(kind: ToolKind, level: u8) -> (ToolKind, u8) {
         (kind, level)
     }

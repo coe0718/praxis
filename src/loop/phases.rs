@@ -809,6 +809,7 @@ where
     /// Attempt agent federation for a complex task.
     /// Decomposes the task across specialized agent roles and returns a summary.
     fn try_federation(&self, goal_title: &str, summary: &str) -> Result<String> {
+        super::runtime::check_spawn_depth(self.config, 1)?;
         let fed = crate::federation::AgentFederation::new(self.paths);
         let req = crate::federation::FederationRequest {
             task: goal_title.to_string(),

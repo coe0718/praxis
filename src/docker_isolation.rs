@@ -33,7 +33,6 @@ pub struct MountSpec {
 
 /// Docker Isolation manager for container execution.
 pub struct DockerIsolation {
-    #[allow(dead_code)]
     docker_host: String,
     containers: std::collections::HashMap<String, ContainerInfo>,
 }
@@ -91,6 +90,12 @@ impl DockerIsolation {
         config: &ContainerConfig,
         args: &[String],
     ) -> Result<String, anyhow::Error> {
+        log::debug!(
+            "docker isolation: executing '{}' via host '{}'",
+            tool_name,
+            self.docker_host
+        );
+
         // C12 fix: Add random suffix to prevent collision in same nanosecond
         let rand_suffix: u32 = rand::random();
         let ts = chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0);

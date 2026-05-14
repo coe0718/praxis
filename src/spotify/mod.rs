@@ -113,7 +113,10 @@ impl SpotifyClient {
 
         let token: TokenResponse =
             serde_json::from_str(&resp.text().context("parse token response")?)?;
-        self.config.access_token = Some(token.access_token);
+        self.config.access_token = Some(token.access_token.clone());
+        if token.expires_in > 0 {
+            log::debug!("spotify: token expires in {}s", token.expires_in);
+        }
         self.config.refresh_token = token.refresh_token;
         Ok(())
     }
@@ -332,7 +335,6 @@ struct TokenResponse {
     access_token: String,
     #[serde(default)]
     refresh_token: Option<String>,
-    #[allow(dead_code)]
     #[serde(default)]
     expires_in: u64,
 }

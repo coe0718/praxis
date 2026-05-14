@@ -37,7 +37,6 @@ pub struct ObservationSummary {
     pub memories_extracted: usize,
 }
 
-#[allow(dead_code)]
 impl ObservationCheckpoint {
     /// Load from disk or create a fresh one.
     pub fn load_or_fresh(path: &Path) -> Self {

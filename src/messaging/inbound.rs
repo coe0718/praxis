@@ -49,6 +49,13 @@ pub fn poll_discord_messages(
 
     let mut events = Vec::new();
     for msg in messages {
+        log::debug!(
+            "discord inbound: message {} from {} (#{}) in channel {}",
+            msg.id,
+            msg.author.username,
+            msg.author.id,
+            msg.channel_id
+        );
         events.push(BusEvent {
             kind: "message".to_string(),
             source: "discord".to_string(),
@@ -64,7 +71,6 @@ pub fn poll_discord_messages(
 
 #[derive(Debug, Deserialize)]
 struct DiscordInboundMessage {
-    #[allow(dead_code)]
     id: String,
     channel_id: String,
     content: String,
@@ -73,9 +79,7 @@ struct DiscordInboundMessage {
 
 #[derive(Debug, Deserialize)]
 struct DiscordAuthor {
-    #[allow(dead_code)]
     id: String,
-    #[allow(dead_code)]
     username: String,
 }
 
@@ -116,6 +120,9 @@ pub fn poll_slack_messages(
 
     let mut events = Vec::new();
     for msg in body.messages.unwrap_or_default() {
+        if let Some(ref ts) = msg.ts {
+            log::debug!("slack inbound: message ts={ts} from {}", msg.user.as_deref().unwrap_or("unknown"));
+        }
         events.push(BusEvent {
             kind: "message".to_string(),
             source: "slack".to_string(),
@@ -140,7 +147,6 @@ struct SlackHistoryResponse {
 struct SlackInboundMessage {
     text: String,
     user: Option<String>,
-    #[allow(dead_code)]
     ts: Option<String>,
 }
 

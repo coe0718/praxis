@@ -48,7 +48,6 @@ pub struct ExecutionPlan {
     pub tags: Vec<String>,
 }
 
-#[allow(dead_code)]
 impl ExecutionPlan {
     /// Create a new empty plan.
     pub fn new(id: &str, label: &str) -> Self {
@@ -204,7 +203,6 @@ pub struct DryRunResult {
     pub errors: Vec<String>,
 }
 
-#[allow(dead_code)]
 impl DryRunResult {
     pub fn is_ok(&self) -> bool {
         self.errors.is_empty()

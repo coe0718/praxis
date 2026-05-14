@@ -20,7 +20,6 @@ pub struct Worktree {
     /// Branch name used in this worktree.
     pub branch: String,
     /// The original repo path.
-    #[allow(dead_code)]
     pub repo_root: PathBuf,
 }
 
@@ -100,7 +99,7 @@ pub fn list_worktrees(repo_root: &Path) -> Result<Vec<Worktree>> {
             };
 
             worktrees.push(Worktree {
-                path,
+                path: path.clone(),
                 branch,
                 repo_root: git_dir.clone(),
             });
@@ -259,7 +258,13 @@ pub fn handle_worktree(data_dir: Option<PathBuf>, args: super::WorktreeArgs) -> 
             let mut lines = vec![format!("found {} worktree(s):", worktrees.len())];
             for wt in &worktrees {
                 let name = wt.path.file_name().unwrap_or_default().to_string_lossy();
-                lines.push(format!("  {} → {} ({})", name, wt.path.display(), wt.branch));
+                lines.push(format!(
+                    "  {} → {} ({}) [repo: {}]",
+                    name,
+                    wt.path.display(),
+                    wt.branch,
+                    wt.repo_root.display()
+                ));
             }
             Ok(lines.join("\n"))
         }

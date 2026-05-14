@@ -13,7 +13,6 @@ pub use work_item::{BidQuote, WorkItem, WorkItemStatus};
 
 /// Marketplace client for agent work discovery.
 pub struct MarketplaceClient {
-    #[allow(dead_code)]
     endpoints: Vec<String>,
     agent_id: String,
 }
@@ -33,6 +32,10 @@ impl MarketplaceClient {
     /// Query available work items matching agent capabilities.
     pub fn query_work(&self, _max_price: Option<u64>) -> Vec<WorkItem> {
         // Would query actual marketplace APIs
+        log::debug!(
+            "marketplace: querying {} endpoints for work",
+            self.endpoints.len()
+        );
         vec![]
     }
 

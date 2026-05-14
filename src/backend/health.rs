@@ -49,7 +49,6 @@ pub struct ProviderHealthTracker {
     last_persist: Mutex<Instant>,
 }
 
-#[allow(dead_code)]
 impl ProviderHealthTracker {
     pub fn new(persistence_path: Option<&Path>) -> Result<Self> {
         let health = if let Some(path) = persistence_path {

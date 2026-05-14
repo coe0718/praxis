@@ -25,7 +25,6 @@ use tokio::{signal, time::interval};
 #[derive(Debug)]
 struct WatchdogArgs {
     data_dir: PathBuf,
-    #[allow(dead_code)]
     check_interval_secs: u64,
 }
 
@@ -67,7 +66,6 @@ fn load_update_record(data_dir: &std::path::Path) -> Option<UpdateRecord> {
     serde_json::from_str(&raw).ok()
 }
 
-#[allow(dead_code)]
 fn save_update_record(data_dir: &std::path::Path, record: &UpdateRecord) -> Result<()> {
     let path = data_dir.join("watchdog_update.json");
     let raw = serde_json::to_string_pretty(record).context("serialize update record")?;
@@ -160,6 +158,15 @@ async fn main() -> Result<()> {
                         match child.wait() {
                             Ok(status) if status.success() => {
                                 log::info!("watchdog: praxis session completed successfully");
+                                // Record successful run for rollback capability.
+                                let record = UpdateRecord {
+                                    updated_at: Utc::now().to_rfc3339(),
+                                    previous_binary: env::current_exe().unwrap_or_default(),
+                                    current_binary: env::current_exe().unwrap_or_default(),
+                                };
+                                if let Err(e) = save_update_record(&args.data_dir, &record) {
+                                    log::warn!("watchdog: failed to save update record: {e}");
+                                }
                             }
                             Ok(status) => {
                                 log::warn!("watchdog: praxis exited with status {status:?}");

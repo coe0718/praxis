@@ -27,7 +27,6 @@ use super::{AgentBackend, RunOptions, RunSummary};
 
 /// (#50) Maximum depth of sub-agent spawning allowed.  A depth of 0 means
 /// no spawning (the default for `Worker` agents).
-#[allow(dead_code)]
 const DEFAULT_MAX_SPAWN_DEPTH: u32 = 0;
 
 pub struct PraxisRuntime<'a, B, C, E, G, I, S, T> {
@@ -488,8 +487,7 @@ where
 ///
 /// This is a standalone function so it can be called from any phase without
 /// needing the full runtime generic context.
-#[allow(dead_code)]
-pub fn check_spawn_depth(config: &AppConfig, current_depth: u32) -> Result<()> {
+pub(super) fn check_spawn_depth(config: &AppConfig, current_depth: u32) -> Result<()> {
     use crate::config::model::AgentRole;
 
     if config.agent.disable_sub_agents {

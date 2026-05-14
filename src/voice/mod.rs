@@ -213,12 +213,10 @@ pub struct SttRequest {
     pub language: Option<String>,
 }
 
-#[allow(dead_code)]
 fn default_format() -> String {
     "mp3".to_string()
 }
 
-#[allow(dead_code)]
 fn default_speed() -> f32 {
     1.0
 }
