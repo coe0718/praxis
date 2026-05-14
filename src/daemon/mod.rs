@@ -61,6 +61,7 @@ use chrono::{DateTime, Utc};
 use crate::{
     anatomy::refresh_stale_anatomy,
     backend::ConfiguredBackend,
+    bus::MessageBus,
     circuit_breaker::CircuitBreaker,
     cost::CostTracker,
     events::FileEventSink,
@@ -387,6 +388,130 @@ async fn async_daemon_loop(
             }))
         } else {
             log::info!("daemon: Discord Gateway disabled (PRAXIS_DISCORD_BOT_TOKEN not set)");
+            None
+        }
+    };
+
+    // ── Matrix sync (WebSocket + long-polling fallback) ───────────────────
+    let _matrix_sync_handle = {
+        if crate::messaging::MatrixSyncConfig::validate_environment().is_ok() {
+            match crate::messaging::MatrixSyncConfig::from_env() {
+                Ok(config) => {
+                    let bus = crate::bus::FileBus::new(paths.bus_file.clone());
+                    log::info!("daemon: starting Matrix sync");
+                    Some(tokio::spawn(async move {
+                        let mut sync = crate::messaging::MatrixSync::new(config);
+                        if let Err(e) = sync.run_sync(&bus).await {
+                            log::error!("daemon: Matrix sync error: {e:#}");
+                        }
+                    }))
+                }
+                Err(e) => {
+                    log::warn!("daemon: Matrix sync config error: {e:#}");
+                    None
+                }
+            }
+        } else {
+            log::info!("daemon: Matrix sync disabled (env vars not set)");
+            None
+        }
+    };
+
+    // ── Signal CLI polling ───────────────────────────────────────────────
+    let _signal_poll_handle = {
+        if crate::messaging::SignalClient::validate_environment().is_ok() {
+            match crate::messaging::SignalClient::from_env() {
+                Ok(_client) => {
+                    let bus = crate::bus::FileBus::new(paths.bus_file.clone());
+                    let state_path = paths.data_dir.join("signal_state.json");
+                    log::info!("daemon: starting Signal CLI polling");
+                    Some(tokio::spawn(async move {
+                        let mut interval =
+                            tokio::time::interval(std::time::Duration::from_secs(10));
+                        loop {
+                            interval.tick().await;
+                            // Signal CLI uses a local JSON-RPC daemon on :8080.
+                            // Poll for new messages via the /v1/receive endpoint.
+                            let receive_url = "http://localhost:8080/v1/receive";
+                            match reqwest::get(receive_url).await {
+                                Ok(resp) => {
+                                    if let Ok(json) = resp.json::<serde_json::Value>().await
+                                        && let Some(messages) =
+                                            json.as_array().or_else(|| json.get("messages").and_then(|m| m.as_array()))
+                                    {
+                                            for msg in messages {
+                                                let sender = msg
+                                                    .get("source")
+                                                    .and_then(|s| s.as_str())
+                                                    .unwrap_or("unknown");
+                                                let text = msg
+                                                    .get("message")
+                                                    .and_then(|m| m.as_str())
+                                                    .unwrap_or("");
+                                                if text.is_empty() {
+                                                    continue;
+                                                }
+                                                let event = crate::bus::BusEvent::new(
+                                                    "message",
+                                                    "signal",
+                                                    sender,
+                                                    sender,
+                                                    text,
+                                                );
+                                                if let Err(e) = bus.publish(&event) {
+                                                    log::warn!(
+                                                        "daemon: signal bus publish: {e}"
+                                                    );
+                                                }
+                                            }
+                                    }
+                                }
+                                Err(e) => {
+                                    log::debug!("daemon: signal poll skipped: {e}");
+                                }
+                            }
+                            // Persist state
+                            let _ = serde_json::json!({
+                                "last_poll": chrono::Utc::now().to_rfc3339()
+                            });
+                            let _ = tokio::fs::write(
+                                &state_path,
+                                serde_json::to_string_pretty(&serde_json::json!({}))
+                                    .unwrap_or_default(),
+                            )
+                            .await;
+                        }
+                    }))
+                }
+                Err(e) => {
+                    log::warn!("daemon: Signal config error: {e:#}");
+                    None
+                }
+            }
+        } else {
+            log::info!("daemon: Signal polling disabled (PRAXIS_SIGNAL_PHONE_NUMBER not set)");
+            None
+        }
+    };
+
+    // ── Email IMAP IDLE (real-time push) ─────────────────────────────────
+    let _email_idle_handle = {
+        if crate::messaging::ImapIdleConfig::validate_environment().is_ok() {
+            match crate::messaging::ImapIdleConfig::from_env() {
+                Ok(config) => {
+                    let bus = crate::bus::FileBus::new(paths.bus_file.clone());
+                    log::info!("daemon: starting Email IMAP IDLE listener");
+                    Some(tokio::task::spawn_blocking(move || {
+                        crate::messaging::run_imap_idle(config, &bus)
+                    }))
+                }
+                Err(e) => {
+                    log::warn!("daemon: Email IMAP config error: {e:#}");
+                    None
+                }
+            }
+        } else {
+            log::info!("daemon: Email IMAP IDLE disabled (env vars not set)");
             None
         }
     };

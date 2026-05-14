@@ -6,6 +6,7 @@ pub mod discord;
 #[cfg(feature = "discord")]
 mod discord_gateway;
 pub mod email;
+pub mod email_idle;
 pub mod inbound;
 pub mod matrix;
 mod matrix_sync;
@@ -21,7 +22,7 @@ mod telegram;
 pub mod telegram_webhook;
 pub mod typing;
 pub mod whatsapp;
-mod whatsapp_webhook;
+pub mod whatsapp_webhook;
 
 pub use activation::{ActivationMode, ActivationStore};
 pub use auto_reply::{AutoReplyConfig, AutoReplyEngine};
@@ -32,6 +33,7 @@ pub use discord::{
 #[cfg(feature = "discord")]
 pub use discord_gateway::run_gateway;
 pub use email::EmailClient;
+pub use email_idle::{ImapIdleConfig, run_imap_idle};
 pub use inbound::{InboundPollConfig, poll_discord_messages, poll_slack_messages};
 pub use matrix::MatrixClient;
 pub use matrix_sync::{MatrixSync, MatrixSyncConfig};

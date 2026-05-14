@@ -131,6 +131,12 @@ pub async fn serve_dashboard(data_dir: PathBuf, host: String, port: u16) -> Resu
         }
         // Telegram webhook — validates via PRAXIS_TELEGRAM_BOT_TOKEN
         routes = routes.route("/webhook/telegram", post(routes_events::webhook_telegram));
+        // WhatsApp webhook — validates via PRAXIS_WHATSAPP_WEBHOOK_VERIFY_TOKEN
+        routes = routes
+            .route(
+                "/webhook/whatsapp",
+                get(routes_events::webhook_whatsapp_verify).post(routes_events::webhook_whatsapp),
+            );
         // Dynamic webhook subscriptions — /webhook/{name}
         routes = routes.route("/webhook/:name", post(routes_events::webhook_dynamic));
         routes.with_state(state.clone())

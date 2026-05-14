@@ -541,3 +541,31 @@ pub(super) async fn webhook_dynamic(
 
     (StatusCode::OK, Json(json!({ "ok": true }))).into_response()
 }
+
+// ── WhatsApp webhook ──────────────────────────────────────────────────────────
+
+/// WhatsApp webhook verification (GET) — responds to the Meta challenge.
+pub(super) async fn webhook_whatsapp_verify(
+    State(state): State<DashboardState>,
+    Query(params): Query<crate::messaging::whatsapp_webhook::WhatsappVerifyQuery>,
+) -> impl IntoResponse {
+    let expected = state.whatsapp_verify_token.as_deref();
+    match expected {
+        Some(token) if token == params.hub_verify_token => {
+            (StatusCode::OK, params.hub_challenge.clone()).into_response()
+        }
+        None => {
+            log::warn!("whatsapp webhook: no PRAXIS_WHATSAPP_WEBHOOK_VERIFY_TOKEN configured");
+            StatusCode::UNAUTHORIZED.into_response()
+        }
+        _ => StatusCode::UNAUTHORIZED.into_response(),
+    }
+}
+
+/// WhatsApp inbound messages (POST) — receives messages from Meta Cloud API.
+pub(super) async fn webhook_whatsapp(
+    State(state): State<DashboardState>,
+    body: Bytes,
+) -> impl IntoResponse {
+    crate::messaging::whatsapp_webhook::whatsapp_inbound(State(state), body).await
+}
