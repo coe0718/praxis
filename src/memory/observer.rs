@@ -125,6 +125,10 @@ Return ONLY valid JSON:",
         }
     };
 
+    // Load last checkpoint to determine where we left off
+    let checkpoint = ObservationCheckpoint::load_or_fresh(checkpoint_path);
+    log::debug!("memory observer: resuming from session {}", checkpoint.last_session_id);
+
     let observations = parse_observations(&result);
     let mut summary = ObservationSummary::default();
 

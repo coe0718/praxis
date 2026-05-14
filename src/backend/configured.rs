@@ -270,7 +270,13 @@ fn execute_routes(
     // Filter out unhealthy providers first
     let healthy_routes: Vec<_> = routes
         .iter()
-        .filter(|route| provider_health().is_healthy(&route.provider))
+        .filter(|route| {
+            if let Some(status) = provider_health().get_status(&route.provider) {
+                status.healthy
+            } else {
+                true // no status yet, allow
+            }
+        })
         .collect();
 
     let routes_to_try = if healthy_routes.is_empty() {

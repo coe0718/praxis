@@ -392,6 +392,24 @@ pub(super) async fn api_health(State(state): State<DashboardState>) -> impl Into
     checks
         .push(json!({ "name": "memories", "status": "ok", "hot": hot_count, "cold": cold_count }));
 
+    // Provider health statuses
+    let provider_statuses = crate::backend::health::provider_health().get_all_statuses();
+    let provider_check = if provider_statuses.is_empty() {
+        json!({ "name": "providers", "status": "ok", "providers": [] })
+    } else {
+        let all_healthy = provider_statuses.values().all(|s| s.healthy);
+        json!({
+            "name": "providers",
+            "status": if all_healthy { "ok" } else { "warn" },
+            "providers": provider_statuses.iter().map(|(name, s)| json!({
+                "name": name,
+                "healthy": s.healthy,
+                "consecutive_failures": s.consecutive_failures,
+            })).collect::<Vec<_>>()
+        })
+    };
+    checks.push(provider_check);
+
     Json(json!({
         "status": overall,
         "checked_at": now.to_rfc3339(),

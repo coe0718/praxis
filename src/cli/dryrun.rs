@@ -256,8 +256,24 @@ pub fn handle_plan(data_dir: Option<PathBuf>, args: super::PlanArgs) -> Result<S
             if !path.exists() {
                 bail!("plan '{}' not found", dr_args.plan_id);
             }
-            let plan = ExecutionPlan::load(&path)?;
+            let mut plan = ExecutionPlan::load(&path)?;
             let result = plan.dry_run();
+            // Mark each step in the plan based on dry-run results
+            let seqs: Vec<u32> = plan.steps.iter().map(|s| s.seq).collect();
+            for seq in seqs {
+                let tool_empty = plan
+                    .steps
+                    .iter()
+                    .find(|s| s.seq == seq)
+                    .map(|s| s.tool.is_empty())
+                    .unwrap_or(false);
+                if tool_empty {
+                    plan.mark_failed(seq, "empty tool name").ok();
+                } else {
+                    plan.mark_dry_run(seq, "validated").ok();
+                }
+            }
+            let _ = plan.save(&plans_dir);
             Ok(result.summary())
         }
         super::PlanCommand::List => {

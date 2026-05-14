@@ -4,7 +4,7 @@ mod configured;
 mod credential_pool;
 mod gating;
 mod gemini;
-mod health;
+pub mod health;
 pub mod model_override;
 mod ollama;
 mod openai;

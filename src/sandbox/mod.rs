@@ -285,10 +285,6 @@ mod tests {
     use super::*;
     use crate::tools::ToolKind;
 
-    fn tool(kind: ToolKind, level: u8) -> (ToolKind, u8) {
-        (kind, level)
-    }
-
     #[test]
     fn strict_sandbox_blocks_shell_tools() {
         let sandbox = ChannelSandbox::strict("test");
