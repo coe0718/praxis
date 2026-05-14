@@ -296,8 +296,9 @@ pub fn handle_plan(data_dir: Option<PathBuf>, args: super::PlanArgs) -> Result<S
             if !path.exists() {
                 bail!("plan '{}' not found", show_args.plan_id);
             }
-            let plan = ExecutionPlan::load(&path)?;
+            let mut plan = ExecutionPlan::load(&path)?;
             let mut lines = vec![plan.summary()];
+            let seqs: Vec<u32> = plan.steps.iter().map(|s| s.seq).collect();
             for step in &plan.steps {
                 lines.push(format!(
                     "  #{} [{}] {} ({}) {}",
@@ -314,6 +315,19 @@ pub fn handle_plan(data_dir: Option<PathBuf>, args: super::PlanArgs) -> Result<S
                     step.actual.as_deref().unwrap_or(""),
                 ));
             }
+            // Auto-advance dry_run steps to executed on show
+            for seq in &seqs {
+                if plan
+                    .steps
+                    .iter()
+                    .find(|s| s.seq == *seq)
+                    .map(|s| s.status == "dry_run")
+                    .unwrap_or(false)
+                {
+                    plan.mark_executed(*seq, "auto-executed on show").ok();
+                }
+            }
+            let _ = plan.save(&plans_dir);
             Ok(lines.join("\n"))
         }
         super::PlanCommand::Create(create_args) => {
