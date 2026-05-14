@@ -78,7 +78,16 @@ pub fn run_wizard() -> Result<Option<WizardConfig>> {
     println!();
 
     // ── Backend ─────────────────────────────────────────────────────────
-    let backends = &["stub (no LLM — for testing)", "openai", "claude", "ollama"];
+    let backends = &[
+        "stub (no LLM — for testing)",
+        "openai",
+        "claude",
+        "ollama",
+        "deepseek",
+        "xai",
+        "minimax",
+        "openrouter",
+    ];
     let backend_idx = Select::with_theme(&theme)
         .with_prompt("LLM backend")
         .items(backends)
@@ -89,6 +98,10 @@ pub fn run_wizard() -> Result<Option<WizardConfig>> {
         1 => "openai",
         2 => "claude",
         3 => "ollama",
+        4 => "deepseek",
+        5 => "xai",
+        6 => "minimax",
+        7 => "openrouter",
         _ => "claude",
     };
     println!();
@@ -100,6 +113,10 @@ pub fn run_wizard() -> Result<Option<WizardConfig>> {
         let env_name = match backend {
             "openai" => "OPENAI_API_KEY",
             "claude" => "ANTHROPIC_API_KEY",
+            "deepseek" => "DEEPSEEK_API_KEY",
+            "xai" => "XAI_API_KEY",
+            "minimax" => "MINIMAX_API_KEY",
+            "openrouter" => "OPENROUTER_API_KEY",
             _ => "API_KEY",
         };
         let prompt = format!("{} (leave empty to skip — set later via env var)", env_name);
@@ -176,6 +193,10 @@ pub fn export_api_key_hint(backend: &str, key: Option<&str>) -> String {
     let env_name = match backend {
         "openai" => "OPENAI_API_KEY",
         "claude" => "ANTHROPIC_API_KEY",
+        "deepseek" => "DEEPSEEK_API_KEY",
+        "xai" => "XAI_API_KEY",
+        "minimax" => "MINIMAX_API_KEY",
+        "openrouter" => "OPENROUTER_API_KEY",
         _ => return String::new(),
     };
     if let Some(k) = key {

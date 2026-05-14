@@ -210,8 +210,101 @@ fn migrate_directory(
     }
 }
 
-/// CLI handler for `praxis migrate`.
-pub fn handle_migrate(data_dir: Option<PathBuf>, source: PathBuf, dry_run: bool) -> Result<String> {
+/// Migrate from a Hermes Agent data directory.
+///
+/// Hermes uses a different directory layout than Praxis. This function
+/// maps the key artifacts:
+/// - `.hermes/profiles/<name>/config.yaml` → `praxis.toml` (config format differs)
+/// - `.hermes/profiles/<name>/SOUL.md` → `SOUL.md`
+/// - `.hermes/profiles/<name>/memory/` → Praxis memory (JSON format conversion)
+/// - `.hermes/profiles/<name>/skills/` → `skills/`
+/// - `.hermes/profiles/<name>/tools/` → `tools/`
+pub fn migrate_from_hermes(
+    paths: &PraxisPaths,
+    source_dir: &Path,
+    dry_run: bool,
+) -> Result<MigrationReport> {
+    if !source_dir.exists() {
+        bail!("source directory does not exist: {}", source_dir.display());
+    }
+
+    let mut report = MigrationReport {
+        source: format!("hermes:{}", source_dir.display()),
+        ..Default::default()
+    };
+
+    // 1. SOUL.md → SOUL.md
+    migrate_file(&source_dir.join("SOUL.md"), &paths.soul_file, "soul", dry_run, &mut report);
+
+    // 2. IDENTITY.md → IDENTITY.md
+    migrate_file(
+        &source_dir.join("IDENTITY.md"),
+        &paths.identity_file,
+        "identity",
+        dry_run,
+        &mut report,
+    );
+
+    // 3. GOALS.md → GOALS.md
+    migrate_file(&source_dir.join("GOALS.md"), &paths.goals_file, "goals", dry_run, &mut report);
+
+    // 4. AGENTS.md → AGENTS.md
+    migrate_file(
+        &source_dir.join("AGENTS.md"),
+        &paths.agents_file,
+        "agents",
+        dry_run,
+        &mut report,
+    );
+
+    // 5. Skills directory → skills/
+    let source_skills = source_dir.join("skills");
+    if source_skills.exists() {
+        migrate_directory(&source_skills, &paths.skills_dir, "skill", dry_run, &mut report);
+    } else {
+        report.skipped.push("skills/ (not found in source)".to_string());
+    }
+
+    // 6. Tools directory → tools/
+    let source_tools = source_dir.join("tools");
+    if source_tools.exists() {
+        migrate_directory(&source_tools, &paths.tools_dir, "tool", dry_run, &mut report);
+    } else {
+        report.skipped.push("tools/ (not found in source)".to_string());
+    }
+
+    // 7. Hermes config.yaml — mark as needs manual migration
+    let source_config = source_dir.join("config.yaml");
+    if source_config.exists() {
+        report.skipped.push(
+            "config.yaml: Hermes config format differs — provider keys need manual migration"
+                .to_string(),
+        );
+    }
+
+    // 8. Hermes memory/ directory — mark as needs format conversion
+    let source_memory = source_dir.join("memory");
+    if source_memory.exists() {
+        report
+            .skipped
+            .push("memory/: Hermes memory format differs — needs JSON conversion".to_string());
+    }
+
+    // 9. Hooks
+    let source_hooks = source_dir.join("hooks.toml");
+    if source_hooks.exists() {
+        migrate_file(&source_hooks, &paths.hooks_file, "hooks", dry_run, &mut report);
+    }
+
+    Ok(report)
+}
+
+/// CLI handler for `praxis migrate axonix`.
+pub fn handle_migrate_axonix(
+    data_dir: Option<PathBuf>,
+    source: PathBuf,
+    dry_run: bool,
+) -> Result<String> {
     let data_dir = data_dir.unwrap_or(default_data_dir()?);
     let paths = PraxisPaths::for_data_dir(data_dir);
 
@@ -255,6 +348,61 @@ pub fn handle_migrate(data_dir: Option<PathBuf>, source: PathBuf, dry_run: bool)
         lines.push(format!("  Errors: {}", report.errors.len()));
         for err in &report.errors {
             lines.push(format!("    ! {err}"));
+        }
+    }
+
+    Ok(lines.join("\n"))
+}
+
+/// CLI handler for `praxis migrate hermes`.
+pub fn handle_migrate_hermes(
+    data_dir: Option<PathBuf>,
+    source: PathBuf,
+    dry_run: bool,
+) -> Result<String> {
+    let data_dir = data_dir.unwrap_or(default_data_dir()?);
+    let paths = PraxisPaths::for_data_dir(data_dir);
+
+    if !paths.config_file.exists() {
+        bail!("Praxis is not initialized. Run `praxis init` first.");
+    }
+
+    let source_dir = source
+        .canonicalize()
+        .with_context(|| format!("cannot resolve source path: {}", source.display()))?;
+
+    let report = migrate_from_hermes(&paths, &source_dir, dry_run)?;
+
+    let mut lines = Vec::new();
+
+    if dry_run {
+        lines.push(format!("DRY RUN — migration from {}", report.source));
+    } else {
+        lines.push(format!("Migration from {}", report.source));
+    }
+
+    lines.push(format!(" Imported: {} items", report.items.len()));
+    for item in &report.items {
+        lines.push(format!(
+            " [{}] {} → {} ({:.1} KB)",
+            item.kind,
+            Path::new(&item.source_path).file_name().unwrap_or_default().to_string_lossy(),
+            Path::new(&item.dest_path).file_name().unwrap_or_default().to_string_lossy(),
+            item.bytes as f64 / 1024.0,
+        ));
+    }
+
+    if !report.skipped.is_empty() {
+        lines.push(format!(" Skipped: {} items", report.skipped.len()));
+        for skip in &report.skipped {
+            lines.push(format!(" - {skip}"));
+        }
+    }
+
+    if !report.errors.is_empty() {
+        lines.push(format!(" Errors: {}", report.errors.len()));
+        for err in &report.errors {
+            lines.push(format!(" ! {err}"));
         }
     }
 

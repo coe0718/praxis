@@ -30,7 +30,9 @@ impl EmailClient {
         let has_user = std::env::var("PRAXIS_EMAIL_USERNAME").is_ok();
         let has_pass = std::env::var("PRAXIS_EMAIL_PASSWORD").is_ok();
         if !has_host || !has_user || !has_pass {
-            bail!("PRAXIS_EMAIL_SMTP_HOST, PRAXIS_EMAIL_USERNAME, and PRAXIS_EMAIL_PASSWORD are required for Email");
+            bail!(
+                "PRAXIS_EMAIL_SMTP_HOST, PRAXIS_EMAIL_USERNAME, and PRAXIS_EMAIL_PASSWORD are required for Email"
+            );
         }
         Ok(())
     }

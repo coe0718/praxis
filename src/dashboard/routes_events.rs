@@ -254,7 +254,7 @@ pub(super) async fn webhook_discord(
     }
     let task = body.data.as_ref().and_then(|d| d.name.as_deref()).map(str::to_string);
     let text = task.clone().unwrap_or_else(|| "discord interaction".to_string());
-    
+
     // Publish directly to bus for instant session trigger
     let bus = FileBus::new(state.data_dir.join("bus.jsonl"));
     let channel_id = body.channel_id.clone().unwrap_or_else(|| "unknown".to_string());
@@ -326,15 +326,14 @@ pub(super) async fn webhook_telegram(
     // Handle messages - publish directly to bus for instant session trigger.
     if let Some(msg) = &update.message {
         let text = msg.text.as_deref().unwrap_or("");
-        let sender_id = msg.from.as_ref().map(|f| f.id.to_string()).unwrap_or_else(|| "unknown".to_string());
-        
-        let event = BusEvent::new(
-            "message",
-            "telegram-webhook",
-            msg.chat.id.to_string(),
-            sender_id,
-            text,
-        );
+        let sender_id = msg
+            .from
+            .as_ref()
+            .map(|f| f.id.to_string())
+            .unwrap_or_else(|| "unknown".to_string());
+
+        let event =
+            BusEvent::new("message", "telegram-webhook", msg.chat.id.to_string(), sender_id, text);
 
         if let Err(e) = bus.publish(&event) {
             log::warn!("telegram webhook bus publish failed: {e}");

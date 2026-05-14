@@ -7,8 +7,8 @@ mod routes_events;
 mod routes_learning;
 mod routes_memory;
 pub mod routes_plugins;
-mod server;
+pub mod server;
 mod types;
 
 pub use model_stats::ModelStats;
-pub use server::serve_dashboard;
+pub use server::{DashboardState, serve_dashboard};

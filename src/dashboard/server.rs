@@ -33,6 +33,8 @@ pub struct DashboardState {
     pub slack_signing_secret: Option<String>,
     /// Telegram bot token — used for webhook validation and bot username lookup.
     pub telegram_token: Option<String>,
+    /// WhatsApp webhook verify token — used for webhook URL verification.
+    pub whatsapp_verify_token: Option<String>,
 }
 
 // ── Auth middleware ───────────────────────────────────────────────────────────
@@ -85,6 +87,7 @@ pub async fn serve_dashboard(data_dir: PathBuf, host: String, port: u16) -> Resu
     let discord_public_key = std::env::var("PRAXIS_DISCORD_PUBLIC_KEY").ok();
     let slack_signing_secret = std::env::var("PRAXIS_SLACK_SIGNING_SECRET").ok();
     let telegram_token = std::env::var("PRAXIS_TELEGRAM_BOT_TOKEN").ok();
+    let whatsapp_verify_token = std::env::var("PRAXIS_WHATSAPP_WEBHOOK_VERIFY_TOKEN").ok();
 
     #[cfg(feature = "discord")]
     if discord_public_key.is_none() {
@@ -110,6 +113,7 @@ pub async fn serve_dashboard(data_dir: PathBuf, host: String, port: u16) -> Resu
         discord_public_key,
         slack_signing_secret,
         telegram_token,
+        whatsapp_verify_token,
     };
 
     // SSE stream is read-only and exempt from auth — EventSource API cannot send headers.

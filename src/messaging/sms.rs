@@ -19,8 +19,8 @@ impl SmsClient {
             .context("PRAXIS_SMS_ACCOUNT_SID is required for SMS")?;
         let auth_token = std::env::var("PRAXIS_SMS_AUTH_TOKEN")
             .context("PRAXIS_SMS_AUTH_TOKEN is required for SMS")?;
-        let from_number = std::env::var("PRAXIS_SMS_FROM_NUMBER")
-            .unwrap_or_else(|_| "+141****8886".to_string()); // Twilio default
+        let from_number =
+            std::env::var("PRAXIS_SMS_FROM_NUMBER").unwrap_or_else(|_| "+141****8886".to_string()); // Twilio default
 
         Ok(Self {
             client: Client::new(),
@@ -60,11 +60,7 @@ impl crate::messaging::Platform for SmsClient {
             .client
             .post(&url)
             .basic_auth(&self.account_sid, Some(&self.auth_token))
-            .form(&[
-                ("To", target),
-                ("From", &self.from_number),
-                ("Body", text),
-            ])
+            .form(&[("To", target), ("From", &self.from_number), ("Body", text)])
             .send()
             .context("failed to send SMS")?;
 

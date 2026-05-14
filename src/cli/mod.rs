@@ -176,7 +176,21 @@ pub struct RollbackArgs {
 
 #[derive(Debug, Args)]
 pub struct MigrateArgs {
-    /// Path to the Axonix data directory to import from.
+    #[command(subcommand)]
+    pub command: MigrateCommand,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum MigrateCommand {
+    /// Migrate from an Axonix data directory.
+    Axonix(MigrateSourceArgs),
+    /// Migrate from a Hermes Agent data directory.
+    Hermes(MigrateSourceArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct MigrateSourceArgs {
+    /// Path to the source data directory to import from.
     pub source: PathBuf,
 
     /// Show what would be imported without making changes.
@@ -517,7 +531,14 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::Checkpoint(args) => checkpoint::handle_checkpoint(cli.data_dir, Some(args.label)),
         Commands::Rollback(args) => checkpoint::handle_rollback(cli.data_dir, args.id),
         Commands::Checkpoints => checkpoint::handle_checkpoints_list(cli.data_dir),
-        Commands::Migrate(args) => migrate::handle_migrate(cli.data_dir, args.source, args.dry_run),
+        Commands::Migrate(args) => match args.command {
+            MigrateCommand::Axonix(src) => {
+                migrate::handle_migrate_axonix(cli.data_dir, src.source, src.dry_run)
+            }
+            MigrateCommand::Hermes(src) => {
+                migrate::handle_migrate_hermes(cli.data_dir, src.source, src.dry_run)
+            }
+        },
         Commands::Worktree(args) => worktree::handle_worktree(cli.data_dir, args),
         Commands::Plan(args) => dryrun::handle_plan(cli.data_dir, args),
         Commands::Profile(args) => profile::handle_profile(cli.data_dir, args),
@@ -525,7 +546,7 @@ fn execute(cli: Cli) -> Result<String> {
         Commands::Kanban(args) => kanban::handle_kanban(cli.data_dir, args),
         Commands::Update(args) => match args.command {
             update::UpdateCommand::Check => update::check_for_update(),
-            update::UpdateCommand::Install => update::check_for_update(),
+            update::UpdateCommand::Install => update::install_latest(),
         },
     }
 }

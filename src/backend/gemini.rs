@@ -15,7 +15,10 @@ use super::{InputContent, ProviderRequest, ProviderResponse, successful_attempt}
 
 const GEMINI_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
 
-pub(super) fn execute(route: &ProviderRoute, request: &ProviderRequest) -> Result<ProviderResponse> {
+pub(super) fn execute(
+    route: &ProviderRoute,
+    request: &ProviderRequest,
+) -> Result<ProviderResponse> {
     if let Some(response) = stubbed(route, request.phase)? {
         return Ok(response);
     }
@@ -28,10 +31,7 @@ pub(super) fn execute(route: &ProviderRoute, request: &ProviderRequest) -> Resul
         .build()
         .context("failed to build Gemini HTTP client")?;
 
-    let url = format!(
-        "{}/models/{}:generateContent?key={}",
-        GEMINI_URL, route.model, api_key
-    );
+    let url = format!("{}/models/{}:generateContent?key={}", GEMINI_URL, route.model, api_key);
 
     // Convert input to text for Gemini
     let user_text = match &request.input {
@@ -45,9 +45,7 @@ pub(super) fn execute(route: &ProviderRoute, request: &ProviderRequest) -> Resul
         .post(&url)
         .json(&GeminiRequest {
             system_instruction: Some(GeminiSystemInstruction {
-                parts: vec![GeminiTextPart {
-                    text: request.system.clone(),
-                }],
+                parts: vec![GeminiTextPart { text: request.system.clone() }],
             }),
             contents: vec![GeminiContent {
                 role: "user".to_string(),

@@ -51,7 +51,9 @@ impl WhatsAppClient {
         let has_id = std::env::var("PRAXIS_WHATSAPP_PHONE_ID").is_ok();
         let has_token = std::env::var("PRAXIS_WHATSAPP_ACCESS_TOKEN").is_ok();
         if !has_id || !has_token {
-            bail!("PRAXIS_WHATSAPP_PHONE_ID and PRAXIS_WHATSAPP_ACCESS_TOKEN are required for WhatsApp");
+            bail!(
+                "PRAXIS_WHATSAPP_PHONE_ID and PRAXIS_WHATSAPP_ACCESS_TOKEN are required for WhatsApp"
+            );
         }
         Ok(())
     }
@@ -70,15 +72,10 @@ impl crate::messaging::Platform for WhatsAppClient {
         let request = WhatsAppMessageRequest {
             messaging_product: "whatsapp".to_string(),
             to: target.to_string(),
-            text: WhatsAppText {
-                body: text.to_string(),
-            },
+            text: WhatsAppText { body: text.to_string() },
         };
 
-        let url = format!(
-            "https://graph.facebook.com/v19.0/{}/messages",
-            self.phone_id
-        );
+        let url = format!("https://graph.facebook.com/v19.0/{}/messages", self.phone_id);
 
         let response = self
             .client
@@ -104,10 +101,7 @@ impl crate::messaging::Platform for WhatsAppClient {
             caption: caption.map(str::to_string),
         };
 
-        let url = format!(
-            "https://graph.facebook.com/v19.0/{}/media",
-            self.phone_id
-        );
+        let url = format!("https://graph.facebook.com/v19.0/{}/media", self.phone_id);
 
         let response = self
             .client

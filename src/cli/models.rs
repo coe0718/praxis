@@ -27,6 +27,15 @@ pub enum ModelCommand {
         /// Search query — matched against model id and name (case-insensitive).
         query: String,
     },
+    /// Discover available models from all configured providers.
+    Catalog {
+        /// Provider filter (e.g., "openai", "anthropic", "ollama").
+        #[arg(long)]
+        provider: Option<String>,
+        /// Show only models with context length >= this value.
+        #[arg(long)]
+        min_context: Option<u64>,
+    },
 }
 
 // ── Cached catalog types ──────────────────────────────────────────────────
@@ -97,6 +106,9 @@ pub fn handle_models(data_dir_override: Option<PathBuf>, args: ModelsArgs) -> Re
         ModelCommand::List => handle_list(&data_dir),
         ModelCommand::Fetch => handle_fetch(&data_dir),
         ModelCommand::Search { query } => handle_search(&data_dir, &query),
+        ModelCommand::Catalog { provider, min_context } => {
+            handle_catalog(&data_dir, provider.as_deref(), min_context)
+        }
     }
 }
 
@@ -253,6 +265,58 @@ fn handle_search(data_dir: &std::path::Path, query: &str) -> Result<String> {
 
     if matches.len() > 50 {
         lines.push(format!("  … and {} more", matches.len() - 50));
+    }
+
+    Ok(lines.join("\n"))
+}
+
+// ── catalog (model discovery) ──────────────────────────────────────────────
+
+fn handle_catalog(
+    data_dir: &std::path::Path,
+    provider_filter: Option<&str>,
+    min_context: Option<u64>,
+) -> Result<String> {
+    let catalog =
+        crate::model_catalog::ModelCatalog::load_from_config(&data_dir.join("providers.toml"))?;
+
+    let entries = catalog.entries();
+
+    let filtered: Vec<_> = entries
+        .iter()
+        .filter(|e| {
+            if let Some(pf) = provider_filter
+                && !e.model.provider.to_lowercase().contains(&pf.to_lowercase())
+            {
+                return false;
+            }
+            if let Some(min_ctx) = min_context
+                && e.model.context_window.unwrap_or(0) < min_ctx as u32
+            {
+                return false;
+            }
+            true
+        })
+        .collect();
+
+    if filtered.is_empty() {
+        return Ok("No models found matching filters.".to_string());
+    }
+
+    let mut lines = Vec::new();
+    lines.push(format!("Model catalog ({} models):", filtered.len()));
+    for entry in &filtered {
+        let ctx = entry
+            .model
+            .context_window
+            .map(|c| format!("ctx={c}"))
+            .unwrap_or_else(|| "ctx=?".to_string());
+        let price = entry
+            .model
+            .pricing_input_per_1m
+            .map(|c| format!(" in=${c:.2}/M"))
+            .unwrap_or_default();
+        lines.push(format!("  {}/{} — {}{}", entry.model.provider, entry.model.id, ctx, price));
     }
 
     Ok(lines.join("\n"))

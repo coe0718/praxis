@@ -386,7 +386,10 @@ fn check_platform_env(name: &str, connected: bool) -> String {
 
 fn count_skills(skills_dir: &std::path::Path) -> Result<usize> {
     if skills_dir.exists() {
-        Ok(std::fs::read_dir(skills_dir)?.filter_map(|e| e.ok()).filter(|e| e.path().is_dir() && e.path().join("SKILL.md").exists()).count())
+        Ok(std::fs::read_dir(skills_dir)?
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().is_dir() && e.path().join("SKILL.md").exists())
+            .count())
     } else {
         Ok(0)
     }

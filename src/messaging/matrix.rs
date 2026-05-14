@@ -43,7 +43,9 @@ impl MatrixClient {
         let has_token = std::env::var("PRAXIS_MATRIX_ACCESS_TOKEN").is_ok();
         let has_user = std::env::var("PRAXIS_MATRIX_USER_ID").is_ok();
         if !has_hs || !has_token || !has_user {
-            bail!("PRAXIS_MATRIX_HOMESERVER, PRAXIS_MATRIX_ACCESS_TOKEN, and PRAXIS_MATRIX_USER_ID are required for Matrix");
+            bail!(
+                "PRAXIS_MATRIX_HOMESERVER, PRAXIS_MATRIX_ACCESS_TOKEN, and PRAXIS_MATRIX_USER_ID are required for Matrix"
+            );
         }
         Ok(())
     }

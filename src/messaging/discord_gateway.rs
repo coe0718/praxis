@@ -9,7 +9,7 @@
 
 use std::time::Duration;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use futures::{SinkExt, StreamExt};
 use serde::Deserialize;
 use tokio::time::{interval, sleep};
@@ -104,7 +104,10 @@ pub async fn run_gateway(bus: std::sync::Arc<dyn MessageBus + Send + Sync>, toke
     }
 }
 
-async fn run_gateway_once(bus: std::sync::Arc<dyn MessageBus + Send + Sync>, token: &str) -> Result<()> {
+async fn run_gateway_once(
+    bus: std::sync::Arc<dyn MessageBus + Send + Sync>,
+    token: &str,
+) -> Result<()> {
     log::info!("discord gateway: connecting to {GATEWAY_URL}");
     let (ws_stream, _) = connect_async(GATEWAY_URL).await.context("gateway connection failed")?;
     log::info!("discord gateway: connected");

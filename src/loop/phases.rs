@@ -1221,8 +1221,11 @@ pub(crate) fn notify_approval_request(approval_id: i64, tool_name: &str, summary
 
     // ── Email notification ───────────────────────────────────────────────
     if let Ok(email) = crate::messaging::EmailClient::from_env() {
-        let target = std::env::var("PRAXIS_EMAIL_RECIPIENT").unwrap_or_else(|_| "operator".to_string());
-        let email_text = format!("Approval required #{approval_id}: {tool_name}\n{summary}\n\nApprove: {approve_data} | Deny: {deny_data}");
+        let target =
+            std::env::var("PRAXIS_EMAIL_RECIPIENT").unwrap_or_else(|_| "operator".to_string());
+        let email_text = format!(
+            "Approval required #{approval_id}: {tool_name}\n{summary}\n\nApprove: {approve_data} | Deny: {deny_data}"
+        );
         if let Err(e) = email.send_message(&target, &email_text) {
             log::warn!("failed to send Email approval notification: {e}");
         }
@@ -1230,7 +1233,8 @@ pub(crate) fn notify_approval_request(approval_id: i64, tool_name: &str, summary
 
     // ── SMS notification ───────────────────────────────────────────────────
     if let Ok(sms) = crate::messaging::SmsClient::from_env() {
-        let target = std::env::var("PRAXIS_SMS_RECIPIENT").unwrap_or_else(|_| "+15551234567".to_string());
+        let target =
+            std::env::var("PRAXIS_SMS_RECIPIENT").unwrap_or_else(|_| "+15551234567".to_string());
         let sms_text = format!("Approve:{} / Deny:{}", approve_data, deny_data);
         if let Err(e) = sms.send_message(&target, &sms_text) {
             log::warn!("failed to send SMS approval notification: {e}");
@@ -1239,8 +1243,11 @@ pub(crate) fn notify_approval_request(approval_id: i64, tool_name: &str, summary
 
     // ── Signal notification ─────────────────────────────────────────────────
     if let Ok(signal) = crate::messaging::SignalClient::from_env() {
-        let target = std::env::var("PRAXIS_SIGNAL_RECIPIENT").unwrap_or_else(|_| "+15551234567".to_string());
-        let signal_text = format!("Approval required #{approval_id}: {tool_name}\n{summary}\n\nApprove: {approve_data} | Deny: {deny_data}");
+        let target =
+            std::env::var("PRAXIS_SIGNAL_RECIPIENT").unwrap_or_else(|_| "+15551234567".to_string());
+        let signal_text = format!(
+            "Approval required #{approval_id}: {tool_name}\n{summary}\n\nApprove: {approve_data} | Deny: {deny_data}"
+        );
         if let Err(e) = signal.send_message(&target, &signal_text) {
             log::warn!("failed to send Signal approval notification: {e}");
         }
@@ -1248,8 +1255,11 @@ pub(crate) fn notify_approval_request(approval_id: i64, tool_name: &str, summary
 
     // ── Matrix notification ─────────────────────────────────────────────────
     if let Ok(matrix) = crate::messaging::MatrixClient::from_env() {
-        let target = std::env::var("PRAXIS_MATRIX_ROOM").unwrap_or_else(|_| "!main:matrix.org".to_string());
-        let matrix_text = format!("Approval required #{approval_id}: {tool_name}\n{summary}\n\nApprove: {approve_data} | Deny: {deny_data}");
+        let target =
+            std::env::var("PRAXIS_MATRIX_ROOM").unwrap_or_else(|_| "!main:matrix.org".to_string());
+        let matrix_text = format!(
+            "Approval required #{approval_id}: {tool_name}\n{summary}\n\nApprove: {approve_data} | Deny: {deny_data}"
+        );
         if let Err(e) = matrix.send_message(&target, &matrix_text) {
             log::warn!("failed to send Matrix approval notification: {e}");
         }
@@ -1257,8 +1267,11 @@ pub(crate) fn notify_approval_request(approval_id: i64, tool_name: &str, summary
 
     // ── WhatsApp notification ───────────────────────────────────────────────
     if let Ok(whatsapp) = crate::messaging::WhatsAppClient::from_env() {
-        let target = std::env::var("PRAXIS_WHATSAPP_RECIPIENT").unwrap_or_else(|_| "15551234567".to_string());
-        let wa_text = format!("Approval #{approval_id}: {tool_name}\n{summary}\n\nReply: {approve_data} to approve");
+        let target = std::env::var("PRAXIS_WHATSAPP_RECIPIENT")
+            .unwrap_or_else(|_| "15551234567".to_string());
+        let wa_text = format!(
+            "Approval #{approval_id}: {tool_name}\n{summary}\n\nReply: {approve_data} to approve"
+        );
         if let Err(e) = whatsapp.send_message(&target, &wa_text) {
             log::warn!("failed to send WhatsApp approval notification: {e}");
         }

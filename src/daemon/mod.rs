@@ -372,14 +372,15 @@ async fn async_daemon_loop(
         let providers = crate::providers::ProviderSettings::load_or_default(&paths.providers_file)?;
         let names: Vec<&str> = providers.providers.iter().map(|r| r.provider.as_str()).collect();
         crate::backend::init_pools(&names);
-};
+    };
     // ── Discord Gateway WebSocket (real-time push) ────────────────────────
     #[cfg(feature = "discord")]
     let _discord_gateway_handle = {
         let token = std::env::var("PRAXIS_DISCORD_BOT_TOKEN").ok();
         if let Some(token) = token {
             let bus = crate::bus::FileBus::new(paths.bus_file.clone());
-            let bus = std::sync::Arc::new(bus) as std::sync::Arc<dyn crate::bus::MessageBus + Send + Sync>;
+            let bus = std::sync::Arc::new(bus)
+                as std::sync::Arc<dyn crate::bus::MessageBus + Send + Sync>;
             log::info!("daemon: starting Discord Gateway for real-time message delivery");
             Some(tokio::spawn(async move {
                 crate::messaging::run_gateway(bus, token).await;
