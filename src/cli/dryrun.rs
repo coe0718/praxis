@@ -274,7 +274,8 @@ pub fn handle_plan(data_dir: Option<PathBuf>, args: super::PlanArgs) -> Result<S
                 }
             }
             let _ = plan.save(&plans_dir);
-            Ok(result.summary())
+            let status = if result.is_ok() { "OK" } else { "FAILED" };
+            Ok(format!("[{}] {}", status, result.summary()))
         }
         super::PlanCommand::List => {
             let plans = list_plans(&plans_dir)?;
